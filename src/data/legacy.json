@@ -1,0 +1,298 @@
+{
+  "sounds": [
+    {
+      "id": "ambatukam",
+      "name": "Ambatukam",
+      "file": "/assets/sounds/ambatukam.mp3",
+      "category": "Classics",
+      "color": 0
+    },
+    {
+      "id": "ambatukaaaaaam",
+      "name": "Ambatukaaaaam",
+      "file": "/assets/sounds/ambatukaaaaaam.mp3",
+      "category": "Classics",
+      "color": 1
+    },
+    {
+      "id": "ambasing",
+      "name": "Ambasing",
+      "file": "/assets/sounds/ambasing.mp3",
+      "category": "Classics",
+      "color": 2
+    },
+    {
+      "id": "ambasing_full",
+      "name": "Ambasing (full version)",
+      "file": "/assets/sounds/ambasing_full.mp3",
+      "category": "Classics",
+      "color": 3
+    },
+    {
+      "id": "ambatufakingnut",
+      "name": "Ambatufakingnut",
+      "file": "/assets/sounds/ambatufakingnut.mp3",
+      "category": "The crew",
+      "color": 0
+    },
+    {
+      "id": "ambatunat",
+      "name": "Ambatunat",
+      "file": "/assets/sounds/ambatunat.mp3",
+      "category": "Classics",
+      "color": 1
+    },
+    {
+      "id": "ambatukam_choir",
+      "name": "Ambatukam choir",
+      "file": "/assets/sounds/ambatukam_choir.mp3",
+      "category": "Remixes",
+      "color": 2
+    },
+    {
+      "id": "ambatukam_spongebob",
+      "name": "Ambatukam spongebob",
+      "file": "/assets/sounds/ambatukam_spongebob.mp3",
+      "category": "Remixes",
+      "color": 3
+    },
+    {
+      "id": "ambatukam_ikuyo",
+      "name": "Ambatukam kita",
+      "file": "/assets/sounds/ambatukam_ikuyo.mp3",
+      "category": "Remixes",
+      "color": 0
+    },
+    {
+      "id": "bunda_rahma",
+      "name": "Bunda Rahma",
+      "file": "/assets/sounds/bunda_rahma.mp3",
+      "category": "The crew",
+      "color": 1
+    },
+    {
+      "id": "bus",
+      "name": "Bus",
+      "file": "/assets/sounds/bus.mp3",
+      "category": "The crew",
+      "color": 2
+    },
+    {
+      "id": "ambaturemix",
+      "name": "Ambaturemix",
+      "file": "/assets/sounds/ambaturemix.mp3",
+      "category": "Remixes",
+      "color": 3
+    },
+    {
+      "id": "ambaturemix_2",
+      "name": "Ambaturemix #2",
+      "file": "/assets/sounds/ambaturemix_2.mp3",
+      "category": "Remixes",
+      "color": 0
+    },
+    {
+      "id": "classical_music",
+      "name": "Classical Music",
+      "file": "/assets/sounds/classical_music.mp3",
+      "category": "Remixes",
+      "color": 1
+    },
+    {
+      "id": "classical_music_2",
+      "name": "Classical Music #2",
+      "file": "/assets/sounds/classical_music_2.mp3",
+      "category": "Remixes",
+      "color": 2
+    },
+    {
+      "id": "ambatublou",
+      "name": "Ambatublou",
+      "file": "/assets/sounds/ambatublou.mp3",
+      "category": "Classics",
+      "color": 3
+    },
+    {
+      "id": "ambatublou_sad",
+      "name": "Ambatublou :(",
+      "file": "/assets/sounds/ambatublou_sad.mp3",
+      "category": "Classics",
+      "color": 0
+    },
+    {
+      "id": "i_want_it",
+      "name": "I want it",
+      "file": "/assets/sounds/i_want_it.mp3",
+      "category": "Classics",
+      "color": 1
+    },
+    {
+      "id": "kakangku",
+      "name": "Kakangku",
+      "file": "/assets/sounds/kakangku.mp3",
+      "category": "The crew",
+      "color": 2
+    },
+    {
+      "id": "nissan",
+      "name": "Nissan",
+      "file": "/assets/sounds/nissan.mp3",
+      "category": "The crew",
+      "color": 3
+    },
+    {
+      "id": "nissan_full",
+      "name": "Nissan (full)",
+      "file": "/assets/sounds/nissan_full.mp3",
+      "category": "The crew",
+      "color": 0
+    },
+    {
+      "id": "omaygot",
+      "name": "Omaygot",
+      "file": "/assets/sounds/omaygot.mp3",
+      "category": "Classics",
+      "color": 1
+    },
+    {
+      "id": "possessed_dreamybull",
+      "name": "Possessed Dreamybull",
+      "file": "/assets/sounds/possessed_dreamybull.mp3",
+      "category": "Classics",
+      "color": 2
+    },
+    {
+      "id": "ughh",
+      "name": "Ughh",
+      "file": "/assets/sounds/ughh.mp3",
+      "category": "Classics",
+      "color": 3
+    },
+    {
+      "id": "stretch_this_ahh",
+      "name": "Stretch this ahh",
+      "file": "/assets/sounds/stretch_this_ahh.mp3",
+      "category": "Classics",
+      "color": 0
+    },
+    {
+      "id": "yes_king",
+      "name": "Yes King",
+      "file": "/assets/sounds/yes_king.mp3",
+      "category": "The crew",
+      "color": 1
+    }
+  ],
+  "characters": [
+    {
+      "id": "dreamy",
+      "name": "DreamybullXXX",
+      "image": "/assets/dreamy.jpg",
+      "header": "/assets/dreamybull_header.jpg",
+      "paragraphs": [
+        "Perrell Brown, more known by his online name DreamybullXXX, is an internet personality, most notable for his workout videos on Twitter.",
+        "DreamybullXXX was born on April 20, 1989 in Barangay Ambasing, Sagada, Philippines. His Japanese parents migrated to the Philippines in 1981 during the insurgency of Badublou on their hometown that began right after the kamikaze death of his grandfather, Amuba Tokamu.",
+        "His workout career on Twitter began to blow up after the success of his promotional campaign in early 2021, showing his entire body to many of his twitter followers doing the so-called \"Bussing Challenge\". This led to more engagement on his Twitter account and pushing him to pursue his bodybuilding career even more."
+      ],
+      "links": ["https://www.twitter.com/dreamybullxxx"]
+    },
+    {
+      "id": "ankaming",
+      "name": "Amkaming",
+      "image": "/assets/ankaming.jpg",
+      "header": "/assets/ankaming_header.jpg",
+      "paragraphs": [
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec molestie magna a lectus lobortis, quis porttitor nibh lacinia. Curabitur tincidunt turpis luctus magna tincidunt cursus eu congue lorem. Nullam ut dictum arcu, at faucibus quam. Vivamus lacinia tellus ac urna malesuada consequat. Cras venenatis mauris non tristique malesuada. Nam et ultrices mi. Nulla molestie quam ac nisi scelerisque, eu rutrum sem euismod. Proin non nisi tellus. Mauris vehicula commodo leo non congue. Praesent et aliquet augue, sit amet dapibus justo."
+      ],
+      "links": ["https://twitter.com/inndigold", "https://allmylinks.com/realeshamae"]
+    },
+    {
+      "id": "ampassing",
+      "name": "Ampassing",
+      "image": "/assets/ampassing.jpg",
+      "header": "/assets/ampassing.jpg",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "axel",
+      "name": "Axel",
+      "image": "/assets/axel.jpg",
+      "header": "/assets/axel_header.jpg",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "hump_day",
+      "name": "Brandon Currington",
+      "image": "/assets/hump_day.jpg",
+      "header": "/assets/hump_day_header.jpg",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "bunda",
+      "name": "Bunda Rahma",
+      "image": "/assets/bunda.jpg",
+      "header": "/assets/bunda.jpg",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "bus_soldier",
+      "name": "Bus Soldier",
+      "image": "/assets/bus_soldier.png",
+      "header": "/assets/bus_soldier.png",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "daddy_amkaming",
+      "name": "Daddy Amkaming",
+      "image": "/assets/daddy_amkaming.jpg",
+      "header": "/assets/daddy_amkaming.jpg",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "kakangku",
+      "name": "Kakangku",
+      "image": "/assets/kakangku.jpg",
+      "header": "/assets/kakangku.jpg",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "nissan",
+      "name": "Nissan",
+      "image": "/assets/nissan.jpg",
+      "header": "/assets/nissan_2.jpg",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "turbulence_man",
+      "name": "Turbulence Man",
+      "image": "/assets/turbulence_man.jpg",
+      "header": "/assets/turbulence_man.jpg",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "viktor",
+      "name": "Viktor",
+      "image": "/assets/viktor.jpg",
+      "header": "/assets/viktor.jpg",
+      "paragraphs": [],
+      "links": []
+    },
+    {
+      "id": "yes_king",
+      "name": "Yes King",
+      "image": "/assets/yes_king.jpg",
+      "header": "/assets/yes_king_header.jpg",
+      "paragraphs": [],
+      "links": []
+    }
+  ]
+}

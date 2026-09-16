@@ -1,0 +1,9 @@
+node_modules
+.next
+out
+android
+ios
+package-lock.json
+test-results
+playwright-report
+next-env.d.ts
