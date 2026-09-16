@@ -29,7 +29,7 @@ export default function Home() {
             <span className="hero-line">{t('home.hero1')}</span>
             <span className="hero-line">{t('home.hero2')}</span>
             <span className="hero-line hero-punch">
-              ambatu.<span className="hero-asterisk">✳</span>
+              ambafun.<span className="hero-asterisk">✳</span>
             </span>
           </h1>
           <p>{t('home.heroBody')}</p>
@@ -74,7 +74,7 @@ export default function Home() {
           <span className="hero-caption">{t('home.groupChat')}</span>
         </div>
       </section>
-      <div className="ticker">
+      {/* <div className="ticker">
         <span>{t('home.tickerGang')}</span>
         <span>✳</span>
         <span>{t('home.tickerRepeat')}</span>
@@ -83,7 +83,7 @@ export default function Home() {
         <span>✳</span>
         <span>{t('home.tickerEnergy')}</span>
         <span>✳</span>
-      </div>
+      </div> */}
       <section className="section">
         <SectionHeading
           eyebrow={t('home.gamesEyebrow')}

@@ -6,7 +6,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'AmbatuApp — A little chaos. A lot of fun.', template: '%s · AmbatuApp' },
   description:
-    'Your little corner of internet chaos. Play the classics, find your favorite sounds, and meet the Ambatuverse.',
+    'Your little corner of internet chaos. Play the classics, find your favorite sounds, and meet the Ambaverse.',
 };
 export const viewport: Viewport = {
   width: 'device-width',
