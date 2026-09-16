@@ -5,8 +5,10 @@ import { getCharacters, type Character } from '@/lib/characters';
 import { fetchJson, parseVideos, type Video } from '@/lib/feeds';
 import { openExternal } from '@/lib/native';
 import { EmptyState } from './cards';
+import { useI18n } from './i18n-provider';
 const endpoint = process.env.NEXT_PUBLIC_VIDEO_FEED_URL;
 export function WatchFeed() {
+  const { t } = useI18n();
   const [q, setQ] = useState(''),
     [videos, setVideos] = useState<Video[]>([]),
     [status, setStatus] = useState(endpoint ? 'loading' : 'unconfigured'),
@@ -25,12 +27,12 @@ export function WatchFeed() {
       })
       .catch((e) => {
         if (!controller.signal.aborted) {
-          setError(e instanceof Error ? e.message : 'Could not load videos.');
+          setError(e instanceof Error ? e.message : t('watch.loadError'));
           setStatus('error');
         }
       });
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, t]);
   const filtered = videos.filter((v) =>
     `${v.title} ${v.channel}`.toLowerCase().includes(q.toLowerCase()),
   );
@@ -48,20 +50,20 @@ export function WatchFeed() {
         <label className="search-box">
           <Search size={18} />
           <input
-            aria-label="Search videos"
-            placeholder="Find a clip, a remix, a rabbit hole…"
+            aria-label={t('watch.searchLabel')}
+            placeholder={t('watch.searchPlaceholder')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
         <button className="button dark compact" type="submit">
-          Search YouTube
+          {t('watch.searchYouTube')}
           <ArrowUpRight size={16} />
         </button>
       </form>
       {status === 'loading' && (
         <div className="loading-panel" role="status">
-          Finding your next detour…
+          {t('watch.loading')}
         </div>
       )}
       {status === 'error' && (
@@ -75,7 +77,7 @@ export function WatchFeed() {
             }}
           >
             <RefreshCw size={15} />
-            Try again
+            {t('watch.tryAgain')}
           </button>
         </div>
       )}
@@ -96,16 +98,16 @@ export function WatchFeed() {
           </div>
         ) : (
           <EmptyState
-            title="No clips found."
-            description="Try another search, or head to YouTube with the search button above."
+            title={t('watch.none')}
+            description={t('watch.noneHint')}
           />
         ))}
       {status !== 'ready' && (
         <>
           <div className="section-heading">
             <div>
-              <p className="eyebrow">PICK YOUR NEXT DETOUR</p>
-              <h2>Explore the originals.</h2>
+              <p className="eyebrow">{t('watch.pick')}</p>
+              <h2>{t('watch.originals')}</h2>
             </div>
           </div>
           <div className="video-grid">
@@ -128,13 +130,13 @@ export function WatchFeed() {
                     {c.name}
                     <span className="orange-text"> ↗</span>
                   </h3>
-                  <p>Explore clips & remixes on YouTube</p>
+                  <p>{t('watch.exploreYouTube')}</p>
                 </button>
               ))}
           </div>
           {status === 'unconfigured' && (
             <p className="feed-notice">
-              Explore videos directly on YouTube. A live community feed hasn’t been connected yet.
+              {t('watch.unconfigured')}
             </p>
           )}
         </>

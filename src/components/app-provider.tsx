@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { Capacitor } from '@capacitor/core';
 import { sounds, type Sound } from '@/lib/catalog';
 import { haptic } from '@/lib/native';
+import { useI18n } from './i18n-provider';
 type Saved = { favorites: string[]; scores: Record<string, number>; plays: number; volume: number };
 const defaults: Saved = { favorites: [], scores: {}, plays: 0, volume: 0.7 };
 type AppContext = Saved & {
@@ -18,6 +19,7 @@ type AppContext = Saved & {
 };
 const Context = createContext<AppContext | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const [saved, setSaved] = useState(defaults);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState<string[]>([]);
@@ -116,7 +118,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     audio.onerror = () => {
       if (players.current.get(sound.id) !== audio) return;
       clear();
-      setError(`Could not play ${sound.name}. Please try again.`);
+      setError(t('errors.audioNamed', { name: sound.name }));
     };
     void audio
       .play()
@@ -124,7 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {
         if (players.current.get(sound.id) !== audio) return;
         clear();
-        setError('Audio could not start. Tap a sound to try again.');
+        setError(t('errors.audioStart'));
       });
     void haptic();
   }

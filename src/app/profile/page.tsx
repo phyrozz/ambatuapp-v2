@@ -1,12 +1,14 @@
+'use client';
 import { ProfilePanel } from '@/components/profile';
-export const metadata = { title: 'MyDreamy' };
+import { useI18n } from '@/components/i18n-provider';
 export default function Profile() {
+  const { t } = useI18n();
   return (
     <div className="page">
       <div className="page-heading">
-        <p className="eyebrow">A SPACE THAT’S ALL YOURS</p>
-        <h1>Hey, main character.</h1>
-        <p>Your favorite sounds, personal bests, and a little piece of the Ambatuverse.</p>
+        <p className="eyebrow">{t('profile.eyebrow')}</p>
+        <h1>{t('profile.title')}</h1>
+        <p>{t('profile.description')}</p>
       </div>
       <ProfilePanel />
     </div>

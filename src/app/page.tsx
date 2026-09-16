@@ -6,42 +6,41 @@ import { games, sounds } from '@/lib/catalog';
 import { getCharacters, type Character } from '@/lib/characters';
 import { GameCard, SoundCard, CharacterCard } from '@/components/cards';
 import { SectionHeading } from '@/components/shell';
+import { useI18n } from '@/components/i18n-provider';
 export default function Home() {
+  const { t } = useI18n();
   const [characters, setCharacters] = useState<Character[]>([]);
   useEffect(() => { void getCharacters().then(setCharacters).catch(() => {}); }, []);
   return (
     <div className="page home-page">
       <div className="welcome">
         <p className="eyebrow">
-          <span className="tiny-star">✳</span> WELCOME TO YOUR HAPPY PLACE
+          <span className="tiny-star">✳</span> {t('home.welcome')}
         </p>
-        <span className="edition">THE AMBATUVERSE · VOL. 01</span>
+        <span className="edition">{t('home.edition')}</span>
       </div>
       <section className="hero">
         <div className="hero-copy">
           <span className="pill">
             <span />
-            100% GOOD VIBES. 0% SERIOUS.
+            {t('home.goodVibes')}
           </span>
           <h1>
-            <span className="hero-line">Life’s too short.</span>
-            <span className="hero-line">Get a little</span>
+            <span className="hero-line">{t('home.hero1')}</span>
+            <span className="hero-line">{t('home.hero2')}</span>
             <span className="hero-line hero-punch">
               ambatu.<span className="hero-asterisk">✳</span>
             </span>
           </h1>
-          <p>
-            Your favorite faces. Iconic sounds. Games you’ll
-            <br className="desktop-only" /> play “just one more time.” Welcome to the club.
-          </p>
+          <p>{t('home.heroBody')}</p>
           <div className="hero-actions">
             <Link href="/games/" className="button dark">
               <Gamepad2 size={20} />
-              Let’s play
+              {t('shell.letsPlay')}
               <ArrowUpRight size={19} />
             </Link>
             <Link href="/soundboard/" className="hero-secondary">
-              Hit the soundboard
+              {t('home.soundboardCta')}
               <ArrowRight size={18} />
             </Link>
           </div>
@@ -51,46 +50,46 @@ export default function Home() {
                 <img key={c.id} src={c.image} alt="" />
               ))}
             </span>
-            <span>Same legends. A whole new playground.</span>
+            <span>{t('home.playground')}</span>
           </div>
         </div>
         <div className="hero-visual">
-          <span className="orbit-text">CERTIFIED INTERNET CLASSIC</span>
+          <span className="orbit-text">{t('home.classic')}</span>
           <div className="hero-photo">
             <img src="/assets/dreamy_smiling.jpg" alt="Dreamybull smiling" />
             <div>
-              <span>THE ORIGINAL.</span>
+              <span>{t('home.original')}</span>
               <b>
                 Dreamybull <span>↗</span>
               </b>
             </div>
           </div>
           <span className="hero-sticker sticker-top">
-            <Sparkles size={18} /> main character energy
+            <Sparkles size={18} /> {t('home.mainEnergy')}
           </span>
           <span className="hero-sticker sticker-bottom">
-            <AudioLines size={22} /> you already know.
+            <AudioLines size={22} /> {t('home.youKnow')}
           </span>
           <span className="doodle">✦</span>
-          <span className="hero-caption">EST. IN THE GROUP CHAT ↗</span>
+          <span className="hero-caption">{t('home.groupChat')}</span>
         </div>
       </section>
       <div className="ticker">
-        <span>THE GANG’S ALL HERE</span>
+        <span>{t('home.tickerGang')}</span>
         <span>✳</span>
-        <span>PLAY. LAUGH. REPEAT.</span>
+        <span>{t('home.tickerRepeat')}</span>
         <span>✳</span>
-        <span>A LITTLE INTERNET HISTORY</span>
+        <span>{t('home.tickerHistory')}</span>
         <span>✳</span>
-        <span>BIG MAIN CHARACTER ENERGY</span>
+        <span>{t('home.tickerEnergy')}</span>
         <span>✳</span>
       </div>
       <section className="section">
         <SectionHeading
-          eyebrow="PRESS PLAY, FORGET THE REST"
-          title="Small games. Big energy."
+          eyebrow={t('home.gamesEyebrow')}
+          title={t('home.gamesTitle')}
           href="/games/"
-          link="All games"
+          link={t('home.allGames')}
         />
         <div className="game-grid">
           {games.map((game) => (
@@ -100,10 +99,10 @@ export default function Home() {
       </section>
       <section className="section sound-section">
         <SectionHeading
-          eyebrow="SOUNDS YOU CAN HEAR JUST BY READING"
-          title="The sound of the internet."
+          eyebrow={t('home.soundsEyebrow')}
+          title={t('home.soundsTitle')}
           href="/soundboard/"
-          link="Open soundboard"
+          link={t('home.openSoundboard')}
         />
         <div className="sound-grid">
           {[sounds[0], sounds[2], sounds[15], sounds[25]].map((sound, i) => (
@@ -111,15 +110,15 @@ export default function Home() {
           ))}
         </div>
         <p className="section-footnote">
-          <AudioLines size={14} /> Tap to play. Layer the chaos. Headphones recommended.
+          <AudioLines size={14} /> {t('home.soundHint')}
         </p>
       </section>
       <section className="section">
         <SectionHeading
-          eyebrow="KNOW YOUR LEGENDS"
-          title="Meet the Ambatuverse."
+          eyebrow={t('home.legendsEyebrow')}
+          title={t('home.legendsTitle')}
           href="/characters/"
-          link="The whole crew"
+          link={t('home.wholeCrew')}
         />
         <div className="character-grid home-characters">
           {[
@@ -135,12 +134,12 @@ export default function Home() {
           <Play size={27} fill="currentColor" />
         </span>
         <div>
-          <p className="eyebrow">DOWN THE RABBIT HOLE</p>
-          <h2>There’s always one more clip.</h2>
-          <p>Your next internet detour starts at AmbatuWatch.</p>
+          <p className="eyebrow">{t('home.rabbitHole')}</p>
+          <h2>{t('home.clipTitle')}</h2>
+          <p>{t('home.clipBody')}</p>
         </div>
         <span className="button dark">
-          Explore videos
+          {t('home.exploreVideos')}
           <ArrowUpRight size={19} />
         </span>
       </Link>

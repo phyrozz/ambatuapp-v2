@@ -19,13 +19,14 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useApp } from './app-provider';
+import { useI18n } from './i18n-provider';
 const nav = [
-  { href: '/', label: 'Discover', Icon: House },
-  { href: '/games/', label: 'Mini-games', Icon: Gamepad2 },
-  { href: '/soundboard/', label: 'Soundboard', Icon: AudioLines },
-  { href: '/characters/', label: 'Characters', Icon: UsersRound },
-  { href: '/lores/', label: 'Lore', Icon: BookOpen },
-  { href: '/watch/', label: 'AmbatuWatch', Icon: Play },
+  { href: '/', key: 'nav.discover', Icon: House },
+  { href: '/games/', key: 'nav.games', shortKey: 'nav.gamesShort', Icon: Gamepad2 },
+  { href: '/soundboard/', key: 'nav.soundboard', Icon: AudioLines },
+  { href: '/characters/', key: 'nav.characters', Icon: UsersRound },
+  { href: '/lores/', key: 'nav.lore', Icon: BookOpen },
+  { href: '/watch/', key: 'nav.watch', shortKey: 'nav.watchShort', Icon: Play },
 ];
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -33,6 +34,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [topbarHidden, setTopbarHidden] = useState(false);
   const [topbarScrolled, setTopbarScrolled] = useState(false);
   const { current, playing, stop, volume, setVolume, error } = useApp();
+  const { locale, locales, localeNames, setLocale, t } = useI18n();
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const listener = import('@capacitor/app').then(({ App }) =>
@@ -61,10 +64,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, [path]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   return (
     <>
       <a href="#main" className="skip-link">
-        Skip to content
+        {t('shell.skip')}
       </a>
       <aside className="sidebar">
         <Link href="/" className="brand">
@@ -73,19 +77,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </span>
           <span>
             ambatu<span className="orange-text">app</span>
-            <small>THE INTERNET’S HAPPY PLACE</small>
+            <small>{t('shell.tagline')}</small>
           </span>
         </Link>
-        <p className="nav-label">YOUR DAILY DOSE</p>
-        <nav aria-label="Main navigation">
-          {nav.map(({ href, label, Icon }) => (
+        <p className="nav-label">{t('shell.dailyDose')}</p>
+        <nav aria-label={t('shell.mainNavigation')}>
+          {nav.map(({ href, key, Icon }) => (
             <Link
               key={href}
               href={href}
               className={`nav-item ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
             >
               <Icon size={20} />
-              <span>{label}</span>
+              <span>{t(key)}</span>
               {href === '/games/' && <small>4</small>}
             </Link>
           ))}
@@ -93,45 +97,47 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="nav-divider" />
         <Link className={`nav-item ${path === '/favorites/' ? 'active' : ''}`} href="/favorites/">
           <Heart size={20} />
-          Your favorites
+          {t('nav.favorites')}
         </Link>
         <Link className={`nav-item ${path === '/profile/' ? 'active' : ''}`} href="/profile/">
           <UserRound size={20} />
-          MyDreamy
+          {t('nav.profile')}
         </Link>
         <div className="sidebar-bottom">
           <div className="good-vibes">
             <Sparkles size={21} />
-            <b>Made for the plot.</b>
-            <p>
-              A little weird. A lot of fun.
-              <br />
-              Always a good time.
-            </p>
+            <b>{t('shell.plot')}</b>
+            <p>{t('shell.vibes').split('\n').map((line, index) => <span key={line}>{index > 0 && <br />}{line}</span>)}</p>
             <Link href="/games/">
-              Let’s play <ArrowUpRight size={16} />
+              {t('shell.letsPlay')} <ArrowUpRight size={16} />
             </Link>
           </div>
           <span className="sidebar-credit">
-            An unofficial fan project <span>✳</span>
+            {t('shell.fanProject')} <span>✳</span>
           </span>
         </div>
       </aside>
       <div className="workspace">
         <header className={`topbar ${topbarHidden ? 'topbar-hidden' : ''} ${topbarScrolled ? 'topbar-scrolled' : ''}`}>
           <span className="topbar-note">
-            <span className="status-dot" /> A little chaos. A lot of fun.
+            <span className="status-dot" /> {t('shell.chaos')}
           </span>
           <Link href="/" className="mobile-brand">
             ambatu<span>app</span> ✳
           </Link>
           <div>
-            <Link href="/favorites/" className="icon-button" aria-label="Your favorites">
+            <label className="language-picker">
+              <span className="sr-only">{t('language.label')}</span>
+              <select value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)} aria-label={t('language.label')}>
+                {locales.map((item) => <option value={item} key={item}>{localeNames[item]}</option>)}
+              </select>
+            </label>
+            <Link href="/favorites/" className="icon-button" aria-label={t('nav.favorites')}>
               <Heart size={19} />
             </Link>
             <Link href="/profile/" className="profile-button">
               <img src="/assets/dreamy_face.jpg" alt="" />
-              <span>Your corner</span>
+              <span>{t('shell.yourCorner')}</span>
               <ArrowUpRight size={15} />
             </Link>
           </div>
@@ -141,22 +147,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </main>
         <footer className="footer">
           <span>
-            ambatuapp <span className="orange-text">✳</span> Stay a little unserious.
+            ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
           </span>
-          <span>Built for the community. Just for fun.</span>
+          <span>{t('shell.community')}</span>
         </footer>
       </div>
-      <nav className="mobile-nav" aria-label="Mobile navigation">
-        {nav.map(({ href, label, Icon }) => (
+      <nav className="mobile-nav" aria-label={t('shell.mobileNavigation')}>
+        {nav.map(({ href, key, shortKey, Icon }) => (
           <Link
             href={href}
             key={href}
             className={path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}
           >
             <Icon size={21} />
-            <span>
-              {label === 'Mini-games' ? 'Games' : label === 'AmbatuWatch' ? 'Watch' : label}
-            </span>
+            <span>{t(shortKey ?? key)}</span>
           </Link>
         ))}
       </nav>
@@ -165,14 +169,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span className="now-playing">
             <AudioLines size={23} />
             <span>
-              <small>NOW PLAYING {playing.length > 1 && `· ${playing.length} SOUNDS`}</small>
+              <small>{t('audio.nowPlaying')} {playing.length > 1 && `· ${t('audio.sounds', { count: playing.length })}`}</small>
               <b>{current.name}</b>
             </span>
           </span>
           <label className="volume">
             <Volume2 size={19} />
             <input
-              aria-label="Volume"
+              aria-label={t('audio.volume')}
               type="range"
               min="0"
               max="1"
@@ -183,7 +187,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </label>
           <button className="button dark compact" onClick={stop}>
             <Square size={14} fill="currentColor" />
-            Stop all
+            {t('audio.stopAll')}
           </button>
         </div>
       )}
@@ -200,7 +204,7 @@ export function SectionHeading({
   title,
   description,
   href,
-  link = 'Explore all',
+  link,
 }: {
   eyebrow?: string;
   title: string;
@@ -208,6 +212,7 @@ export function SectionHeading({
   href?: string;
   link?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="section-heading">
       <div>
@@ -217,7 +222,7 @@ export function SectionHeading({
       </div>
       {href && (
         <Link href={href} className="text-link">
-          {link}
+          {link ?? t('common.exploreAll')}
           <ArrowRight size={17} />
         </Link>
       )}

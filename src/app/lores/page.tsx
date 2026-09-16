@@ -1,3 +1,4 @@
+'use client';
 import { LoreFeed } from '@/components/lore-feed';
-export const metadata = { title: 'Lore' };
-export default function LoresPage() { return <div className="page"><div className="page-heading"><p className="eyebrow">AMBAVERSE ARCHIVE</p><h1>The lore runs deep.</h1><p>Stories, sightings, and the canon behind the characters.</p></div><LoreFeed /></div>; }
+import { useI18n } from '@/components/i18n-provider';
+export default function LoresPage() { const { t } = useI18n(); return <div className="page"><div className="page-heading"><p className="eyebrow">{t('lore.eyebrow')}</p><h1>{t('lore.title')}</h1><p>{t('lore.description')}</p></div><LoreFeed /></div>; }

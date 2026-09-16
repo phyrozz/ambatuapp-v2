@@ -1,12 +1,14 @@
+'use client';
 import { WatchFeed } from '@/components/watch-feed';
-export const metadata = { title: 'AmbatuWatch' };
+import { useI18n } from '@/components/i18n-provider';
 export default function Watch() {
+  const { t } = useI18n();
   return (
     <div className="page">
       <div className="page-heading">
-        <p className="eyebrow">YOUR NEXT INTERNET DETOUR</p>
-        <h1>There’s always one more clip.</h1>
-        <p>The originals, the remixes, the moments. Find your next favorite.</p>
+        <p className="eyebrow">{t('watch.eyebrow')}</p>
+        <h1>{t('watch.title')}</h1>
+        <p>{t('watch.description')}</p>
       </div>
       <WatchFeed />
     </div>

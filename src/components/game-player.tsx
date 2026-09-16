@@ -25,8 +25,10 @@ import {
 } from '@/lib/game-engine';
 import { useApp } from './app-provider';
 import { haptic } from '@/lib/native';
+import { useI18n } from './i18n-provider';
 type Status = 'ready' | 'playing' | 'paused' | 'over' | 'won';
 export function GamePlayer({ id }: { id: GameId }) {
+  const { t } = useI18n();
   const game = games.find((g) => g.id === id)!;
   const { scores, saveScore, volume, stop } = useApp();
   const [muted, setMuted] = useState(false);
@@ -53,21 +55,21 @@ export function GamePlayer({ id }: { id: GameId }) {
     <div className="page game-page">
       <Link className="back-link" href="/games/">
         <ArrowLeft size={17} />
-        Back to the arcade
+        {t('games.back')}
       </Link>
       <div className="section-heading">
         <div>
-          <p className="eyebrow">{game.category} · AMBATU ORIGINAL</p>
+          <p className="eyebrow">{t(`game.${game.id}.category`)} · {t('games.original')}</p>
           <h1>{game.name}</h1>
         </div>
         <div className="game-header-actions">
           <span className="best-pill">
             <Trophy size={16} />
-            Best: {scores[id] || 0}
+            {t('games.best', { score: scores[id] || 0 })}
           </span>
           <button
             className="icon-button"
-            aria-label={muted ? 'Unmute game' : 'Mute game'}
+            aria-label={t(muted ? 'games.unmute' : 'games.mute')}
             onClick={() => {
               setMuted(!muted);
               audio.current?.pause();
@@ -89,6 +91,7 @@ export function GamePlayer({ id }: { id: GameId }) {
 }
 type Props = { onScore: (n: number) => void; sound: (file?: string) => void };
 function TapGame({ onScore, sound }: Props) {
+  const { t } = useI18n();
   const [score, setScore] = useState(0),
     [combo, setCombo] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,19 +122,19 @@ function TapGame({ onScore, sound }: Props) {
   }
   return (
     <div className="tap-arena">
-      <div className="game-instructions">Keep tapping within one second to build your combo.</div>
-      <p className="eyebrow">TOTAL POINTS</p>
+      <div className="game-instructions">{t('tap.instructions')}</div>
+      <p className="eyebrow">{t('tap.total')}</p>
       <strong className="big-score" aria-live="polite">
         {score.toLocaleString()}
       </strong>
       <span className="combo-pill">
-        {combo ? `${combo}× COMBO · KEEP GOING!` : 'YOUR NEXT COMBO STARTS HERE'}
+        {combo ? t('tap.combo', { count: combo }) : t('tap.nextCombo')}
       </span>
-      <button className="tap-target" onClick={tap} aria-label="Tap Dreamy">
+      <button className="tap-target" onClick={tap} aria-label={t('tap.label')}>
         <img src="/assets/dreamy_face.jpg" alt="Dreamy" />
-        <span>TAP THAT ENERGY ↗</span>
+        <span>{t('tap.energy')}</span>
       </button>
-      <p>Click, tap, or focus the button and press Space.</p>
+      <p>{t('tap.controls')}</p>
       <button
         className="button secondary compact"
         onClick={() => {
@@ -143,12 +146,13 @@ function TapGame({ onScore, sound }: Props) {
         }}
       >
         <RotateCcw size={16} />
-        New round
+        {t('tap.newRound')}
       </button>
     </div>
   );
 }
 function MinesGame({ onScore, sound }: Props) {
+  const { t } = useI18n();
   const [difficulty, setDifficulty] = useState(0),
     [mines, setMines] = useState<Set<number>>(new Set()),
     [revealed, setRevealed] = useState<Set<number>>(new Set()),
@@ -203,15 +207,15 @@ function MinesGame({ onScore, sound }: Props) {
     <div className="mines-arena">
       <div className="game-controls">
         <label>
-          Difficulty{' '}
+          {t('mines.difficulty')}{' '}
           <select
-            aria-label="Difficulty"
+            aria-label={t('mines.difficulty')}
             value={difficulty}
             onChange={(e) => reset(+e.target.value)}
           >
-            <option value={0}>Easy · 10 mines</option>
-            <option value={1}>Medium · 20 mines</option>
-            <option value={2}>Hard · 30 mines</option>
+            <option value={0}>{t('mines.easy')}</option>
+            <option value={1}>{t('mines.medium')}</option>
+            <option value={2}>{t('mines.hard')}</option>
           </select>
         </label>
         <button
@@ -220,15 +224,15 @@ function MinesGame({ onScore, sound }: Props) {
           onClick={() => setFlagMode(!flagMode)}
         >
           <Flag size={16} />
-          {flagMode ? 'Flag mode on' : 'Flag mode'}
+          {t(flagMode ? 'mines.flagOn' : 'mines.flag')}
         </button>
-        <button className="icon-button" onClick={() => reset()} aria-label="Restart mines">
+        <button className="icon-button" onClick={() => reset()} aria-label={t('mines.restart')}>
           <RotateCcw size={19} />
         </button>
       </div>
       <div className="mines-status">
-        <span>⚑ {count - flags.size} remaining</span>
-        <span>{revealed.size} safe tiles</span>
+        <span>{t('mines.remaining', { count: count - flags.size })}</span>
+        <span>{t('mines.safeTiles', { count: revealed.size })}</span>
       </div>
       <div className="mines-board" style={{ gridTemplateColumns: `repeat(${size},1fr)` }}>
         {Array.from({ length: size * size }, (_, i) => {
@@ -244,7 +248,7 @@ function MinesGame({ onScore, sound }: Props) {
                 e.preventDefault();
                 flag(i);
               }}
-              aria-label={`Row ${Math.floor(i / size) + 1} column ${(i % size) + 1}: ${mine ? 'mine' : flags.has(i) ? 'flagged' : open ? `${n} neighboring mines` : 'hidden'}`}
+              aria-label={t('mines.cell', { row: Math.floor(i / size) + 1, column: (i % size) + 1, state: mine ? t('mines.mine') : flags.has(i) ? t('mines.flagged') : open ? t('mines.neighbors', { count: n }) : t('mines.hidden') })}
             >
               {mine ? '✹' : flags.has(i) ? '⚑' : open && n ? n : ''}
             </button>
@@ -253,21 +257,21 @@ function MinesGame({ onScore, sound }: Props) {
       </div>
       <div className="game-result" role="status">
         {status === 'over'
-          ? 'Ambatublou! You hit a mine. Try another round.'
+          ? t('mines.lost')
           : status === 'won'
-            ? 'Board cleared. Certified big brain energy!'
+            ? t('mines.won')
             : status === 'ready'
-              ? 'Pick any tile. Your first move is always safe.'
-              : 'Find every safe tile. The numbers tell you how many mines are nearby.'}
+              ? t('mines.ready')
+              : t('mines.playing')}
       </div>
       {(status === 'over' || status === 'won') && (
         <button className="button dark" onClick={() => reset()}>
           <RotateCcw size={17} />
-          Play again
+          {t('mines.playAgain')}
         </button>
       )}
       <p className="game-instructions">
-        Right-click to flag on desktop, or turn on Flag mode on mobile.
+        {t('mines.controls')}
       </p>
     </div>
   );
@@ -301,6 +305,7 @@ const initialWorld = (): World => ({
   ticks: 0,
 });
 function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
+  const { t } = useI18n();
   const canvas = useRef<HTMLCanvasElement>(null),
     world = useRef(initialWorld()),
     statusRef = useRef<Status>('ready'),
@@ -516,13 +521,13 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
     <div className="arcade-arena">
       <div className="game-controls">
         <span className="score-pill">
-          SCORE <b>{score}</b>
+          {t('arcade.score')} <b>{score}</b>
         </span>
         {kind === 'flappy-bus' && (
           <label>
-            Character{' '}
+            {t('arcade.character')}{' '}
             <select
-              aria-label="Character"
+              aria-label={t('arcade.character')}
               value={skin}
               disabled={status === 'playing'}
               onChange={(e) => setSkin(e.target.value)}
@@ -540,7 +545,7 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
           onClick={() => changeStatus(status === 'playing' ? 'paused' : 'playing')}
         >
           {status === 'paused' ? <Play size={16} /> : <Pause size={16} />}{' '}
-          {status === 'paused' ? 'Resume' : 'Pause'}
+          {t(status === 'paused' ? 'arcade.resume' : 'arcade.pause')}
         </button>
       </div>
       <div className="canvas-wrap">
@@ -551,8 +556,8 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
           tabIndex={0}
           aria-label={
             kind === 'ambatusnake'
-              ? 'Snake game. Use arrow keys or swipe to steer.'
-              : 'Flappy Bus. Press Space or tap to flap.'
+              ? t('arcade.snakeLabel')
+              : t('arcade.flappyLabel')
           }
           onClick={kind === 'flappy-bus' ? action : undefined}
           onTouchStart={(e) => {
@@ -573,60 +578,57 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
           <div className="game-overlay">
             <span className="eyebrow">
               {status === 'over'
-                ? 'ONE MORE TRY?'
+                ? t('arcade.tryAgain')
                 : status === 'paused'
-                  ? 'TAKE A BREATHER'
-                  : 'YOUR NEXT HIGH SCORE AWAITS'}
+                  ? t('arcade.breather')
+                  : t('arcade.highScore')}
             </span>
             <h2>
               {status === 'over'
-                ? 'That was a good run.'
+                ? t('arcade.goodRun')
                 : status === 'paused'
-                  ? 'On pause.'
+                  ? t('arcade.onPause')
                   : status === 'won'
-                    ? 'You filled the board!'
-                    : 'Ready when you are.'}
+                    ? t('arcade.filledBoard')
+                    : t('arcade.ready')}
             </h2>
             <p>
               {status === 'over' || status === 'won'
-                ? `You scored ${score} points.`
+                ? t('arcade.scored', { score })
                 : kind === 'ambatusnake'
-                  ? 'Collect the dots. Keep your head.'
-                  : 'Tap to fly. Mind the gaps.'}
+                  ? t('arcade.snakeHint')
+                  : t('arcade.flappyHint')}
             </p>
             <button
               className="button dark"
               onClick={() => (status === 'paused' ? changeStatus('playing') : start())}
             >
               <Play size={17} />
-              {status === 'paused' ? 'Resume' : status === 'ready' ? 'Let’s play' : 'Play again'}
+              {t(status === 'paused' ? 'arcade.resume' : status === 'ready' ? 'arcade.letsPlay' : 'arcade.playAgain')}
             </button>
           </div>
         )}
       </div>
       {kind === 'ambatusnake' && (
-        <div className="direction-pad" aria-label="Direction controls">
-          <button aria-label="Move up" onClick={() => direction(0, -1)}>
+        <div className="direction-pad" aria-label={t('arcade.directionControls')}>
+          <button aria-label={t('arcade.up')} onClick={() => direction(0, -1)}>
             <ArrowUp />
           </button>
           <div>
-            <button aria-label="Move left" onClick={() => direction(-1, 0)}>
+            <button aria-label={t('arcade.left')} onClick={() => direction(-1, 0)}>
               <ArrowLeft />
             </button>
-            <button aria-label="Move down" onClick={() => direction(0, 1)}>
+            <button aria-label={t('arcade.down')} onClick={() => direction(0, 1)}>
               <ArrowDown />
             </button>
-            <button aria-label="Move right" onClick={() => direction(1, 0)}>
+            <button aria-label={t('arcade.right')} onClick={() => direction(1, 0)}>
               <ArrowRight />
             </button>
           </div>
         </div>
       )}
       <p className="game-instructions">
-        {kind === 'ambatusnake'
-          ? 'Arrow keys, WASD, swipe, or use the direction pad.'
-          : 'Tap the game or press Space to flap.'}{' '}
-        Press P to pause.
+        {t(kind === 'ambatusnake' ? 'arcade.snakeControls' : 'arcade.flappyControls')}
       </p>
     </div>
   );

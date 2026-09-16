@@ -6,8 +6,10 @@ import { supabase } from '@/lib/supabase';
 import { useApp } from './app-provider';
 import { games } from '@/lib/catalog';
 import { fetchJson, parseProfile, type Profile } from '@/lib/feeds';
+import { useI18n } from './i18n-provider';
 const endpoint = process.env.NEXT_PUBLIC_PROFILE_FEED_URL;
 export function ProfilePanel() {
+  const { t } = useI18n();
   const { favorites, scores, plays } = useApp();
   const [session, setSession] = useState<Session | null>(null),
     [mode, setMode] = useState<'login' | 'signup'>('login'),
@@ -44,12 +46,10 @@ export function ProfilePanel() {
             : await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (mode === 'signup')
-          setMessage(
-            'Account created. Check your email to confirm your address before signing in.',
-          );
+          setMessage(t('profile.created'));
       }
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Could not connect. Please try again.');
+      setMessage(e instanceof Error ? e.message : t('profile.connectionError'));
     } finally {
       setBusy(false);
     }
@@ -60,9 +60,9 @@ export function ProfilePanel() {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      setMessage('Signed out.');
+      setMessage(t('profile.signedOut'));
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Could not sign out.');
+      setMessage(e instanceof Error ? e.message : t('profile.signOutError'));
     } finally {
       setBusy(false);
     }
@@ -71,19 +71,19 @@ export function ProfilePanel() {
     <>
       <div className="account-grid">
         <section className="panel">
-          <h2>Your little corner.</h2>
-          <p>Good times, saved on this device.</p>
+          <h2>{t('profile.corner')}</h2>
+          <p>{t('profile.saved')}</p>
           <div className="stats-grid">
             <div className="stat">
               <b>{favorites.length}</b>
-              <span>FAVORITE SOUNDS</span>
+              <span>{t('profile.favoriteSounds')}</span>
             </div>
             <div className="stat">
               <b>{plays}</b>
-              <span>SOUNDS PLAYED</span>
+              <span>{t('profile.soundsPlayed')}</span>
             </div>
           </div>
-          <p className="eyebrow">PERSONAL BESTS</p>
+          <p className="eyebrow">{t('profile.personalBests')}</p>
           {games.map((g) => (
             <div className="score-row" key={g.id}>
               <span>{g.name}</span>
@@ -94,40 +94,39 @@ export function ProfilePanel() {
         <section className="panel">
           <h2>
             {session
-              ? 'You’re in the club.'
+              ? t('profile.signedIn')
               : mode === 'signup'
-                ? 'Join the club.'
-                : 'Make yourself at home.'}
+                ? t('profile.join')
+                : t('profile.home')}
           </h2>
           {!supabase ? (
             <>
               <p>
-                You’re exploring as a guest. The arcade, soundboard, and your local collection are
-                ready to go.
+                {t('profile.guest')}
               </p>
-              <div className="note-panel">Account sign-in hasn’t been connected yet.</div>
+              <div className="note-panel">{t('profile.notConnected')}</div>
             </>
           ) : session ? (
             <>
               <p>
-                Signed in as <strong>{session.user.email}</strong>.
+                {t('profile.signedInAs', { email: session.user.email ?? '' })}
               </p>
-              <p>Favorites and game scores are saved on this device.</p>
+              <p>{t('profile.localSave')}</p>
               <button className="button secondary" disabled={busy} onClick={() => void signOut()}>
                 <LogOut size={17} />
-                Sign out
+                {t('profile.signOut')}
               </button>
             </>
           ) : (
             <>
               <p>
                 {mode === 'signup'
-                  ? 'Create your AmbatuApp account.'
-                  : 'Sign in with your AmbatuApp account.'}
+                  ? t('profile.createPrompt')
+                  : t('profile.signInPrompt')}
               </p>
               <form className="account-form" onSubmit={submit}>
                 <label>
-                  Email
+                  {t('profile.email')}
                   <input
                     name="email"
                     autoComplete="email"
@@ -138,20 +137,20 @@ export function ProfilePanel() {
                 </label>
                 {
                   <label>
-                    Password
+                    {t('profile.password')}
                     <input
                       name="password"
                       autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                       type="password"
                       required
                       minLength={6}
-                      placeholder="At least 6 characters"
+                      placeholder={t('profile.passwordPlaceholder')}
                     />
                   </label>
                 }
                 <button type="submit" disabled={busy} className="button dark">
                   <LogIn size={17} />
-                  {busy ? 'One moment…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+                  {busy ? t('profile.wait') : mode === 'signup' ? t('profile.create') : t('profile.signIn')}
                 </button>
               </form>
               <button
@@ -161,7 +160,7 @@ export function ProfilePanel() {
                   setMessage('');
                 }}
               >
-                {mode === 'login' ? 'New here? Create an account' : 'Already a member? Sign in'}
+                {mode === 'login' ? t('profile.newHere') : t('profile.member')}
               </button>
             </>
           )}
@@ -177,6 +176,7 @@ export function ProfilePanel() {
   );
 }
 function DreamyStats() {
+  const { t } = useI18n();
   const [profile, setProfile] = useState<Profile | null>(null),
     [error, setError] = useState(''),
     [attempt, setAttempt] = useState(0);
@@ -188,14 +188,14 @@ function DreamyStats() {
       .then(setProfile)
       .catch((e) => {
         if (!controller.signal.aborted)
-          setError(e instanceof Error ? e.message : 'Profile could not load.');
+          setError(e instanceof Error ? e.message : t('profile.loadError'));
       });
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, t]);
   return (
     <section className="panel profile-feed">
-      <p className="eyebrow">MYDREAMY · THE ORIGINAL PROFILE</p>
-      <h2>{profile?.name || 'The one who started it all.'}</h2>
+      <p className="eyebrow">{t('profile.originalEyebrow')}</p>
+      <h2>{profile?.name || t('profile.originalTitle')}</h2>
       {profile ? (
         <>
           {profile.image && <img className="profile-avatar" src={profile.image} alt="" />}
@@ -205,11 +205,11 @@ function DreamyStats() {
           <div className="stats-grid">
             <div className="stat">
               <b>{profile.followers.toLocaleString()}</b>
-              <span>FOLLOWERS</span>
+              <span>{t('profile.followers')}</span>
             </div>
             <div className="stat">
               <b>{profile.following.toLocaleString()}</b>
-              <span>FOLLOWING</span>
+              <span>{t('profile.following')}</span>
             </div>
           </div>
         </>
@@ -224,14 +224,14 @@ function DreamyStats() {
             }}
           >
             <RefreshCw size={15} />
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       ) : (
         <p>
           {endpoint
-            ? 'Loading profile…'
-            : 'Live profile stats aren’t connected. You can visit the original profile on X.'}
+            ? t('profile.loading')
+            : t('profile.liveUnavailable')}
         </p>
       )}
       <a
@@ -240,7 +240,7 @@ function DreamyStats() {
         target="_blank"
         rel="noopener noreferrer"
       >
-        Visit original profile
+        {t('profile.visit')}
         <ArrowUpRight size={16} />
       </a>
     </section>

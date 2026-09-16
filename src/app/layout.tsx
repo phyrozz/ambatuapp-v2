@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { AppProvider } from '@/components/app-provider';
+import { I18nProvider } from '@/components/i18n-provider';
 import { Shell } from '@/components/shell';
 import './globals.css';
 export const metadata: Metadata = {
@@ -17,9 +18,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <AppProvider>
-          <Shell>{children}</Shell>
-        </AppProvider>
+        <I18nProvider>
+          <AppProvider>
+            <Shell>{children}</Shell>
+          </AppProvider>
+        </I18nProvider>
       </body>
     </html>
   );

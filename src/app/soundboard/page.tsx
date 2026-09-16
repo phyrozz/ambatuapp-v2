@@ -1,12 +1,14 @@
+'use client';
 import { SoundLibrary } from '@/components/sound-library';
-export const metadata = { title: 'Soundboard' };
+import { useI18n } from '@/components/i18n-provider';
 export default function Soundboard() {
+  const { t } = useI18n();
   return (
     <div className="page">
       <div className="page-heading">
-        <p className="eyebrow">TURN THE ORDINARY INTO A SOUNDBITE</p>
-        <h1>Instant main character energy.</h1>
-        <p>26 iconic sounds. Tap to play, tap again to stop. Mix up to ten at once.</p>
+        <p className="eyebrow">{t('soundboard.eyebrow')}</p>
+        <h1>{t('soundboard.title')}</h1>
+        <p>{t('soundboard.description')}</p>
       </div>
       <SoundLibrary />
     </div>

@@ -4,12 +4,14 @@ import { ArrowUpRight, Heart, Play, Square, AudioLines, Gamepad2 } from 'lucide-
 import { games, type Sound } from '@/lib/catalog';
 import type { Character } from '@/lib/characters';
 import { useApp } from './app-provider';
+import { useI18n } from './i18n-provider';
 export function GameCard({ game }: { game: (typeof games)[number] }) {
+  const { t } = useI18n();
   return (
     <Link href={`/games/${game.id}/`} className={`game-card ${game.color}`}>
       <div className={`game-art art-${game.id}`}>
         <GameArtwork id={game.id} />
-        <span className="game-tag">{game.tag}</span>
+        <span className="game-tag">{t(`game.${game.id}.tag`)}</span>
         <span className="game-launch">
           <ArrowUpRight size={22} />
         </span>
@@ -17,10 +19,10 @@ export function GameCard({ game }: { game: (typeof games)[number] }) {
       <div className="game-info">
         <small>
           <Gamepad2 size={13} />
-          {game.category}
+          {t(`game.${game.id}.category`)}
         </small>
         <h3>{game.name}</h3>
-        <p>{game.description}</p>
+        <p>{t(`game.${game.id}.description`)}</p>
       </div>
     </Link>
   );
@@ -69,6 +71,7 @@ function GameArtwork({ id }: { id: string }) {
 }
 export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }) {
   const { play, playing, favorites, toggleFavorite } = useApp();
+  const { t } = useI18n();
   const active = playing.includes(sound.id);
   return (
     <article className={`sound-card sound-color-${sound.color} ${active ? 'is-playing' : ''}`}>
@@ -76,7 +79,7 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
         <span className="sound-number">{String(index + 1).padStart(2, '0')}</span>
         <button
           className={`favorite-button ${favorites.includes(sound.id) ? 'selected' : ''}`}
-          aria-label={`${favorites.includes(sound.id) ? 'Unfavorite' : 'Favorite'} ${sound.name}`}
+          aria-label={`${t(favorites.includes(sound.id) ? 'common.unfavorite' : 'common.favorite')} ${sound.name}`}
           aria-pressed={favorites.includes(sound.id)}
           onClick={() => toggleFavorite(sound.id)}
         >
@@ -86,7 +89,7 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
       <button
         className="sound-play"
         onClick={() => play(sound)}
-        aria-label={`${active ? 'Stop' : 'Play'} ${sound.name}`}
+        aria-label={`${t(active ? 'common.stop' : 'common.play')} ${sound.name}`}
       >
         <span className="waveform" aria-hidden="true">
           {[12, 23, 16, 30, 21, 36, 18, 29, 14, 24, 11, 19].map((h, i) => (
@@ -96,7 +99,7 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
         <span className="sound-caption">
           <span>
             <b>{sound.name}</b>
-            <small>{sound.category}</small>
+            <small>{t(sound.category === 'Classics' ? 'sounds.classics' : sound.category === 'Remixes' ? 'sounds.remixes' : 'sounds.crew')}</small>
           </span>
           <span className="round-play">
             {active ? (
@@ -111,6 +114,7 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
   );
 }
 export function CharacterCard({ character }: { character: Character }) {
+  const { t } = useI18n();
   return (
     <Link className="character-card" href={`/characters/${character.id}/`}>
       <div>
@@ -120,7 +124,7 @@ export function CharacterCard({ character }: { character: Character }) {
         </span>
       </div>
       <h3>{character.name}</h3>
-      <p>{character.id === 'dreamy' ? 'The one who started it all' : 'Meet the legend'}</p>
+      <p>{t(character.id === 'dreamy' ? 'games.startedIt' : 'games.meetLegend')}</p>
     </Link>
   );
 }
