@@ -418,6 +418,78 @@ img {
   font-weight: 700;
   cursor: pointer;
 }
+.app-select {
+  position: relative;
+  min-width: 138px;
+  color: var(--ink);
+  font-size: 12px;
+}
+.app-select-trigger {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px 0 14px;
+  border: 1px solid #d8d5ca;
+  border-radius: 11px;
+  background: #fffdf8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  font-weight: 700;
+  text-align: left;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+.app-select-trigger:hover { border-color: #aea99a; background: #fff; }
+.app-select.open .app-select-trigger {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px #f6542f1c;
+}
+.app-select-trigger:focus-visible { outline: 3px solid #f3a369; outline-offset: 3px; }
+.app-select-trigger svg { flex: 0 0 auto; transition: transform .18s ease; }
+.app-select-value { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.app-select-flag { width: 20px; height: 14px; flex: 0 0 20px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(37,38,33,.14); overflow: hidden; }
+.app-select-symbol { width: 17px; height: 17px; flex: 0 0 17px; color: #756f64; }
+.app-select.open .app-select-trigger svg { transform: rotate(180deg); }
+.app-select-menu {
+  position: absolute;
+  z-index: 100;
+  top: calc(100% + 7px);
+  left: 0;
+  min-width: 100%;
+  max-height: 260px;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid #dedbd0;
+  border-radius: 12px;
+  background: #fffdf8;
+  box-shadow: 0 14px 38px rgba(43, 38, 30, .16), 0 3px 9px rgba(43, 38, 30, .08);
+}
+.app-select-menu button {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: transparent;
+  color: #514f48;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+.app-select-menu button.active { background: #f1eee3; color: var(--ink); }
+.app-select-menu button.selected { color: #d94722; font-weight: 700; }
+.app-select-menu button:focus-visible { outline: 2px solid #f3a369; outline-offset: -2px; }
+.language-picker .app-select { min-width: 145px; }
+.language-picker .app-select-trigger { min-height: 38px; border-radius: 99px; font-size: 11px; }
+.lore-language-filter .app-select { flex: 1; min-width: 150px; }
+.lore-language-filter .app-select-trigger { min-height: 42px; border: 0; background: transparent; }
+.lore-language .app-select { min-width: 130px; }
+.game-select-control { font-size: 11px; color: #87826d; display: flex; align-items: center; gap: 10px; }
+.game-select-control .app-select { min-width: 125px; }
 .profile-button {
   display: flex;
   align-items: center;
@@ -2050,11 +2122,16 @@ select {
     height: 34px;
     width: 34px;
   }
-  .language-picker select {
+  .language-picker .app-select {
     width: 54px;
-    padding-left: 8px;
+    min-width: 54px;
+  }
+  .language-picker .app-select-trigger {
+    padding: 0 8px;
     font-size: 10px;
   }
+  .language-picker .app-select-trigger svg { display: none; }
+  .language-picker .app-select-menu { left: auto; right: 0; min-width: 150px; }
   .page {
     padding: 24px 20px 40px;
     min-height: calc(100dvh - 230px);
@@ -2494,13 +2571,14 @@ select {
   .game-controls {
     gap: 10px;
   }
-  .game-controls label {
+  .game-controls label,
+  .game-select-control {
     font-size: 10px;
     gap: 5px;
   }
-  .game-controls select {
+  .game-select-control .app-select-trigger {
     font-size: 10px;
-    padding: 9px 6px;
+    padding: 0 8px;
   }
   .game-controls .button {
     font-size: 10px;

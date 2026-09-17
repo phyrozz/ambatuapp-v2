@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BookOpen, Languages, MessageCircle, Search, SlidersHorizontal, X } from 'lucide-react';
 import { ApiLoading } from './api-loading';
 import { useI18n } from './i18n-provider';
+import { AppSelect, languageFlag } from './app-select';
 
 type Lore = { id: string; title: string; text: string; tags: string[]; imageUrls: string[]; upvotes: number; downvotes: number; commentCount: number };
 type Facets = { tags: string[]; languages: { locale: string; label: string }[] };
@@ -31,7 +32,7 @@ export function LoreFeed() {
   function clear() { setQuery(''); setSelectedTags([]); setLanguage(''); }
   return <section className="lore-browser"><div className="lore-filters">
     <label className="lore-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('lore.searchPlaceholder')} />{query && <button onClick={() => setQuery('')} aria-label={t('lore.clearSearch')}><X size={15} /></button>}</label>
-    <label className="lore-language-filter"><Languages size={17} /><select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="">{t('lore.allLanguages')}</option><option value="original">{t('lore.originalEdition')}</option>{facets.languages.map((item) => <option value={item.locale} key={item.locale}>{item.label}</option>)}</select></label>
+    <div className="lore-language-filter"><Languages size={17} /><AppSelect value={language} onChange={setLanguage} ariaLabel={t('lore.allLanguages')} options={[{ value: '', label: t('lore.allLanguages'), icon: 'world' }, { value: 'original', label: t('lore.originalEdition'), icon: 'book' }, ...facets.languages.map((item) => ({ value: item.locale, label: item.label, icon: languageFlag(item.locale) }))]} /></div>
     {facets.tags.length > 0 && <div className="lore-tag-filter"><span><SlidersHorizontal size={15} />{t('lore.filterTags')}</span><div>{facets.tags.map((tag) => <button className={selectedTags.includes(tag) ? 'active' : ''} onClick={() => toggleTag(tag)} key={tag}>{tag}</button>)}</div></div>}
     <div className="lore-results-meta"><span>{loading ? t('lore.searching') : t(lores.length === 1 ? 'lore.storyCount' : 'lore.storiesCount', { count: lores.length })}</span>{filtered && <button onClick={clear}><X size={14} />{t('lore.clearFilters')}</button>}</div>
   </div>{loading ? <ApiLoading label={t('lore.searchingArchive')} /> : error ? <Empty title={t('lore.archiveUnavailable')} description={error} /> : !lores.length ? <Empty title={t('lore.none')} description={t('lore.noneHint')} /> : <div className="lore-feed">{lores.map((lore) => <LoreCard lore={lore} key={lore.id} />)}</div>}</section>;

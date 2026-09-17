@@ -26,6 +26,7 @@ import {
 import { useApp } from './app-provider';
 import { haptic } from '@/lib/native';
 import { useI18n } from './i18n-provider';
+import { AppSelect } from './app-select';
 type Status = 'ready' | 'playing' | 'paused' | 'over' | 'won';
 export function GamePlayer({ id }: { id: GameId }) {
   const { t } = useI18n();
@@ -206,18 +207,12 @@ function MinesGame({ onScore, sound }: Props) {
   return (
     <div className="mines-arena">
       <div className="game-controls">
-        <label>
-          {t('mines.difficulty')}{' '}
-          <select
-            aria-label={t('mines.difficulty')}
-            value={difficulty}
-            onChange={(e) => reset(+e.target.value)}
-          >
-            <option value={0}>{t('mines.easy')}</option>
-            <option value={1}>{t('mines.medium')}</option>
-            <option value={2}>{t('mines.hard')}</option>
-          </select>
-        </label>
+        <div className="game-select-control">
+          <span>{t('mines.difficulty')}</span>
+          <AppSelect ariaLabel={t('mines.difficulty')} value={String(difficulty)} onChange={(value) => reset(+value)} options={[
+            { value: '0', label: t('mines.easy') }, { value: '1', label: t('mines.medium') }, { value: '2', label: t('mines.hard') },
+          ]} />
+        </div>
         <button
           className={`button compact ${flagMode ? 'dark' : 'secondary'}`}
           aria-pressed={flagMode}
@@ -524,20 +519,13 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
           {t('arcade.score')} <b>{score}</b>
         </span>
         {kind === 'flappy-bus' && (
-          <label>
-            {t('arcade.character')}{' '}
-            <select
-              aria-label={t('arcade.character')}
-              value={skin}
-              disabled={status === 'playing'}
-              onChange={(e) => setSkin(e.target.value)}
-            >
-              <option value="1">Dreamy</option>
-              <option value="2">Kakangku</option>
-              <option value="3">Nissan</option>
-              <option value="4">Bunda Rahma</option>
-            </select>
-          </label>
+          <div className="game-select-control">
+            <span>{t('arcade.character')}</span>
+            <AppSelect ariaLabel={t('arcade.character')} value={skin} disabled={status === 'playing'} onChange={setSkin} options={[
+              { value: '1', label: 'Dreamy' }, { value: '2', label: 'Kakangku' },
+              { value: '3', label: 'Nissan' }, { value: '4', label: 'Bunda Rahma' },
+            ]} />
+          </div>
         )}
         <button
           className="button secondary compact"

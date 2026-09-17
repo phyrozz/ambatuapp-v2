@@ -21,6 +21,7 @@ import {
 import { useApp } from './app-provider';
 import { useI18n } from './i18n-provider';
 import { AdBanner } from './ad-banner';
+import { AppSelect, languageFlag } from './app-select';
 const nav = [
   { href: '/', key: 'nav.discover', Icon: House },
   { href: '/games/', key: 'nav.games', shortKey: 'nav.gamesShort', Icon: Gamepad2 },
@@ -128,12 +129,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
             ambatu<span>app</span> ✳
           </Link>
           <div>
-            <label className="language-picker">
-              <span className="sr-only">{t('language.label')}</span>
-              <select value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)} aria-label={t('language.label')}>
-                {locales.map((item) => <option value={item} key={item}>{localeNames[item]}</option>)}
-              </select>
-            </label>
+            <div className="language-picker">
+              <AppSelect value={locale} onChange={(value) => setLocale(value as typeof locale)}
+                ariaLabel={t('language.label')} options={locales.map((item) => ({ value: item, label: localeNames[item], icon: languageFlag(item) }))} />
+            </div>
             <Link href="/favorites/" className="icon-button" aria-label={t('nav.favorites')}>
               <Heart size={19} />
             </Link>
