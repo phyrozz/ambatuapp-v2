@@ -44,9 +44,13 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-or-publishable-key
 ```
 
-Enable email/password authentication in your Supabase project. Configure the project's Site URL and confirmation redirect allowlist to your deployed web origin. Email confirmation happens through the web link; users can then sign in to the mobile app with their email and password. Use only the public client key, never a service-role key.
+Google-only sign-in uses a Cognito User Pool managed-login domain. Set `NEXT_PUBLIC_COGNITO_DOMAIN`, `NEXT_PUBLIC_COGNITO_CLIENT_ID`, and `NEXT_PUBLIC_COGNITO_CALLBACK_URL` (for example, `https://ambatu.fun/auth/callback/`). In the Cognito app client, enable Google, the OAuth authorization-code flow, and the `openid` and `email` scopes, then add that same callback URL. The app client must not have a client secret because this static browser app uses PKCE.
 
 Favorites, volume, play counts, and game scores are local to this browser or app installation, including for signed-in users. They are **not cloud-synced**. There is no database migration or score table requirement. Flutter SharedPreferences are not imported automatically.
+
+### Leaderboards
+
+The browser never writes leaderboard data directly to Firestore. The existing admin public API serves `GET` and Cognito-verified `POST` requests at `/api/public/leaderboards/{gameId}`. It shares `NEXT_PUBLIC_CHARACTER_API_URL`, so point that variable at the deployed admin API origin and deploy the admin project after adding the leaderboard route. The API stores one best score per player per game without exposing email addresses.
 
 ### Firebase Firestore characters
 

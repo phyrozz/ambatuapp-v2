@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { AppProvider } from '@/components/app-provider';
+import { AuthProvider } from '@/components/auth-provider';
 import { I18nProvider } from '@/components/i18n-provider';
 import { Shell } from '@/components/shell';
 import './globals.css';
@@ -25,9 +26,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body>
         <I18nProvider>
-          <AppProvider>
-            <Shell>{children}</Shell>
-          </AppProvider>
+          <AuthProvider>
+            <AppProvider>
+              <Shell>{children}</Shell>
+            </AppProvider>
+          </AuthProvider>
         </I18nProvider>
       </body>
     </html>

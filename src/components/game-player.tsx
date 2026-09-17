@@ -27,11 +27,15 @@ import { useApp } from './app-provider';
 import { haptic } from '@/lib/native';
 import { useI18n } from './i18n-provider';
 import { AppSelect } from './app-select';
+import { Leaderboard } from './leaderboard';
+import { submitLeaderboardScore } from '@/lib/leaderboard';
+import { useAuth } from './auth-provider';
 type Status = 'ready' | 'playing' | 'paused' | 'over' | 'won';
 export function GamePlayer({ id }: { id: GameId }) {
   const { t } = useI18n();
   const game = games.find((g) => g.id === id)!;
   const { scores, saveScore, volume, stop } = useApp();
+  const { user, getAccessToken } = useAuth();
   const [muted, setMuted] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
@@ -51,7 +55,16 @@ export function GamePlayer({ id }: { id: GameId }) {
     },
     [muted, volume],
   );
-  const onScore = useCallback((score: number) => saveScore(id, score), [id, saveScore]);
+  const pendingScore = useRef(0);
+  const submitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (submitTimer.current) clearTimeout(submitTimer.current); }, []);
+  const onScore = useCallback((score: number) => {
+    saveScore(id, score);
+    if (!user || score <= pendingScore.current) return;
+    pendingScore.current = score;
+    if (submitTimer.current) clearTimeout(submitTimer.current);
+    submitTimer.current = setTimeout(() => { void submitLeaderboardScore(id, pendingScore.current, getAccessToken()).catch(() => {}); }, 900);
+  }, [getAccessToken, id, saveScore, user]);
   return (
     <div className="page game-page">
       <Link className="back-link" href="/games/">
@@ -87,6 +100,7 @@ export function GamePlayer({ id }: { id: GameId }) {
       ) : (
         <ArcadeGame kind={id} onScore={onScore} sound={sound} />
       )}
+      <Leaderboard gameId={id} />
     </div>
   );
 }

@@ -137,7 +137,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <Heart size={19} />
             </Link>
             <Link href="/profile/" className="profile-button">
-              <img src="/assets/dreamy_face.jpg" alt="" />
+              <UserRound size={18} aria-hidden="true" />
               <span>{t('shell.yourCorner')}</span>
               <ArrowUpRight size={15} />
             </Link>
