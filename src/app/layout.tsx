@@ -3,6 +3,7 @@ import { AppProvider } from '@/components/app-provider';
 import { I18nProvider } from '@/components/i18n-provider';
 import { Shell } from '@/components/shell';
 import './globals.css';
+const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
 export const metadata: Metadata = {
   title: { default: 'AmbatuApp — A little chaos. A lot of fun.', template: '%s · AmbatuApp' },
   description:
@@ -17,6 +18,16 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        {adsenseClient && (
+          <script
+            id="google-adsense-script"
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient}`}
+            crossOrigin="anonymous"
+          />
+        )}
+      </head>
       <body>
         <I18nProvider>
           <AppProvider>
