@@ -340,6 +340,35 @@ img {
 .workspace {
   margin-left: var(--sidebar);
 }
+.web-ad {
+  max-width: 1120px;
+  min-height: 112px;
+  margin: 12px auto 36px;
+  padding: 10px 24px 16px;
+  border-block: 1px solid var(--line);
+  background: #f8f7f2;
+  overflow: hidden;
+}
+.web-ad > span {
+  display: block;
+  margin-bottom: 8px;
+  color: #8c897a;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.ad-privacy-button {
+  display: block;
+  margin: 12px auto 24px;
+  border: 0;
+  background: transparent;
+  color: #706b79;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .topbar {
   height: 84px;
   display: flex;
@@ -1970,6 +1999,11 @@ select {
   }
   .workspace {
     margin: 0;
+  }
+  .web-ad {
+    min-height: 96px;
+    margin: 8px 20px 24px;
+    padding-inline: 0;
   }
   .topbar {
     height: calc(68px + env(safe-area-inset-top));

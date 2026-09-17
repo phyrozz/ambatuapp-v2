@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useI18n } from './i18n-provider';
+import { AdBanner } from './ad-banner';
 const nav = [
   { href: '/', key: 'nav.discover', Icon: House },
   { href: '/games/', key: 'nav.games', shortKey: 'nav.gamesShort', Icon: Gamepad2 },
@@ -35,6 +36,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [topbarScrolled, setTopbarScrolled] = useState(false);
   const { current, playing, stop, volume, setVolume, error } = useApp();
   const { locale, locales, localeNames, setLocale, t } = useI18n();
+  const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || Boolean(current);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -145,6 +147,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <main id="main" tabIndex={-1}>
           {children}
         </main>
+        <AdBanner disabled={adDisabled} />
         <footer className="footer">
           <span>
             ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
