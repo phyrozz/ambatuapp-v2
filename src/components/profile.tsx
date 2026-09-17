@@ -171,78 +171,78 @@ export function ProfilePanel() {
           )}
         </section>
       </div>
-      <DreamyStats />
+      {/* <DreamyStats /> */}
     </>
   );
 }
-function DreamyStats() {
-  const { t } = useI18n();
-  const [profile, setProfile] = useState<Profile | null>(null),
-    [error, setError] = useState(''),
-    [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    if (!endpoint) return;
-    const controller = new AbortController();
-    fetchJson(endpoint, controller.signal)
-      .then(parseProfile)
-      .then(setProfile)
-      .catch((e) => {
-        if (!controller.signal.aborted)
-          setError(e instanceof Error ? e.message : t('profile.loadError'));
-      });
-    return () => controller.abort();
-  }, [attempt, t]);
-  return (
-    <section className="panel profile-feed">
-      <p className="eyebrow">{t('profile.originalEyebrow')}</p>
-      <h2>{profile?.name || t('profile.originalTitle')}</h2>
-      {profile ? (
-        <>
-          {profile.image && <img className="profile-avatar" src={profile.image} alt="" />}
-          <p>
-            @{profile.handle} · {profile.bio}
-          </p>
-          <div className="stats-grid">
-            <div className="stat">
-              <b>{profile.followers.toLocaleString()}</b>
-              <span>{t('profile.followers')}</span>
-            </div>
-            <div className="stat">
-              <b>{profile.following.toLocaleString()}</b>
-              <span>{t('profile.following')}</span>
-            </div>
-          </div>
-        </>
-      ) : error ? (
-        <div role="alert">
-          <p>{error}</p>
-          <button
-            className="button secondary compact"
-            onClick={() => {
-              setError('');
-              setAttempt((a) => a + 1);
-            }}
-          >
-            <RefreshCw size={15} />
-            {t('common.retry')}
-          </button>
-        </div>
-      ) : (
-        <p>
-          {endpoint
-            ? t('profile.loading')
-            : t('profile.liveUnavailable')}
-        </p>
-      )}
-      <a
-        className="button secondary compact"
-        href="https://www.twitter.com/dreamybullxxx"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {t('profile.visit')}
-        <ArrowUpRight size={16} />
-      </a>
-    </section>
-  );
-}
+// function DreamyStats() {
+//   const { t } = useI18n();
+//   const [profile, setProfile] = useState<Profile | null>(null),
+//     [error, setError] = useState(''),
+//     [attempt, setAttempt] = useState(0);
+//   useEffect(() => {
+//     if (!endpoint) return;
+//     const controller = new AbortController();
+//     fetchJson(endpoint, controller.signal)
+//       .then(parseProfile)
+//       .then(setProfile)
+//       .catch((e) => {
+//         if (!controller.signal.aborted)
+//           setError(e instanceof Error ? e.message : t('profile.loadError'));
+//       });
+//     return () => controller.abort();
+//   }, [attempt, t]);
+//   return (
+//     <section className="panel profile-feed">
+//       <p className="eyebrow">{t('profile.originalEyebrow')}</p>
+//       <h2>{profile?.name || t('profile.originalTitle')}</h2>
+//       {profile ? (
+//         <>
+//           {profile.image && <img className="profile-avatar" src={profile.image} alt="" />}
+//           <p>
+//             @{profile.handle} · {profile.bio}
+//           </p>
+//           <div className="stats-grid">
+//             <div className="stat">
+//               <b>{profile.followers.toLocaleString()}</b>
+//               <span>{t('profile.followers')}</span>
+//             </div>
+//             <div className="stat">
+//               <b>{profile.following.toLocaleString()}</b>
+//               <span>{t('profile.following')}</span>
+//             </div>
+//           </div>
+//         </>
+//       ) : error ? (
+//         <div role="alert">
+//           <p>{error}</p>
+//           <button
+//             className="button secondary compact"
+//             onClick={() => {
+//               setError('');
+//               setAttempt((a) => a + 1);
+//             }}
+//           >
+//             <RefreshCw size={15} />
+//             {t('common.retry')}
+//           </button>
+//         </div>
+//       ) : (
+//         <p>
+//           {endpoint
+//             ? t('profile.loading')
+//             : t('profile.liveUnavailable')}
+//         </p>
+//       )}
+//       <a
+//         className="button secondary compact"
+//         href="https://www.twitter.com/dreamybullxxx"
+//         target="_blank"
+//         rel="noopener noreferrer"
+//       >
+//         {t('profile.visit')}
+//         <ArrowUpRight size={16} />
+//       </a>
+//     </section>
+//   );
+// }

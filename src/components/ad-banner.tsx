@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import {
   AdMob,
@@ -11,12 +11,12 @@ import {
 
 declare global {
   interface Window {
-    adsbygoogle?: Record<string, unknown>[];
+    AdProvider?: Record<string, unknown>[];
   }
 }
 
-const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
-const ADSENSE_SLOT = process.env.NEXT_PUBLIC_ADSENSE_BANNER_SLOT_ID;
+const EXOCLICK_ZONE_ID = process.env.NEXT_PUBLIC_EXOCLICK_ZONE_ID;
+const EXOCLICK_SCRIPT_URL = process.env.NEXT_PUBLIC_EXOCLICK_SCRIPT_URL;
 const ANDROID_TEST_BANNER = 'ca-app-pub-3940256099942544/6300978111';
 const IOS_TEST_BANNER = 'ca-app-pub-3940256099942544/2934735716';
 
@@ -52,6 +52,7 @@ function isUsingNativeTestBanner(): boolean {
 
 export function AdBanner({ disabled = false }: { disabled?: boolean }) {
   const native = Capacitor.isNativePlatform();
+  const exoClickRequested = useRef(false);
   const [privacyOptionsRequired, setPrivacyOptionsRequired] = useState(false);
 
   useEffect(() => {
@@ -85,12 +86,17 @@ export function AdBanner({ disabled = false }: { disabled?: boolean }) {
   }, [disabled, native]);
 
   useEffect(() => {
-    if (native || disabled || !ADSENSE_CLIENT || !ADSENSE_SLOT) return;
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (error) {
-      console.warn('Web banner could not be requested.', error);
+    if (native || disabled || !EXOCLICK_ZONE_ID || !EXOCLICK_SCRIPT_URL || exoClickRequested.current) return;
+    exoClickRequested.current = true;
+    if (!document.getElementById('exoclick-ad-provider')) {
+      const script = document.createElement('script');
+      script.id = 'exoclick-ad-provider';
+      script.async = true;
+      script.type = 'application/javascript';
+      script.src = EXOCLICK_SCRIPT_URL;
+      document.head.appendChild(script);
     }
+    (window.AdProvider = window.AdProvider || []).push({ serve: {} });
   }, [disabled, native]);
 
   if (disabled) return null;
@@ -103,19 +109,12 @@ export function AdBanner({ disabled = false }: { disabled?: boolean }) {
     ) : null;
   }
 
-  if (!ADSENSE_CLIENT || !ADSENSE_SLOT) return null;
+  if (!EXOCLICK_ZONE_ID || !EXOCLICK_SCRIPT_URL) return null;
 
   return (
     <aside className="web-ad" aria-label="Advertisement">
       <span>Advertisement</span>
-      <ins
-        className="adsbygoogle"
-        style={{ display: 'block' }}
-        data-ad-client={ADSENSE_CLIENT}
-        data-ad-slot={ADSENSE_SLOT}
-        data-ad-format="auto"
-        data-full-width-responsive="true"
-      />
+      <ins className="adsbyexoclick" data-zoneid={EXOCLICK_ZONE_ID} />
     </aside>
   );
 }
