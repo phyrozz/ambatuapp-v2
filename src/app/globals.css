@@ -2161,8 +2161,10 @@ select {
   .language-picker .app-select-trigger {
     padding: 0 8px;
     font-size: 10px;
+    justify-content: center;
   }
-  .language-picker .app-select-trigger svg { display: none; }
+  .language-picker .app-select-trigger .app-select-label,
+  .language-picker .app-select-trigger > svg { display: none; }
   .language-picker .app-select-menu { left: auto; right: 0; min-width: 150px; }
   .page {
     padding: 24px 20px 40px;
@@ -2438,13 +2440,18 @@ select {
     display: flex;
     align-items: center;
     flex-direction: column;
+    flex: 1 1 0;
     gap: 5px;
     color: #8c897a;
-    padding: 5px 8px;
-    min-width: 55px;
+    padding: 5px 2px;
+    min-width: 0;
   }
   .mobile-nav a > span {
     font-size: 8px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .mobile-nav a.active {
     color: var(--orange);

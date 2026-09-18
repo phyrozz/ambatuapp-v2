@@ -37,6 +37,7 @@ export function GamePlayer({ id }: { id: GameId }) {
   const { scores, saveScore, volume, stop } = useApp();
   const { user, getAccessToken } = useAuth();
   const [muted, setMuted] = useState(false);
+  const [leaderboardVersion, setLeaderboardVersion] = useState(0);
   const audio = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     stop();
@@ -63,7 +64,11 @@ export function GamePlayer({ id }: { id: GameId }) {
     if (!user || score <= pendingScore.current) return;
     pendingScore.current = score;
     if (submitTimer.current) clearTimeout(submitTimer.current);
-    submitTimer.current = setTimeout(() => { void submitLeaderboardScore(id, pendingScore.current, getAccessToken()).catch(() => {}); }, 900);
+    submitTimer.current = setTimeout(() => {
+      void submitLeaderboardScore(id, pendingScore.current, getAccessToken())
+        .then(() => setLeaderboardVersion((version) => version + 1))
+        .catch(() => {});
+    }, 900);
   }, [getAccessToken, id, saveScore, user]);
   return (
     <div className="page game-page">
@@ -100,7 +105,7 @@ export function GamePlayer({ id }: { id: GameId }) {
       ) : (
         <ArcadeGame kind={id} onScore={onScore} sound={sound} />
       )}
-      <Leaderboard gameId={id} />
+      <Leaderboard gameId={id} refreshKey={leaderboardVersion} />
     </div>
   );
 }

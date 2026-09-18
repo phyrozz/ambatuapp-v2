@@ -4,7 +4,7 @@ export const leaderboardConfigured = Boolean(endpoint);
 
 export async function getLeaderboard(gameId: string) {
   if (!endpoint) return [] as LeaderboardEntry[];
-  const response = await fetch(`${endpoint}/leaderboards/${encodeURIComponent(gameId)}`);
+  const response = await fetch(`${endpoint}/leaderboards/${encodeURIComponent(gameId)}`, { cache: 'no-store' });
   if (!response.ok) throw new Error('Could not load the leaderboard.');
   return ((await response.json()) as { entries?: LeaderboardEntry[] }).entries ?? [];
 }

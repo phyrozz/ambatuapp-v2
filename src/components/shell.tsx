@@ -165,6 +165,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span>{t(shortKey ?? key)}</span>
           </Link>
         ))}
+        <Link href="/profile/" className={path.startsWith('/profile/') ? 'active' : ''}>
+          <UserRound size={21} />
+          <span>{t('shell.yourCorner')}</span>
+        </Link>
       </nav>
       {current && (
         <div className="audio-dock">

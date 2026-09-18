@@ -63,13 +63,13 @@ export function AppSelect({ value, options, onChange, ariaLabel, disabled = fals
     <button type="button" className="app-select-trigger" aria-label={ariaLabel} aria-haspopup="listbox"
       aria-expanded={open} aria-controls={listId} disabled={disabled} onKeyDown={keyDown}
       onClick={() => { setActive(selectedIndex); setOpen((current) => !current); }}>
-      <span className="app-select-value"><OptionIcon icon={selected?.icon}/>{selected?.label}</span><ChevronDown size={15} aria-hidden="true" />
+      <span className="app-select-value"><OptionIcon icon={selected?.icon}/><span className="app-select-label">{selected?.label}</span></span><ChevronDown size={15} aria-hidden="true" />
     </button>
     {open && <div className="app-select-menu" id={listId} role="listbox" aria-label={ariaLabel}>
       {options.map((option, index) => <button type="button" role="option" aria-selected={option.value === value}
         className={`${index === active ? 'active' : ''} ${option.value === value ? 'selected' : ''}`}
         key={option.value} onPointerEnter={() => setActive(index)} onClick={() => choose(index)}>
-        <span className="app-select-value"><OptionIcon icon={option.icon}/>{option.label}</span>{option.value === value && <Check size={14} aria-hidden="true" />}
+        <span className="app-select-value"><OptionIcon icon={option.icon}/><span className="app-select-label">{option.label}</span></span>{option.value === value && <Check size={14} aria-hidden="true" />}
       </button>)}
     </div>}
   </div>;

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
 import { getLeaderboard, leaderboardConfigured, type LeaderboardEntry } from '@/lib/leaderboard';
 
-export function Leaderboard({ gameId }: { gameId: string }) {
+export function Leaderboard({ gameId, refreshKey = 0 }: { gameId: string; refreshKey?: number }) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>(leaderboardConfigured ? 'loading' : 'error');
   useEffect(() => {
@@ -11,7 +11,7 @@ export function Leaderboard({ gameId }: { gameId: string }) {
     let active = true;
     void getLeaderboard(gameId).then((result) => { if (active) { setEntries(result); setState('ready'); } }).catch(() => { if (active) setState('error'); });
     return () => { active = false; };
-  }, [gameId]);
+  }, [gameId, refreshKey]);
   return <section className="leaderboard panel" aria-label="Leaderboard">
     <div className="leaderboard-heading"><span><Trophy size={18} /> Leaderboard</span><small>Top players</small></div>
     {state === 'loading' && <p>Loading scores…</p>}

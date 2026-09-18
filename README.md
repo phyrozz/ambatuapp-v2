@@ -50,7 +50,7 @@ Favorites, volume, play counts, and game scores are local to this browser or app
 
 ### Leaderboards
 
-The browser never writes leaderboard data directly to Firestore. The existing admin public API serves `GET` and Cognito-verified `POST` requests at `/api/public/leaderboards/{gameId}`. It shares `NEXT_PUBLIC_CHARACTER_API_URL`, so point that variable at the deployed admin API origin and deploy the admin project after adding the leaderboard route. The API stores one best score per player per game without exposing email addresses.
+The browser never writes leaderboard data directly to Firestore. The existing admin public API serves `GET` and Cognito-verified `POST` requests at `/api/public/leaderboards/{gameId}`. It shares `NEXT_PUBLIC_CHARACTER_API_URL`, so point that variable at the deployed admin API origin and deploy the admin project after adding the leaderboard route. Configure that API with the revamp player pool's server-only `COGNITO_PLAYER_USER_POOL_ID` and `COGNITO_PLAYER_CLIENT_ID`; do not reuse the admin console's Cognito variables. The API stores one best score per player per game without exposing email addresses.
 
 ### Firebase Firestore characters
 
