@@ -136,7 +136,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Link href="/favorites/" className="icon-button" aria-label={t('nav.favorites')}>
               <Heart size={19} />
             </Link>
-            <Link href="/profile/" className="profile-button">
+            <Link href="/profile/" className="profile-button" aria-label={t('nav.profile')}>
               <UserRound size={18} aria-hidden="true" />
               <span>{t('shell.yourCorner')}</span>
               <ArrowUpRight size={15} />
@@ -167,7 +167,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         ))}
         <Link href="/profile/" className={path.startsWith('/profile/') ? 'active' : ''}>
           <UserRound size={21} />
-          <span>{t('shell.yourCorner')}</span>
+          <span>{t('nav.profile')}</span>
         </Link>
       </nav>
       {current && (

@@ -272,5 +272,16 @@
   "notFound.eyebrow": "404 · A LITTLE LOST IN THE LORE",
   "notFound.title": "This detour ends here.",
   "notFound.description": "Let’s get you back to the good stuff.",
-  "notFound.back": "Back to Discover"
+  "notFound.back": "Back to Discover",
+  "leaderboard.eyebrow": "COMMUNITY SCOREBOARD",
+  "leaderboard.title": "Hall of fame",
+  "leaderboard.live": "Live",
+  "leaderboard.loading": "Loading scores",
+  "leaderboard.unavailable": "Scoreboard offline",
+  "leaderboard.unavailableHint": "The leaderboard could not be reached right now.",
+  "leaderboard.empty": "The podium is wide open",
+  "leaderboard.emptyHint": "Finish a round and claim the first spot.",
+  "leaderboard.rank": "Rank #{rank}",
+  "leaderboard.points": "points",
+  "leaderboard.footer": "Only each player's personal best makes the board."
 }
