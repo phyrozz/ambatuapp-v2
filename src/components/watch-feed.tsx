@@ -6,6 +6,7 @@ import { fetchJson, parseVideos, type Video } from '@/lib/feeds';
 import { openExternal } from '@/lib/native';
 import { EmptyState } from './cards';
 import { useI18n } from './i18n-provider';
+import { CommunityWatch } from './community-watch';
 const endpoint = process.env.NEXT_PUBLIC_VIDEO_FEED_URL;
 export function WatchFeed() {
   const { t } = useI18n();
@@ -38,6 +39,7 @@ export function WatchFeed() {
   );
   return (
     <>
+      <CommunityWatch />
       <form
         className="watch-search"
         onSubmit={(e) => {

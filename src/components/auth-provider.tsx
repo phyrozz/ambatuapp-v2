@@ -9,6 +9,7 @@ type AuthContext = {
   signInWithGoogle: () => Promise<void>;
   signOut: () => void;
   getAccessToken: () => string | null;
+  getIdToken: () => string | null;
 };
 const Context = createContext<AuthContext | null>(null);
 
@@ -27,7 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
   const getAccessToken = useCallback(() => getStoredSession()?.tokens.accessToken ?? null, []);
-  return <Context.Provider value={{ ready, configured: cognitoConfigured, user, signInWithGoogle, signOut, getAccessToken }}>{children}</Context.Provider>;
+  const getIdToken = useCallback(() => getStoredSession()?.tokens.idToken ?? null, []);
+  return <Context.Provider value={{ ready, configured: cognitoConfigured, user, signInWithGoogle, signOut, getAccessToken, getIdToken }}>{children}</Context.Provider>;
 }
 
 export function useAuth() {
