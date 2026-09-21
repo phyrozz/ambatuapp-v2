@@ -248,7 +248,7 @@
   "watch.chooseVideo": "Choose an MP4, WebM, or MOV file",
   "watch.fileTooLarge": "Videos must be 200 MB or smaller.",
   "watch.uploadFailed": "The video upload failed.",
-  "watch.uploadCorsError": "Server blocked the upload request. Check the bucket CORS policy and PutObject permission.",
+  "watch.uploadCorsError": "Server blocked the upload request. Please try again later.",
   "watch.uploading": "Uploading…",
   "watch.publish": "Publish video",
   "watch.uploadedBy": "Uploaded by {email}",
