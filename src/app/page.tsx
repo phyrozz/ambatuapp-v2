@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowRight, ArrowUpRight, AudioLines, Gamepad2, Sparkles, Play } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, AudioLines, Gamepad2, Sparkles, Play, ThumbsUp, BookOpen } from 'lucide-react';
 import { games, sounds } from '@/lib/catalog';
 import { getCharacters, type Character } from '@/lib/characters';
 import { GameCard, SoundCard, CharacterCard } from '@/components/cards';
@@ -10,7 +10,10 @@ import { useI18n } from '@/components/i18n-provider';
 export default function Home() {
   const { t } = useI18n();
   const [characters, setCharacters] = useState<Character[]>([]);
+  const [communityVideos, setCommunityVideos] = useState<Array<{ id: string; title: string; thumbnailUrl: string; upvotes: number }>>([]);
+  const [topLores, setTopLores] = useState<Array<{ id: string; title: string; text: string; imageUrls: string[]; upvotes: number }>>([]);
   useEffect(() => { void getCharacters().then(setCharacters).catch(() => {}); }, []);
+  useEffect(() => { const api = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, ''); if (!api) return; void Promise.all([fetch(`${api}/videos?sort=upvotes&limit=5`).then(r => r.ok ? r.json() : null), fetch(`${api}/lores?sort=upvotes`).then(r => r.ok ? r.json() : null)]).then(([videos, lores]) => { setCommunityVideos(videos?.videos ?? []); setTopLores((lores?.lores ?? []).slice(0, 5)); }).catch(() => {}); }, []);
   return (
     <div className="page home-page">
       <div className="welcome">
@@ -97,6 +100,11 @@ export default function Home() {
           ))}
         </div>
       </section>
+      {(communityVideos.length > 0 || topLores.length > 0) && <section className="section home-community">
+        <SectionHeading eyebrow={t('home.communityEyebrow')} title={t('home.communityTitle')} />
+        {communityVideos.length > 0 && <div className="home-community-block"><div className="home-community-title"><Play size={18}/><h3>{t('home.communityVideos')}</h3><Link href="/watch/">{t('home.exploreCommunityVideos')} <ArrowRight size={16}/></Link></div><div className="home-community-grid">{communityVideos.map(video => <Link href={`/watch/${video.id}/`} className="home-community-card" key={video.id}>{video.thumbnailUrl && <img src={video.thumbnailUrl} alt=""/>}<b>{video.title}</b><span><ThumbsUp size={14}/>{video.upvotes}</span></Link>)}</div></div>}
+        {topLores.length > 0 && <div className="home-community-block"><div className="home-community-title"><BookOpen size={18}/><h3>{t('home.communityLore')}</h3><Link href="/lores/">{t('home.exploreLore')} <ArrowRight size={16}/></Link></div><div className="home-community-grid">{topLores.map(lore => <Link href={`/lores/${lore.id}/`} className="home-community-card" key={lore.id}>{lore.imageUrls[0] && <img src={lore.imageUrls[0]} alt=""/>}<b>{lore.title}</b><span><ThumbsUp size={14}/>{lore.upvotes}</span></Link>)}</div></div>}
+      </section>}
       <section className="section sound-section">
         <SectionHeading
           eyebrow={t('home.soundsEyebrow')}
