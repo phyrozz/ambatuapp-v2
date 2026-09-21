@@ -3,6 +3,7 @@ import { AppProvider } from '@/components/app-provider';
 import { AuthProvider } from '@/components/auth-provider';
 import { I18nProvider } from '@/components/i18n-provider';
 import { Shell } from '@/components/shell';
+import { BirthdayGreeting } from '@/components/birthday-greeting';
 import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'AmbatuApp — A little chaos. A lot of fun.', template: '%s · AmbatuApp' },
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <AuthProvider>
             <AppProvider>
               <Shell>{children}</Shell>
+              <BirthdayGreeting />
             </AppProvider>
           </AuthProvider>
         </I18nProvider>

@@ -3332,3 +3332,17 @@ select {
   place-items: center;
   padding: 0;
 }
+
+.player-profile-form { margin: 22px 0; padding-top: 20px; border-top: 1px solid var(--line); }
+.player-profile-form h3 { margin: 0; font-size: 17px; }
+.player-profile-form p { margin: 0; }
+.player-profile-form label { display: grid; gap: 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.player-profile-form input { width: 100%; min-height: 42px; border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; color: var(--ink); background: #fff; font: inherit; }
+.form-success { color: #317047 !important; }
+.birthday-greeting { position: fixed; z-index: 50; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); max-width: min(390px, calc(100vw - 36px)); display: flex; align-items: flex-start; gap: 12px; padding: 15px; border: 1px solid #e3b558; border-radius: 13px; background: #fff8df; color: #624512; box-shadow: 0 12px 34px rgba(73, 52, 15, .2); animation: birthday-in .3s ease-out; }
+.birthday-greeting > svg { flex: 0 0 auto; color: #e28b28; margin-top: 2px; }
+.birthday-greeting div { display: grid; gap: 3px; }
+.birthday-greeting b { font-size: 15px; }
+.birthday-greeting span { font-size: 12px; line-height: 1.45; }
+.birthday-greeting button { border: 0; padding: 2px; background: transparent; color: inherit; cursor: pointer; }
+@keyframes birthday-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
