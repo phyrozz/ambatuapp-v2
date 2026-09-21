@@ -1,34 +1,34 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { beginGoogleSignIn, clearStoredSession, cognitoConfigured, getStoredSession, type CognitoUser } from '@/lib/cognito';
+import { beginGoogleSignIn, cognitoConfigured, getValidSession, revokeStoredSession, type CognitoUser } from '@/lib/cognito';
 
 type AuthContext = {
   ready: boolean;
   configured: boolean;
   user: CognitoUser | null;
   signInWithGoogle: () => Promise<void>;
-  signOut: () => void;
-  getAccessToken: () => string | null;
-  getIdToken: () => string | null;
+  signOut: () => Promise<void>;
+  getAccessToken: () => Promise<string | null>;
+  getIdToken: () => Promise<string | null>;
 };
 const Context = createContext<AuthContext | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<CognitoUser | null>(null);
   const [ready, setReady] = useState(false);
-  /* eslint-disable react-hooks/set-state-in-effect -- browser storage can only be read after hydration. */
   useEffect(() => {
-    setUser(getStoredSession()?.user ?? null);
-    setReady(true);
+    void getValidSession().then((session) => {
+      setUser(session?.user ?? null);
+      setReady(true);
+    });
   }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
   const signInWithGoogle = useCallback(async () => beginGoogleSignIn(), []);
-  const signOut = useCallback(() => {
-    clearStoredSession();
+  const signOut = useCallback(async () => {
     setUser(null);
+    await revokeStoredSession();
   }, []);
-  const getAccessToken = useCallback(() => getStoredSession()?.tokens.accessToken ?? null, []);
-  const getIdToken = useCallback(() => getStoredSession()?.tokens.idToken ?? null, []);
+  const getAccessToken = useCallback(async () => (await getValidSession())?.tokens.accessToken ?? null, []);
+  const getIdToken = useCallback(async () => (await getValidSession())?.tokens.idToken ?? null, []);
   return <Context.Provider value={{ ready, configured: cognitoConfigured, user, signInWithGoogle, signOut, getAccessToken, getIdToken }}>{children}</Context.Provider>;
 }
 

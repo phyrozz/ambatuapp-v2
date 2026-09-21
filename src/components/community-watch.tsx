@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Play, Upload, Video, X } from 'lucide-react';
+import { Play, Upload, Video, X } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 
@@ -50,7 +50,7 @@ export function CommunityWatch() {
     event.preventDefault(); if (!file || !user) return; if (file.size > 200 * 1024 * 1024) return setUploadError(t('watch.fileTooLarge'));
     setUploading(true); setUploadError('');
     try {
-      const token = getIdToken(), thumbnail = await thumbnailFromVideo(file);
+      const [token, thumbnail] = await Promise.all([getIdToken(), thumbnailFromVideo(file)]);
       const presign = await fetch(`${api()}/presign`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ fileName: file.name, contentType: file.type }) });
       const signed = await presign.json(); if (!presign.ok) throw new Error(signed.error);
       let uploads: Response[];

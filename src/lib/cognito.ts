@@ -7,6 +7,7 @@ export type CognitoUser = {
 type TokenSet = {
   accessToken: string;
   idToken: string;
+  refreshToken: string;
   expiresAt: number;
 };
 
@@ -16,6 +17,8 @@ const callbackUrl = process.env.NEXT_PUBLIC_COGNITO_CALLBACK_URL;
 const storageKey = 'ambatuapp-cognito-session';
 const verifierKey = 'ambatuapp-cognito-verifier';
 const stateKey = 'ambatuapp-cognito-state';
+const refreshLeewayMs = 60_000;
+let refreshInFlight: Promise<{ user: CognitoUser; tokens: TokenSet } | null> | null = null;
 
 export const cognitoConfigured = Boolean(domain && clientId && callbackUrl);
 
@@ -40,21 +43,66 @@ function userFromIdToken(idToken: string): CognitoUser {
   return { id, email, name };
 }
 
-export function getStoredSession(): { user: CognitoUser; tokens: TokenSet } | null {
+function readTokens(): TokenSet | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = sessionStorage.getItem(storageKey);
+    // Tokens used to be tab-scoped. Retain an active old session once, then move it
+    // to persistent storage so upgrading the app does not unexpectedly sign users out.
+    const raw = localStorage.getItem(storageKey) ?? sessionStorage.getItem(storageKey);
     if (!raw) return null;
     const tokens = JSON.parse(raw) as TokenSet;
-    if (!tokens.idToken || !tokens.accessToken || tokens.expiresAt <= Date.now()) {
-      sessionStorage.removeItem(storageKey);
+    if (!tokens.idToken || !tokens.accessToken || !tokens.refreshToken || !tokens.expiresAt) {
+      clearStoredSession();
       return null;
     }
-    return { user: userFromIdToken(tokens.idToken), tokens };
-  } catch {
+    localStorage.setItem(storageKey, JSON.stringify(tokens));
     sessionStorage.removeItem(storageKey);
+    return tokens;
+  } catch {
+    clearStoredSession();
     return null;
   }
+}
+
+export function getStoredSession(): { user: CognitoUser; tokens: TokenSet } | null {
+  const tokens = readTokens();
+  if (!tokens || tokens.expiresAt <= Date.now()) return null;
+  try { return { user: userFromIdToken(tokens.idToken), tokens }; }
+  catch { clearStoredSession(); return null; }
+}
+
+async function refreshSession(): Promise<{ user: CognitoUser; tokens: TokenSet } | null> {
+  const current = readTokens();
+  if (!current || !cognitoConfigured || !domain || !clientId) return null;
+  try {
+    const response = await fetch(`https://${domain}/oauth2/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'refresh_token', client_id: clientId, refresh_token: current.refreshToken }),
+    });
+    const result = (await response.json()) as { access_token?: string; id_token?: string; refresh_token?: string; expires_in?: number };
+    if (!response.ok || !result.access_token || !result.id_token) throw new Error('Could not refresh your sign-in.');
+    const tokens: TokenSet = {
+      accessToken: result.access_token,
+      idToken: result.id_token,
+      refreshToken: result.refresh_token ?? current.refreshToken,
+      expiresAt: Date.now() + (result.expires_in ?? 3600) * 1000,
+    };
+    const user = userFromIdToken(tokens.idToken);
+    localStorage.setItem(storageKey, JSON.stringify(tokens));
+    return { user, tokens };
+  } catch {
+    clearStoredSession();
+    return null;
+  }
+}
+
+/** Returns fresh API tokens, renewing them once per browser window when needed. */
+export async function getValidSession(): Promise<{ user: CognitoUser; tokens: TokenSet } | null> {
+  const session = getStoredSession();
+  if (session && session.tokens.expiresAt > Date.now() + refreshLeewayMs) return session;
+  refreshInFlight ??= refreshSession().finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
 }
 
 export async function beginGoogleSignIn() {
@@ -95,14 +143,32 @@ export async function completeGoogleSignIn(code: string, state: string | null) {
       grant_type: 'authorization_code', code, client_id: clientId, redirect_uri: callbackUrl, code_verifier: verifier,
     }),
   });
-  const result = (await response.json()) as { access_token?: string; id_token?: string; expires_in?: number; error_description?: string };
-  if (!response.ok || !result.access_token || !result.id_token) throw new Error(result.error_description || 'Could not finish Google sign-in.');
-  const tokens: TokenSet = { accessToken: result.access_token, idToken: result.id_token, expiresAt: Date.now() + (result.expires_in ?? 3600) * 1000 };
+  const result = (await response.json()) as { access_token?: string; id_token?: string; refresh_token?: string; expires_in?: number; error_description?: string };
+  if (!response.ok || !result.access_token || !result.id_token || !result.refresh_token) throw new Error(result.error_description || 'Could not finish Google sign-in.');
+  const tokens: TokenSet = { accessToken: result.access_token, idToken: result.id_token, refreshToken: result.refresh_token, expiresAt: Date.now() + (result.expires_in ?? 3600) * 1000 };
   const user = userFromIdToken(tokens.idToken);
-  sessionStorage.setItem(storageKey, JSON.stringify(tokens));
+  localStorage.setItem(storageKey, JSON.stringify(tokens));
   return { user, tokens };
 }
 
 export function clearStoredSession() {
-  if (typeof window !== 'undefined') sessionStorage.removeItem(storageKey);
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(storageKey);
+    sessionStorage.removeItem(storageKey);
+  }
+}
+
+export async function revokeStoredSession() {
+  const refreshToken = readTokens()?.refreshToken;
+  clearStoredSession();
+  if (!refreshToken || !domain || !clientId) return;
+  try {
+    await fetch(`https://${domain}/oauth2/revoke`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token: refreshToken, client_id: clientId }),
+    });
+  } catch {
+    // Local sign-out still succeeds when the user is offline.
+  }
 }

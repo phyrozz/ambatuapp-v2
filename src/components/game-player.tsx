@@ -65,7 +65,7 @@ export function GamePlayer({ id }: { id: GameId }) {
     pendingScore.current = score;
     if (submitTimer.current) clearTimeout(submitTimer.current);
     submitTimer.current = setTimeout(() => {
-      void submitLeaderboardScore(id, pendingScore.current, getAccessToken())
+      void getAccessToken().then((token) => submitLeaderboardScore(id, pendingScore.current, token))
         .then(() => setLeaderboardVersion((version) => version + 1))
         .catch(() => {});
     }, 900);
