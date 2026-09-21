@@ -17,6 +17,7 @@ const callbackUrl = process.env.NEXT_PUBLIC_COGNITO_CALLBACK_URL;
 const storageKey = 'ambatuapp-cognito-session';
 const verifierKey = 'ambatuapp-cognito-verifier';
 const stateKey = 'ambatuapp-cognito-state';
+const returnToKey = 'ambatuapp-cognito-return-to';
 const refreshLeewayMs = 60_000;
 let refreshInFlight: Promise<{ user: CognitoUser; tokens: TokenSet } | null> | null = null;
 
@@ -105,7 +106,7 @@ export async function getValidSession(): Promise<{ user: CognitoUser; tokens: To
   return refreshInFlight;
 }
 
-export async function beginGoogleSignIn() {
+export async function beginGoogleSignIn(returnTo = '/profile/') {
   if (!cognitoConfigured || !domain || !clientId || !callbackUrl) {
     throw new Error('Google sign-in has not been configured yet.');
   }
@@ -115,6 +116,7 @@ export async function beginGoogleSignIn() {
   const state = encodeBase64Url(crypto.getRandomValues(new Uint8Array(24)));
   sessionStorage.setItem(verifierKey, verifier);
   sessionStorage.setItem(stateKey, state);
+  sessionStorage.setItem(returnToKey, returnTo.startsWith('/') ? returnTo : '/profile/');
   const url = new URL(`https://${domain}/oauth2/authorize`);
   url.search = new URLSearchParams({
     response_type: 'code',
@@ -148,7 +150,9 @@ export async function completeGoogleSignIn(code: string, state: string | null) {
   const tokens: TokenSet = { accessToken: result.access_token, idToken: result.id_token, refreshToken: result.refresh_token, expiresAt: Date.now() + (result.expires_in ?? 3600) * 1000 };
   const user = userFromIdToken(tokens.idToken);
   localStorage.setItem(storageKey, JSON.stringify(tokens));
-  return { user, tokens };
+  const returnTo = sessionStorage.getItem(returnToKey) || '/profile/';
+  sessionStorage.removeItem(returnToKey);
+  return { user, tokens, returnTo };
 }
 
 export function clearStoredSession() {

@@ -14,7 +14,7 @@ export function AuthCallback() {
     const code = params.get('code');
     if (providerError || !code) { setError(providerError || t('profile.connectionError')); return; }
     void completeGoogleSignIn(code, params.get('state'))
-      .then(() => window.location.replace('/profile/'))
+      .then(({ returnTo }) => window.location.replace(returnTo))
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : t('profile.connectionError')));
   }, [t]);
   /* eslint-enable react-hooks/set-state-in-effect */

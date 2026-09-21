@@ -6,7 +6,7 @@ type AuthContext = {
   ready: boolean;
   configured: boolean;
   user: CognitoUser | null;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (returnTo?: string) => Promise<void>;
   signOut: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
   getIdToken: () => Promise<string | null>;
@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setReady(true);
     });
   }, []);
-  const signInWithGoogle = useCallback(async () => beginGoogleSignIn(), []);
+  const signInWithGoogle = useCallback(async (returnTo?: string) => beginGoogleSignIn(returnTo), []);
   const signOut = useCallback(async () => {
     setUser(null);
     await revokeStoredSession();

@@ -305,6 +305,8 @@
   "lore.commentPlaceholder": "Tambahkan komentar samaran",
   "lore.postComment": "Kirimkan komentar",
   "lore.anonymous": "Tanpa nama",
+  "lore.loginTitle": "Sign in to join the lore",
+  "lore.loginHint": "Use your Google account to vote or post a comment.",
   "notFound.eyebrow": "404 · SESAT DALAM BAGIAN KISAH",
   "notFound.title": "Detour ini sudah akhir di sini.",
   "notFound.description": "Mari kita kembali ke barang-barang yang baik.",
