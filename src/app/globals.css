@@ -282,6 +282,23 @@ img {
 .nav-item.active:hover {
   background: #fbd9ca;
 }
+.nav-item.chat-featured {
+  background: #b93d21;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 7px 18px #b93d2130;
+}
+.nav-item.chat-featured:hover {
+  background: #a6331b;
+}
+.nav-item.chat-featured.active {
+  background: #8d2a17;
+  box-shadow: 0 0 0 2px #f2ab91, 0 7px 18px #b93d2130;
+}
+.nav-item.chat-featured:focus-visible {
+  outline: 3px solid #f2ab91;
+  outline-offset: 3px;
+}
 .nav-item small {
   margin-left: auto;
   background: #eae9e0;
@@ -348,6 +365,96 @@ img {
   border-block: 1px solid var(--line);
   background: #f8f7f2;
   overflow: hidden;
+}
+@media (min-width: 761px) {
+  .workspace.chat-workspace {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .chat-workspace > main {
+    flex: 1;
+    min-height: 0;
+  }
+  .chat-workspace .page.chat-page {
+    height: 100%;
+    min-height: 0;
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+  .chat-workspace .chat-layout {
+    height: 100%;
+    min-height: 0;
+  }
+  .chat-workspace .footer {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .workspace.chat-workspace {
+    height: 100dvh;
+    padding-bottom: calc(70px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .chat-workspace > main {
+    flex: 1;
+    min-height: 0;
+  }
+  .chat-workspace .page {
+    height: 100%;
+    min-height: 0;
+    padding: 12px 16px 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .chat-workspace .chat-layout {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+  }
+  .chat-workspace .chat-inbox {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+  }
+  .chat-workspace .chat-thread {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+  }
+  .chat-workspace .chat-layout.chat-show-inbox .chat-thread,
+  .chat-workspace .chat-layout.chat-show-thread .chat-inbox {
+    display: none;
+  }
+  .chat-workspace .chat-back {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #f3f1ea;
+    color: #514b42;
+  }
+  .chat-workspace .chat-back:hover {
+    background: #fff0e6;
+  }
+  .chat-workspace .chat-thread > header > div {
+    min-width: 0;
+  }
+  .chat-workspace .chat-thread > header h2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chat-workspace .footer {
+    display: none;
+  }
 }
 .web-ad > span {
   display: block;
@@ -497,6 +604,9 @@ img {
   font-size: 11px;
   font-weight: 700;
 }
+.profile-mobile-label {
+  display: none;
+}
 .profile-button img {
   height: 31px;
   width: 31px;
@@ -512,6 +622,13 @@ img {
   padding: 5px;
   border: 3px solid #e7e5d8;
   border-radius: 50%;
+}
+.profile-button.active {
+  color: #b93d21;
+}
+.profile-button.active > svg:first-child {
+  border-color: #f2ab91;
+  color: #b93d21;
 }
 .page {
   max-width: 1450px;
@@ -2250,6 +2367,11 @@ select {
     height: 33px;
     width: 33px;
   }
+  .profile-button .profile-mobile-label {
+    display: inline;
+    font-size: 10px;
+    white-space: nowrap;
+  }
   .topbar .icon-button {
     height: 34px;
     width: 34px;
@@ -2556,6 +2678,30 @@ select {
   .mobile-nav a.active {
     color: var(--orange);
   }
+  .mobile-nav a.chat-featured {
+    flex: 1.35 1 0;
+    color: #a6331b;
+    font-weight: 700;
+  }
+  .mobile-nav a.chat-featured svg {
+    width: 34px;
+    height: 34px;
+    margin-top: -10px;
+    padding: 7px;
+    border-radius: 12px;
+    background: #b93d21;
+    color: #fff;
+    box-shadow: 0 5px 14px #b93d2140;
+  }
+  .mobile-nav a.chat-featured.active svg {
+    background: #8d2a17;
+    box-shadow: 0 0 0 2px #f2ab91, 0 5px 14px #b93d2140;
+  }
+  .mobile-nav a.chat-featured:focus-visible {
+    outline: 3px solid #b93d21;
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
   .audio-dock {
     left: 10px;
     right: 10px;
@@ -2846,8 +2992,20 @@ select {
   .filter-row > span {
     display: none;
   }
+  .topbar {
+    padding-inline: 12px;
+  }
+  .mobile-brand {
+    font-size: 21px;
+  }
+  .topbar > div {
+    gap: 8px;
+  }
+  .topbar .profile-button {
+    display: flex;
+  }
   .profile-button {
-    display: none;
+    gap: 5px;
   }
   .hero-visual:after {
     width: 270px;

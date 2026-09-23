@@ -1,0 +1,75 @@
+.loading-indicator {
+  --loading-size: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #a44327;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.loading-indicator-mark {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--loading-size);
+  height: var(--loading-size);
+}
+
+.loading-indicator-mark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid #f4d5c6;
+  border-top-color: #f6542f;
+  border-right-color: #d94722;
+  border-radius: 50%;
+  animation: loading-indicator-spin .75s linear infinite;
+}
+
+.loading-indicator-mark::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f6542f;
+  transform: translate(-50%, -50%);
+  animation: loading-indicator-pulse 1s ease-in-out infinite alternate;
+}
+
+.loading-indicator-compact {
+  --loading-size: 18px;
+  gap: 0;
+}
+
+.loading-indicator-compact .loading-indicator-mark::before {
+  border-width: 2px;
+}
+
+.loading-indicator-compact .loading-indicator-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@keyframes loading-indicator-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loading-indicator-pulse {
+  to { opacity: .45; transform: translate(-50%, -50%) scale(.65); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-indicator-mark::before,
+  .loading-indicator-mark::after {
+    animation: none;
+  }
+}

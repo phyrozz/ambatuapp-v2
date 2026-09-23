@@ -5,7 +5,7 @@ import { Play, Upload, Video, X } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 
-type CommunityVideo = { id: string; title: string; description: string; uploader: string; thumbnailUrl: string };
+type CommunityVideo = { id: string; title: string; description: string; uploader: string; uploaderId?: string; thumbnailUrl: string };
 const api = () => `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/videos`;
 
 async function thumbnailFromVideo(file: File) {
@@ -75,7 +75,7 @@ export function CommunityWatch() {
     {uploadOpen && <form className="watch-upload panel" onSubmit={publish}><button type="button" className="icon-button" aria-label={t('watch.closeVideo')} onClick={() => setUploadOpen(false)}><X size={17}/></button><h3>{t('watch.uploadTitle')}</h3><label>{t('watch.videoTitle')}<input value={title} maxLength={120} onChange={event => setTitle(event.target.value)} required /></label><label>{t('watch.descriptionLabel')}<textarea value={description} maxLength={1000} onChange={event => setDescription(event.target.value)} /></label><label className="watch-file"><Video size={22}/><span>{file?.name ?? t('watch.chooseVideo')}</span><input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={event => setFile(event.target.files?.[0] ?? null)} required /></label>{uploadError && <p className="form-error">{uploadError}</p>}<button className="button dark" disabled={uploading}>{uploading ? t('watch.uploading') : t('watch.publish')}</button></form>}
     {loading ? <div className="loading-panel" role="status">{t('watch.loading')}</div> : error ? <p className="feed-notice" role="alert">{error}</p> : videos.length ? <div className="community-video-grid">{videos.map(video => <article className="community-video-card" key={video.id}>
       <Link className="community-video-thumb" href={`/watch/${video.id}/`} aria-label={video.title}>{video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" loading="lazy"/> : <Video size={38}/>}<span><Play fill="currentColor" size={20}/></span></Link>
-      <div className="community-video-copy"><h3><Link href={`/watch/${video.id}/`}>{video.title}</Link></h3><span className="community-video-author">{t('watch.uploadedBy', { email: video.uploader })}</span>{video.description && <p>{video.description}</p>}</div>
+      <div className="community-video-copy"><h3><Link href={`/watch/${video.id}/`}>{video.title}</Link></h3><span className="community-video-author">{video.uploaderId && video.uploaderId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(video.uploaderId)}&name=${encodeURIComponent(video.uploader)}`} aria-label={t('chat.messageUser', { name: video.uploader })}>{t('watch.uploadedBy', { email: video.uploader })}</Link> : t('watch.uploadedBy', { email: video.uploader })}</span>{video.description && <p>{video.description}</p>}</div>
     </article>)}</div> : <div className="empty-state"><Video/><h3>{t('watch.noCommunityVideos')}</h3><p>{t('watch.noCommunityVideosHint')}</p></div>}
     <div className="community-scroll-sentinel" ref={sentinel} role={loadingMore ? 'status' : undefined}>{loadingMore && t('watch.loadingMore')}</div>
   </section>;

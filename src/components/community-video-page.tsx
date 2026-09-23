@@ -5,13 +5,13 @@ import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, Send } from 'lucide
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 
-type VideoData = { id: string; title: string; description: string; uploader: string; videoUrl: string; upvotes: number; downvotes: number; commentCount: number };
-type Comment = { id: string; text: string; author: string };
+type VideoData = { id: string; title: string; description: string; uploader: string; uploaderId?: string; videoUrl: string; upvotes: number; downvotes: number; commentCount: number };
+type Comment = { id: string; text: string; author: string; authorId?: string };
 const base = () => `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/videos`;
 function viewerId() { const key = 'ambatu-anonymous-id'; let id = localStorage.getItem(key); if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id); } return id; }
 
 export function CommunityVideoPage({ id }: { id: string }) {
-  const { t } = useI18n(), { getIdToken } = useAuth();
+  const { t } = useI18n(), { user, getIdToken } = useAuth();
   const [video, setVideo] = useState<VideoData | null>(null), [comments, setComments] = useState<Comment[]>([]), [text, setText] = useState(''), [error, setError] = useState(''), [userVote, setUserVote] = useState(0), [votePulse, setVotePulse] = useState<'up' | 'down' | null>(null);
   useEffect(() => { const controller = new AbortController(), key = `ambatu-video-vote:${id}`; Promise.all([fetch(`${base()}/${encodeURIComponent(id)}`, { cache: 'no-store', signal: controller.signal }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.error); return data; })), fetch(`${base()}/${encodeURIComponent(id)}/comments`, { cache: 'no-store', signal: controller.signal }).then(response => response.json())]).then(([item, thread]) => { setVideo(item); setComments(thread.comments ?? []); setUserVote(Number(localStorage.getItem(key)) || 0); }).catch(reason => { if (reason.name !== 'AbortError') setError(reason instanceof Error ? reason.message : t('watch.communityError')); }); return () => controller.abort(); }, [id, t]);
   async function vote(value: 1 | -1) { if (!video) return; const direction = value === 1 ? 'up' : 'down'; setVotePulse(null); requestAnimationFrame(() => setVotePulse(direction)); setTimeout(() => setVotePulse(null), 520); const key = `ambatu-video-vote:${id}`, prior = userVote, response = await fetch(`${base()}/${id}/vote`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ anonymousId: viewerId(), value }) }), data = await response.json(); if (!response.ok) return; localStorage.setItem(key, String(data.value)); setUserVote(data.value); setVideo({ ...video, upvotes: video.upvotes + (data.value === 1 ? 1 : 0) - (prior === 1 ? 1 : 0), downvotes: video.downvotes + (data.value === -1 ? 1 : 0) - (prior === -1 ? 1 : 0) }); }
@@ -24,7 +24,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
         <div className="community-video-story">
           <p className="eyebrow"><span className="watch-accent-dot" />{t('watch.communityEyebrow')}</p>
           <h1>{video.title}</h1>
-          <span className="community-video-byline">{t('watch.uploadedBy', { email: video.uploader })}</span>
+          <span className="community-video-byline">{video.uploaderId && video.uploaderId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(video.uploaderId)}&name=${encodeURIComponent(video.uploader)}`} aria-label={t('chat.messageUser', { name: video.uploader })}>{t('watch.uploadedBy', { email: video.uploader })}</Link> : t('watch.uploadedBy', { email: video.uploader })}</span>
           {video.description && <p className="community-video-description">{video.description}</p>}
           <div className="community-video-actions" aria-label={t('watch.communityEyebrow')}>
             <button className={`up ${userVote === 1 ? 'selected' : ''} ${votePulse === 'up' ? 'vote-pop' : ''}`} aria-label={`${t('lore.upvote')}: ${video.upvotes}`} aria-pressed={userVote === 1} onClick={() => void vote(1)}><ArrowBigUp size={20}/><span>{video.upvotes}</span></button>
@@ -35,7 +35,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
         <section className="video-comments" aria-labelledby="video-comments-title">
           <div className="video-comments-heading"><MessageCircle size={18}/><h2 id="video-comments-title">{t('lore.comments')}</h2><span>{video.commentCount}</span></div>
           <form onSubmit={comment}><input aria-label={t('watch.commentPlaceholder')} value={text} maxLength={1000} onChange={event => setText(event.target.value)} placeholder={t('watch.commentPlaceholder')}/><button aria-label={t('watch.postComment')} disabled={!text.trim()}><Send size={16}/></button></form>
-          <div className="video-comment-list">{comments.map(item => <p key={item.id}><b>{item.author}</b><span>{item.text}</span></p>)}</div>
+          <div className="video-comment-list">{comments.map(item => <p key={item.id}><b>{item.authorId && item.authorId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(item.authorId)}&name=${encodeURIComponent(item.author)}`} aria-label={t('chat.messageUser', { name: item.author })}>{item.author}</Link> : item.author}</b><span>{item.text}</span></p>)}</div>
         </section>
       </div>
     </article>}

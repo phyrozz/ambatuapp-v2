@@ -22,6 +22,12 @@ Next.js exports the entire application to `out/`. Deploy that directory to a sta
 
 ## Features
 
+### Chat
+
+Set `NEXT_PUBLIC_CHAT_WS_URL` to the deployed `wss://` endpoint printed by `chat-service/deploy.ps1`, then rebuild the static app. In the Cognito player app client, allow the `aws.cognito.signin.user.admin` OAuth scope alongside `openid` and `email`; chat uses this scope to validate the access token with Cognito. Existing sessions must sign in again to gain the new scope. Chat uses the admin public API at `NEXT_PUBLIC_CHARACTER_API_URL` for username search. The chat page supports direct messages, groups, text, uploaded images and videos up to 5 MB, Giphy/Tenor media links, and reports. Uploader and signed-in commenter names in AmbatuWatch, plus commenter names in lore, open direct chats. Editorial lore entries have no player author.
+
+See [chat-service/README.md](../chat-service/README.md) for deployment and admin report setup.
+
 - **Discover:** redesigned home, responsive sidebar/bottom navigation, quick access to sounds, characters, and games.
 - **Soundboard:** all 26 original clips, text search, categories, up to ten simultaneous sounds, stop-all, volume, and persistent favorites. Playback stops when the app goes into the background.
 - **Characters:** all 13 original entries, artwork, available archive copy, and original profile links. The legacy fictional biographies are explicitly marked as community meme lore. Previously unfinished entries use a collection description rather than an empty construction page.
@@ -44,7 +50,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-or-publishable-key
 ```
 
-Google-only sign-in uses a Cognito User Pool managed-login domain. Set `NEXT_PUBLIC_COGNITO_DOMAIN`, `NEXT_PUBLIC_COGNITO_CLIENT_ID`, and `NEXT_PUBLIC_COGNITO_CALLBACK_URL` (for example, `https://ambatu.fun/auth/callback/`). In the Cognito app client, enable Google, the OAuth authorization-code flow, and the `openid` and `email` scopes, then add that same callback URL. The app client must not have a client secret because this static browser app uses PKCE.
+Google-only sign-in uses a Cognito User Pool managed-login domain. Set `NEXT_PUBLIC_COGNITO_DOMAIN`, `NEXT_PUBLIC_COGNITO_CLIENT_ID`, and `NEXT_PUBLIC_COGNITO_CALLBACK_URL` (for example, `https://ambatu.fun/auth/callback/`). In the Cognito app client, enable Google, the OAuth authorization-code flow, and the `openid`, `email`, and `aws.cognito.signin.user.admin` scopes, then add that same callback URL. The app client must not have a client secret because this static browser app uses PKCE.
 
 Google sessions are renewed in the browser with Cognito refresh tokens. Configure the player app client's refresh-token validity to the desired persistent-login period (Cognito supports up to 10 years) and enable token revocation. Refresh-token rotation is recommended; the app saves the replacement token returned by Cognito. Signing out revokes the stored refresh token and clears the browser session. As with any static web app, persistent browser tokens require strong XSS protections.
 

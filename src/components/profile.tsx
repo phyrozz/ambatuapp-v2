@@ -5,7 +5,7 @@ import { useApp } from './app-provider';
 import { useAuth } from './auth-provider';
 import { games } from '@/lib/catalog';
 import { useI18n } from './i18n-provider';
-import { getPlayerProfile, savePlayerProfile } from '@/lib/player-profile';
+import { getPlayerProfile, PlayerProfileError, savePlayerProfile } from '@/lib/player-profile';
 
 function today() { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 
@@ -29,7 +29,7 @@ export function ProfilePanel() {
       if (!token) throw new Error(t('profile.connectionError'));
       const profile = await savePlayerProfile(token, { username, birthDate: birthDate || null });
       setUsername(profile.username); setBirthDate(profile.birthDate ?? ''); setProfileStatus(t('profile.savedProfile'));
-    } catch (error) { setProfileError(error instanceof Error ? error.message : t('profile.connectionError')); }
+    } catch (error) { setProfileError(error instanceof PlayerProfileError && error.code === 'username_taken' ? t('profile.usernameTaken') : error instanceof Error ? error.message : t('profile.connectionError')); }
     finally { setSaving(false); }
   }
   return (

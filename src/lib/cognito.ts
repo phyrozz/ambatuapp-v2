@@ -122,7 +122,7 @@ export async function beginGoogleSignIn(returnTo = '/profile/') {
     response_type: 'code',
     client_id: clientId,
     redirect_uri: callbackUrl,
-    scope: 'openid email',
+    scope: 'openid email aws.cognito.signin.user.admin',
     identity_provider: 'Google',
     code_challenge_method: 'S256',
     code_challenge: challenge,

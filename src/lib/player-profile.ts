@@ -1,5 +1,9 @@
 export type PlayerProfile = { username: string; birthDate: string | null };
 
+export class PlayerProfileError extends Error {
+  constructor(message: string, readonly code?: string) { super(message); }
+}
+
 const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '');
 
 async function request(token: string, init?: RequestInit) {
@@ -9,8 +13,8 @@ async function request(token: string, init?: RequestInit) {
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}`, ...init?.headers },
     cache: 'no-store',
   });
-  const data = await response.json() as PlayerProfile & { error?: string };
-  if (!response.ok) throw new Error(data.error || 'Could not update profile.');
+  const data = await response.json() as PlayerProfile & { error?: string; code?: string };
+  if (!response.ok) throw new PlayerProfileError(data.error || 'Could not update profile.', data.code);
   return data as PlayerProfile;
 }
 

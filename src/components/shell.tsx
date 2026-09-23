@@ -17,6 +17,7 @@ import {
   Square,
   Sparkles,
   UserRound,
+  MessageCircle,
 } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useI18n } from './i18n-provider';
@@ -26,6 +27,7 @@ const nav = [
   { href: '/', key: 'nav.discover', Icon: House },
   { href: '/games/', key: 'nav.games', shortKey: 'nav.gamesShort', Icon: Gamepad2 },
   { href: '/soundboard/', key: 'nav.soundboard', Icon: AudioLines },
+  { href: '/chat/', key: 'nav.chat', Icon: MessageCircle },
   { href: '/characters/', key: 'nav.characters', Icon: UsersRound },
   { href: '/lores/', key: 'nav.lore', Icon: BookOpen },
   { href: '/watch/', key: 'nav.watch', shortKey: 'nav.watchShort', Icon: Play },
@@ -37,7 +39,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [topbarScrolled, setTopbarScrolled] = useState(false);
   const { current, playing, stop, volume, setVolume, error } = useApp();
   const { locale, locales, localeNames, setLocale, t } = useI18n();
-  const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || Boolean(current);
+  const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || path === '/chat/' || Boolean(current);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -89,7 +91,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Link
               key={href}
               href={href}
-              className={`nav-item ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
+              className={`nav-item ${href === '/chat/' ? 'chat-featured' : ''} ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
             >
               <Icon size={20} />
               <span>{t(key)}</span>
@@ -120,7 +122,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </span>
         </div>
       </aside>
-      <div className="workspace">
+      <div className={`workspace ${path === '/chat/' ? 'chat-workspace' : ''}`}>
         <header className={`topbar ${topbarHidden ? 'topbar-hidden' : ''} ${topbarScrolled ? 'topbar-scrolled' : ''}`}>
           <span className="topbar-note">
             <span className="status-dot" /> {t('shell.chaos')}
@@ -136,9 +138,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Link href="/favorites/" className="icon-button" aria-label={t('nav.favorites')}>
               <Heart size={19} />
             </Link>
-            <Link href="/profile/" className="profile-button" aria-label={t('nav.profile')}>
+            <Link href="/profile/" className={`profile-button ${path.startsWith('/profile/') ? 'active' : ''}`} aria-label={t('nav.profile')}>
               <UserRound size={18} aria-hidden="true" />
-              <span>{t('shell.yourCorner')}</span>
+              <span className="profile-desktop-label">{t('shell.yourCorner')}</span>
+              <span className="profile-mobile-label">{t('nav.profile')}</span>
               <ArrowUpRight size={15} />
             </Link>
           </div>
@@ -159,16 +162,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Link
             href={href}
             key={href}
-            className={path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}
+            className={`${href === '/chat/' ? 'chat-featured' : ''} ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
           >
             <Icon size={21} />
             <span>{t(shortKey ?? key)}</span>
           </Link>
         ))}
-        <Link href="/profile/" className={path.startsWith('/profile/') ? 'active' : ''}>
-          <UserRound size={21} />
-          <span>{t('nav.profile')}</span>
-        </Link>
       </nav>
       {current && (
         <div className="audio-dock">
