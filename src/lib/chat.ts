@@ -1,4 +1,4 @@
-export type ChatConversation = { id: string; members: string[]; group: boolean; title: string; names: Record<string, string>; updatedAt: number; lastMessage?: string };
+export type ChatConversation = { id: string; members: string[]; group: boolean; title: string; names: Record<string, string>; updatedAt: number; lastMessage?: string; muted?: boolean };
 export type ChatMessage = { id: string; conversationId: string; senderId: string; kind: 'text' | 'image' | 'video' | 'gif' | 'sound'; text: string; url?: string; createdAt: number; messageKey?: string; reactions?: Record<string, string> };
 export type ChatReaction = { conversationId: string; messageKey: string; reactions: Record<string, string> };
 

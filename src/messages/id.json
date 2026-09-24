@@ -425,5 +425,10 @@
   "push.promptDescription": "Get notified when someone sends you a chat message.",
   "push.notNow": "Not now",
   "push.notificationTitle": "New message",
-  "push.notificationBody": "You have a new message."
+  "push.notificationBody": "You have a new message.",
+  "chat.mentionUser": "Mention {name}",
+  "chat.muteConversation": "Mute notifications for this conversation",
+  "chat.unmuteConversation": "Unmute notifications for this conversation",
+  "chat.muteError": "Could not update notification settings.",
+  "push.mentionBody": "{sender} mentioned you: {message}"
 }

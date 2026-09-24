@@ -4,7 +4,7 @@ import './chat.css';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, AudioLines, Bell, Flag, ImagePlus, MessageCircle, Plus, Search, Send, UsersRound, X } from 'lucide-react';
+import { ArrowLeft, AudioLines, Bell, BellOff, Flag, ImagePlus, MessageCircle, Plus, Search, Send, UsersRound, X } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
@@ -23,6 +23,14 @@ const playersApi = `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, 
 const playerNamesApi = `${playersApi}/names`;
 const ChatEmojiPicker = lazy(() => import('./chat-emoji-picker'));
 
+function mentionQueryAt(value: string, cursor: number) {
+  const beforeCursor = value.slice(0, cursor);
+  const start = beforeCursor.lastIndexOf('@');
+  if (start < 0 || (start > 0 && !/\s/.test(beforeCursor[start - 1]) && !'([{'.includes(beforeCursor[start - 1]))) return null;
+  const term = beforeCursor.slice(start + 1);
+  return /\s/.test(term) ? null : { start, term };
+}
+
 export function ChatPage() {
   const { t, locale } = useI18n();
   const { ready, user, getAccessToken, getIdToken, signInWithGoogle } = useAuth();
@@ -40,6 +48,8 @@ export function ChatPage() {
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [draft, setDraft] = useState('');
+  const [draftMentions, setDraftMentions] = useState<Record<string, string>>({});
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState<Player[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -74,12 +84,14 @@ export function ChatPage() {
   const lastNamesFetch = useRef(0);
   const namesFetchVersion = useRef(0);
   const messagePane = useRef<HTMLDivElement>(null);
+  const messageInput = useRef<HTMLInputElement>(null);
   const historyRequest = useRef(false);
   const stickToBottom = useRef(true);
   const restoreScroll = useRef<{ conversation: string; height: number; top: number } | null>(null);
   const reactionToolbarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactionHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactionHoldStart = useRef<{ x: number; y: number } | null>(null);
+  const reactionHoldTriggered = useRef(false);
 
   useEffect(() => { installPushNavigation(() => socket.current, locale, user?.id ?? null, path => router.push(path)); }, [locale, router, user?.id]);
   useEffect(() => {
@@ -226,6 +238,7 @@ export function ChatPage() {
     }).catch(() => { if (!cancelled && socket.current?.isOpen) setError(t('chat.historyError')); }).finally(() => { if (!cancelled) setLoadingHistoryFor(''); });
     return () => { cancelled = true; };
   }, [active, status, reconnect, t]);
+  useEffect(() => { setDraftMentions({}); setMentionQuery(null); }, [active]);
   useLayoutEffect(() => {
     const pane = messagePane.current;
     if (!pane) return;
@@ -272,11 +285,14 @@ export function ChatPage() {
     return target instanceof Element && !!target.closest('button, a, input, textarea, select, video, audio, [role="button"]');
   }
   function handleMessagePointerDown(event: ReactPointerEvent<HTMLElement>, messageKey?: string) {
-    if (!Capacitor.isNativePlatform() || event.pointerType !== 'touch' || !messageKey || isMessageControl(event.target)) return;
+    if (event.pointerType !== 'touch' || !messageKey || isMessageControl(event.target)) return;
     clearReactionHold();
+    reactionHoldTriggered.current = false;
     reactionHoldStart.current = { x: event.clientX, y: event.clientY };
     reactionHoldTimer.current = setTimeout(() => {
+      reactionHoldTriggered.current = true;
       setRevealedReactionMessageKey(messageKey);
+      toggleReactionToolbar(messageKey);
       reactionHoldTimer.current = null;
     }, 450);
   }
@@ -285,6 +301,7 @@ export function ChatPage() {
     if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) clearReactionHold();
   }
   function handleMessageClick(event: ReactMouseEvent<HTMLElement>, messageKey?: string) {
+    if (reactionHoldTriggered.current) { reactionHoldTriggered.current = false; return; }
     if (Capacitor.isNativePlatform() || !messageKey || isMessageControl(event.target) || !window.matchMedia('(hover: none)').matches) return;
     setRevealedReactionMessageKey(messageKey);
   }
@@ -385,13 +402,41 @@ export function ChatPage() {
     if (!socket.current || !active) return;
     setBusy(true); setError('');
     try {
-      const result = await socket.current.request('send', { conversation: active, kind, text, key });
+      const result = await socket.current.request('send', { conversation: active, kind, text, key, ...(kind === 'text' ? { mentions: Object.keys(draftMentions) } : {}) });
       const message = result.message as ChatMessage;
       stickToBottom.current = true;
       setMessages(items => items.some(item => item.id === message.id) ? items : [...items, message]);
       void refresh(socket.current).catch(() => {});
-      setDraft(''); setSoundPickerOpen(false);
+      setDraft(''); setDraftMentions({}); setMentionQuery(null); setSoundPickerOpen(false);
     } catch (reason) { setError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.sendError')); } finally { setBusy(false); }
+  }
+  function updateDraft(value: string, cursor: number) {
+    setDraft(value);
+    setDraftMentions(current => Object.fromEntries(Object.entries(current).filter(([, name]) => value.includes(`@${name}`))));
+    if (!current?.group) { setMentionQuery(null); return; }
+    setMentionQuery(mentionQueryAt(value, cursor)?.term ?? null);
+  }
+  function insertMention(playerId: string, name: string) {
+    const input = messageInput.current;
+    const cursor = input?.selectionStart ?? draft.length;
+    const match = mentionQueryAt(draft, cursor);
+    if (!match) return;
+    const { start } = match;
+    const insertion = `@${name} `;
+    const next = `${draft.slice(0, start)}${insertion}${draft.slice(cursor)}`;
+    const nextCursor = start + insertion.length;
+    setDraft(next);
+    setDraftMentions(current => ({ ...current, [playerId]: name }));
+    setMentionQuery(null);
+    requestAnimationFrame(() => { input?.focus(); input?.setSelectionRange(nextCursor, nextCursor); });
+  }
+  async function toggleMute() {
+    if (!socket.current || !current) return;
+    const muted = !current.muted;
+    try {
+      await socket.current.request('setMute', { conversation: current.id, muted });
+      setConversations(items => items.map(item => item.id === current.id ? { ...item, muted } : item));
+    } catch { setError(t('chat.muteError')); }
   }
   async function upload(file?: File) {
     if (!file || !socket.current) return;
@@ -433,6 +478,7 @@ export function ChatPage() {
   }
   const current = conversations.find(item => item.id === active);
   const title = (item: ChatConversation) => item.group ? item.title : item.members.filter(id => id !== user?.id).map(id => item.names?.[id] ?? id).join(', ');
+  const mentionOptions = current?.group && mentionQuery !== null ? current.members.filter(id => id !== user?.id).map(id => ({ id, name: current.names?.[id] ?? id })).filter(player => player.name.toLocaleLowerCase().includes(mentionQuery.toLocaleLowerCase())).slice(0, 8) : [];
   const returnToInbox = () => {
     activeRef.current = '';
     setActive('');
@@ -460,7 +506,7 @@ export function ChatPage() {
       {matches.length > 0 && <div className="chat-results">{matches.map(player => <button key={player.id} onClick={() => { setSelected(items => items.some(item => item.id === player.id) ? items : [...items, player]); setQuery(''); setMatches([]); setSearchLoading(false); }}>{player.username}<Plus size={15}/></button>)}</div>}
       {selected.length > 0 && <div className="chat-compose-group"><div className="chat-selected">{selected.map(player => <button key={player.id} onClick={() => setSelected(items => items.filter(item => item.id !== player.id))}>{player.username}<X size={13}/></button>)}</div><label><input type="checkbox" checked={group} onChange={event => setGroup(event.target.checked)}/>{t('chat.groupChat')}</label>{group && <input value={groupTitle} maxLength={80} onChange={event => setGroupTitle(event.target.value)} placeholder={t('chat.groupName')}/>}<button className="button dark compact" disabled={busy || (group && !groupTitle.trim())} onClick={() => void createConversation()}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{group ? t('chat.createGroup') : t('chat.startChat')}</button></div>}
       <div className="chat-inbox-list">{!initialChatsLoaded && status !== 'unavailable' ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : conversations.length ? conversations.map(item => <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => { if (active !== item.id) { setMessages([]); setLoadingHistoryFor(item.id); setActive(item.id); } }}><span className="chat-avatar">{item.group ? <UsersRound size={19}/> : title(item).slice(0, 1).toUpperCase()}</span><span><strong>{title(item)}</strong><small>{item.lastMessage === 'sound' ? t('nav.soundboard') : item.lastMessage ?? t('chat.noMessages')}</small></span></button>) : <p className="chat-empty-inbox">{t('chat.emptyInbox')}</p>}</div>
-    </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={returnToInbox} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : title(current).slice(0, 1).toUpperCase()}</span><div><h2>{title(current)}</h2><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><div className="chat-header-actions">{current.group && <button className="chat-icon" onClick={() => { setMembersError(''); setMembersOpen(true); }} aria-label={t('chat.manageMembers')}><UsersRound size={18}/></button>}<button className="chat-icon" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')}><Flag size={18}/></button></div></header><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; stickToBottom.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map(message => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={message.id} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (Capacitor.isNativePlatform() && message.messageKey && !isMessageControl(event.target)) { event.preventDefault(); setRevealedReactionMessageKey(message.messageKey); } }}>{current.group && <small>{current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)}</small>}{message.kind === 'image' || message.kind === 'gif' ? <img src={message.kind === 'gif' ? message.text : message.url} alt={t(message.kind === 'gif' ? 'chat.gif' : 'chat.image')}/> : message.kind === 'video' ? <video src={message.url} controls playsInline/> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <p>{message.text}</p>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{new Date(message.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><label className="chat-icon" aria-label={t('chat.attach')}><ImagePlus size={19}/><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></label><button type="button" className="chat-icon chat-sound-toggle" onClick={() => setSoundPickerOpen(value => !value)} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><input value={draft} maxLength={2000} onChange={event => setDraft(event.target.value)} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')}/><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form>{soundPickerOpen && <ChatSoundPicker busy={busy} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
+    </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={returnToInbox} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : title(current).slice(0, 1).toUpperCase()}</span><div><h2>{title(current)}</h2><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><div className="chat-header-actions"><button className="chat-icon" onClick={() => void toggleMute()} aria-label={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')} title={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')}>{current.muted ? <BellOff size={18}/> : <Bell size={18}/>}</button>{current.group && <button className="chat-icon" onClick={() => { setMembersError(''); setMembersOpen(true); }} aria-label={t('chat.manageMembers')}><UsersRound size={18}/></button>}<button className="chat-icon" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')}><Flag size={18}/></button></div></header><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; stickToBottom.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map(message => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={message.id} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (message.messageKey && !isMessageControl(event.target)) { event.preventDefault(); setRevealedReactionMessageKey(message.messageKey); if (reactionToolbarMessageKey !== message.messageKey) toggleReactionToolbar(message.messageKey); } }}>{current.group && <small>{current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)}</small>}{message.kind === 'image' || message.kind === 'gif' ? <img src={message.kind === 'gif' ? message.text : message.url} alt={t(message.kind === 'gif' ? 'chat.gif' : 'chat.image')}/> : message.kind === 'video' ? <video src={message.url} controls playsInline/> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <p>{message.text}</p>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{new Date(message.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><label className="chat-icon" aria-label={t('chat.attach')}><ImagePlus size={19}/><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></label><button type="button" className="chat-icon chat-sound-toggle" onClick={() => setSoundPickerOpen(value => !value)} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><div className="chat-message-field"><input ref={messageInput} value={draft} maxLength={2000} onChange={event => updateDraft(event.target.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)} onClick={event => updateDraft(draft, event.currentTarget.selectionStart ?? draft.length)} onKeyDown={event => { if (mentionOptions.length && event.key === 'Enter') { event.preventDefault(); insertMention(mentionOptions[0].id, mentionOptions[0].name); } else if (mentionOptions.length && event.key === 'ArrowDown') { event.preventDefault(); event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.chat-mention-menu button')?.focus(); } }} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')} aria-autocomplete={mentionOptions.length ? 'list' : undefined} aria-expanded={mentionOptions.length ? true : undefined} aria-controls={mentionOptions.length ? 'chat-mention-list' : undefined}/>{mentionOptions.length > 0 && <div className="chat-mention-menu" id="chat-mention-list" role="listbox">{mentionOptions.map(player => <button key={player.id} type="button" role="option" aria-label={t('chat.mentionUser', { name: player.name })} onPointerDown={event => event.preventDefault()} onClick={() => insertMention(player.id, player.name)}><span className="chat-mention-avatar">{player.name.slice(0, 1).toUpperCase()}</span><span>{player.name}</span></button>)}</div>}</div><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form>{soundPickerOpen && <ChatSoundPicker busy={busy} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
     {membersOpen && current?.group && <ChatGroupMembers conversation={current} userId={user.id} busy={membersBusy} sharing={sharing} actionError={membersError} getIdToken={getIdToken} onAdd={player => { void updateGroupMember(current.id, player, true); }} onRemove={id => { void updateGroupMember(current.id, { id, username: current.names?.[id] ?? id }, false); }} onShare={() => { void shareGroup(current.id); }} onClose={() => setMembersOpen(false)} />}
     {shareUrl && <ChatShareDialog url={shareUrl} group onClose={() => setShareUrl('')}/>}
     {(inviteLoading || inviteDetails || inviteError) && <div className="chat-modal-backdrop" role="presentation"><section className="chat-modal chat-invite-modal" role="dialog" aria-modal="true" aria-label={t('chat.inviteTitle')}><button type="button" className="chat-icon" onClick={dismissInvite} aria-label={t('chat.dismiss')}><X size={18}/></button><UsersRound size={27}/><h2>{t('chat.inviteTitle')}</h2>{inviteLoading ? <LoadingIndicator label={t('common.loading')}/> : inviteDetails ? <><h3>{inviteDetails.title}</h3><p>{t('chat.inviteMembers', { count: inviteDetails.memberCount })}</p>{inviteError && <p className="form-error" role="alert">{inviteError}</p>}<div className="chat-invite-actions"><button type="button" className="button secondary" onClick={dismissInvite}>{t('chat.declineInvite')}</button><button type="button" className="button dark" disabled={inviteBusy} onClick={() => void acceptInvite()}>{inviteBusy && <LoadingIndicator label={t('common.loading')} compact/>}{t(inviteDetails.alreadyMember ? 'chat.openGroup' : 'chat.acceptInvite')}</button></div></> : <><p className="form-error" role="alert">{inviteError}</p><button type="button" className="button secondary" onClick={dismissInvite}>{t('chat.dismiss')}</button></>}</section></div>}
