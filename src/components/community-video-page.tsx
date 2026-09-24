@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, Send } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
+import { AdBanner } from './ad-banner';
 
 type VideoData = { id: string; title: string; description: string; uploader: string; uploaderId?: string; videoUrl: string; upvotes: number; downvotes: number; commentCount: number };
 type Comment = { id: string; text: string; author: string; authorId?: string };
@@ -18,6 +19,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
   async function comment(event: FormEvent) { event.preventDefault(); if (!video || !text.trim()) return; const token = await getIdToken(), response = await fetch(`${base()}/${id}/comments`, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ anonymousId: viewerId(), text }) }), data = await response.json(); if (!response.ok) return; setComments(items => [data, ...items]); setVideo({ ...video, commentCount: video.commentCount + 1 }); setText(''); }
   return <div className="page community-video-page">
     <Link className="back-link watch-back-link" href="/watch/"><ArrowLeft size={17}/>{t('watch.back')}</Link>
+    <AdBanner />
     {error ? <div className="feed-notice" role="alert">{error}</div> : !video ? <div className="loading-panel" role="status">{t('watch.openingVideo')}</div> : <article className="community-video-reader">
       <div className="community-video-stage"><video controls autoPlay playsInline src={video.videoUrl}/></div>
       <div className="community-video-reader-copy">

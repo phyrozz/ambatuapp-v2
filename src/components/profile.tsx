@@ -46,7 +46,7 @@ export function ProfilePanel() {
         <p className="eyebrow">{t('profile.personalBests')}</p>
         {games.map((game) => <div className="score-row" key={game.id}><span>{game.name}</span><b>{scores[game.id] || 0}</b></div>)}
       </section>
-      <section className="panel">
+      <section className="panel profile-account-panel">
         <h2>{signedIn ? t('profile.signedIn') : t('profile.home')}</h2>
         {!configured ? (
           <><p>{t('profile.guest')}</p><div className="note-panel">{t('profile.notConnected')}</div></>
@@ -62,10 +62,14 @@ export function ProfilePanel() {
               <label>{t('profile.birthDate')}<input type="date" value={birthDate} max={today()} onChange={(event) => setBirthDate(event.target.value)} /></label>
               {profileError && <p className="form-error" role="alert">{profileError}</p>}
               {profileStatus && <p className="form-success" role="status">{profileStatus}</p>}
-              <button className="button dark compact" disabled={saving}><Save size={16}/>{saving ? t('profile.savingProfile') : t('profile.saveProfile')}</button>
+              <div className="profile-action-bar">
+                <button className="button profile-save-button" type="submit" disabled={saving}><Save size={17}/>{saving ? t('profile.savingProfile') : t('profile.saveProfile')}</button>
+                <div className="profile-secondary-actions">
+                  <button type="button" className="button profile-share-button" onClick={() => { if (user) setShareUrl(publicChatUrl({ user: user.id, name: user.name })); }}><Share2 size={17}/>{t('profile.shareProfile')}</button>
+                  <button type="button" className="button profile-signout-button" onClick={signOut}><LogOut size={17}/>{t('profile.signOut')}</button>
+                </div>
+              </div>
             </form>
-            <button type="button" className="button secondary" onClick={() => { if (user) setShareUrl(publicChatUrl({ user: user.id, name: user.name })); }}><Share2 size={17}/>{t('profile.shareProfile')}</button>
-            <button className="button secondary" onClick={signOut}><LogOut size={17} />{t('profile.signOut')}</button>
           </>
         ) : (
           <>

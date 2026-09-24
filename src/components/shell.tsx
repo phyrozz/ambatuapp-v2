@@ -76,15 +76,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
         {t('shell.skip')}
       </a>
       <aside className="sidebar">
-        <Link href="/" className="brand">
-          <span className="brand-mark">
-            a<span>✳</span>
-          </span>
-          <span>
-            ambatu<span className="orange-text">app</span>
-            <small>{t('shell.tagline')}</small>
-          </span>
-        </Link>
+        <div className="brand-block">
+          <Link href="/" className="brand">
+            <span className="brand-mark">
+              a<span>✳</span>
+            </span>
+            <span>
+              ambatu<span className="orange-text">app</span>
+              <small>{t('shell.tagline')}</small>
+            </span>
+          </Link>
+          <span className="beta-badge">{t('shell.beta')}</span>
+        </div>
         <p className="nav-label">{t('shell.dailyDose')}</p>
         <nav aria-label={t('shell.mainNavigation')}>
           {nav.map(({ href, key, Icon }) => (
@@ -100,10 +103,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="nav-divider" />
-        <Link className={`nav-item ${path === '/favorites/' ? 'active' : ''}`} href="/favorites/">
+        {/* <Link className={`nav-item ${path === '/favorites/' ? 'active' : ''}`} href="/favorites/">
           <Heart size={20} />
           {t('nav.favorites')}
-        </Link>
+        </Link> */}
         <Link className={`nav-item ${path === '/profile/' ? 'active' : ''}`} href="/profile/">
           <UserRound size={20} />
           {t('nav.profile')}
@@ -127,17 +130,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span className="topbar-note">
             <span className="status-dot" /> {t('shell.chaos')}
           </span>
-          <Link href="/" className="mobile-brand">
-            ambatu<span>app</span> ✳
-          </Link>
+          <div className="mobile-brand-group">
+            <Link href="/" className="mobile-brand">
+              ambatu<span>app</span> ✳
+            </Link>
+            <span className="mobile-beta-badge">{t('shell.beta')}</span>
+          </div>
           <div>
             <div className="language-picker">
               <AppSelect value={locale} onChange={(value) => setLocale(value as typeof locale)}
                 ariaLabel={t('language.label')} options={locales.map((item) => ({ value: item, label: localeNames[item], icon: languageFlag(item) }))} />
             </div>
-            <Link href="/favorites/" className="icon-button" aria-label={t('nav.favorites')}>
+            {/* <Link href="/favorites/" className="icon-button" aria-label={t('nav.favorites')}>
               <Heart size={19} />
-            </Link>
+            </Link> */}
             <Link href="/profile/" className={`profile-button ${path.startsWith('/profile/') ? 'active' : ''}`} aria-label={t('nav.profile')}>
               <UserRound size={18} aria-hidden="true" />
               <span className="profile-desktop-label">{t('shell.yourCorner')}</span>
@@ -149,7 +155,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <main id="main" tabIndex={-1}>
           {children}
         </main>
-        <AdBanner disabled={adDisabled || path === '/watch/'} />
+        <AdBanner disabled={adDisabled || path.startsWith('/watch/')} />
         <footer className="footer">
           <span>
             ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
