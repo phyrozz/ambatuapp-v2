@@ -3,6 +3,9 @@ node_modules/
 out/
 .env*
 !.env.example
+public/firebase-push-config.js
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
 *.tsbuildinfo
 test-results/
 playwright-report/

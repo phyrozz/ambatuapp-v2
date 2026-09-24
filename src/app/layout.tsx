@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: { default: 'AmbatuApp', template: '%s · AmbatuApp' },
   description:
     'Your little corner of internet chaos. Meet the Ambaverse and get bussing!',
+  manifest: '/manifest.webmanifest',
+  icons: { icon: '/app-icon.svg', apple: '/app-icon-180.png' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'AmbatuApp' },
 };
 export const viewport: Viewport = {
   width: 'device-width',

@@ -3,8 +3,8 @@ import './chat.css';
 
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, AudioLines, Flag, ImagePlus, MessageCircle, Plus, Search, Send, UsersRound, X } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, AudioLines, Bell, Flag, ImagePlus, MessageCircle, Plus, Search, Send, UsersRound, X } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
@@ -14,6 +14,7 @@ import { ChatGroupMembers } from './chat-group-members';
 import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
 import { ChatSocket, withCurrentNames, type ChatConversation, type ChatMessage } from '@/lib/chat';
 import { initializePlayerProfile } from '@/lib/player-profile';
+import { enableChatPush, installPushNavigation, syncChatPush } from '@/lib/push-notifications';
 
 type Player = { id: string; username: string };
 type InviteDetails = { conversation: string; title: string; memberCount: number; alreadyMember: boolean };
@@ -23,9 +24,11 @@ const playerNamesApi = `${playersApi}/names`;
 const ChatEmojiPicker = lazy(() => import('./chat-emoji-picker'));
 
 export function ChatPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { ready, user, getAccessToken, getIdToken, signInWithGoogle } = useAuth();
+  const userId = user?.id;
   const params = useSearchParams();
+  const router = useRouter();
   const [status, setStatus] = useState<'connecting' | 'ready' | 'unavailable'>('connecting');
   const [reconnect, setReconnect] = useState(0);
   const [error, setError] = useState('');
@@ -60,6 +63,8 @@ export function ChatPage() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const socket = useRef<ChatSocket | null>(null);
   const activeRef = useRef('');
@@ -75,6 +80,11 @@ export function ChatPage() {
   const reactionToolbarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactionHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactionHoldStart = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => { installPushNavigation(() => socket.current, locale, user?.id ?? null, path => router.push(path)); }, [locale, router, user?.id]);
+  useEffect(() => {
+    if (status === 'ready' && userId && socket.current) void syncChatPush(socket.current, locale, userId);
+  }, [locale, status, userId]);
 
   const refresh = useCallback(async (client: ChatSocket) => {
     const data = await client.request('conversations');
@@ -179,6 +189,13 @@ export function ChatPage() {
           activeRef.current = id;
           setActive(id);
           await refresh(client);
+        } else {
+          const conversation = params.get('conversation');
+          if (conversation && !initialInvite.current) {
+            initialInvite.current = true;
+            activeRef.current = conversation;
+            setActive(conversation);
+          }
         }
       } catch { if (!cancelled) { setError(t('chat.connectionError')); client?.close(); retry(); } }
     };
@@ -402,6 +419,18 @@ export function ChatPage() {
       setReportOpen(false); setReportReason(''); setError(t('chat.reportSent'));
     } catch { setError(t('chat.reportError')); } finally { setBusy(false); }
   }
+  async function enableNotifications() {
+    if (!socket.current || !user || status !== 'ready' || pushBusy) return;
+    setPushBusy(true); setError('');
+    try {
+      await enableChatPush(socket.current, locale, user.id);
+      setPushEnabled(true);
+      setError(t('chat.notificationsEnabled'));
+    } catch (reason) {
+      const key = reason instanceof Error && reason.message === 'not-configured' ? 'chat.notificationsNotConfigured' : 'chat.pushError';
+      setError(t(key));
+    } finally { setPushBusy(false); }
+  }
   const current = conversations.find(item => item.id === active);
   const title = (item: ChatConversation) => item.group ? item.title : item.members.filter(id => id !== user?.id).map(id => item.names?.[id] ?? id).join(', ');
   const returnToInbox = () => {
@@ -425,7 +454,7 @@ export function ChatPage() {
   return <div className="page chat-page">
     {error && <p className="chat-notice" role="status">{error}<button onClick={() => setError('')} aria-label={t('chat.dismiss')}><X size={15}/></button></p>}
     {status !== 'ready' && <p className="chat-notice" role="status">{t(status === 'connecting' ? 'chat.connecting' : 'chat.connectionError')}</p>}
-    <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}><aside className="chat-inbox"><div className="chat-inbox-header"><h2>{t('chat.inbox')}</h2></div>
+    <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}><aside className="chat-inbox"><div className="chat-inbox-header"><h2>{t('chat.inbox')}</h2><button type="button" className="chat-icon" onClick={() => void enableNotifications()} disabled={pushBusy || pushEnabled || status !== 'ready'} aria-label={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')} title={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')}><Bell size={17}/></button></div>
       <div className="chat-search"><Search size={17}/><input value={query} onChange={event => { setQuery(event.target.value); setMatches([]); setSearchLoading(event.target.value.trim().length >= 2); }} placeholder={t('chat.searchUsername')} aria-label={t('chat.searchUsername')}/></div>
       {searchLoading && <div className="chat-search-loading"><LoadingIndicator label={t('common.loading')} /></div>}
       {matches.length > 0 && <div className="chat-results">{matches.map(player => <button key={player.id} onClick={() => { setSelected(items => items.some(item => item.id === player.id) ? items : [...items, player]); setQuery(''); setMatches([]); setSearchLoading(false); }}>{player.username}<Plus size={15}/></button>)}</div>}

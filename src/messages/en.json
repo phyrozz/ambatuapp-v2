@@ -417,5 +417,11 @@
   "chat.inviteAcceptError": "Could not join this group. The invitation may have expired or the group may be full.",
   "chat.acceptInvite": "Accept invitation",
   "chat.declineInvite": "Not now",
-  "chat.openGroup": "Open group"
+  "chat.openGroup": "Open group",
+  "chat.enableNotifications": "Enable message notifications",
+  "chat.notificationsEnabled": "Message notifications are enabled",
+  "chat.notificationsNotConfigured": "Push notifications are not configured yet.",
+  "chat.pushError": "Could not enable message notifications. Check your notification permission and try again.",
+  "push.notificationTitle": "New message",
+  "push.notificationBody": "You have a new message."
 }

@@ -4,5 +4,10 @@ const config: CapacitorConfig = {
   appName: 'AmbatuApp',
   webDir: 'out',
   backgroundColor: '#f8f7f2',
+  plugins: {
+    FirebaseMessaging: {
+      presentationOptions: ['alert', 'badge', 'sound'],
+    },
+  },
 };
 export default config;

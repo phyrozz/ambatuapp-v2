@@ -417,5 +417,11 @@
   "chat.inviteAcceptError": "Tidak bisa mengikuti grup ini. Undangan tersebut mungkin kedaluwarsa atau grupnya telah penuh.",
   "chat.acceptInvite": "Terima undangan",
   "chat.declineInvite": "Tidak sekarang",
-  "chat.openGroup": "Buka grup"
+  "chat.openGroup": "Buka grup",
+  "chat.enableNotifications": "Enable message notifications",
+  "chat.notificationsEnabled": "Message notifications are enabled",
+  "chat.notificationsNotConfigured": "Push notifications are not configured yet.",
+  "chat.pushError": "Could not enable message notifications. Check your notification permission and try again.",
+  "push.notificationTitle": "New message",
+  "push.notificationBody": "You have a new message."
 }
