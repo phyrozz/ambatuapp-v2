@@ -26,6 +26,8 @@ Next.js exports the entire application to `out/`. Deploy that directory to a sta
 
 Set `NEXT_PUBLIC_CHAT_WS_URL` to the deployed `wss://` endpoint printed by `chat-service/deploy.ps1`, then rebuild the static app. In the Cognito player app client, allow the `aws.cognito.signin.user.admin` OAuth scope alongside `openid` and `email`; chat uses this scope to validate the access token with Cognito. Existing sessions must sign in again to gain the new scope. Chat uses the admin public API at `NEXT_PUBLIC_CHARACTER_API_URL` for username search. The chat page supports direct messages, groups, text, uploaded images and videos up to 5 MB, Giphy/Tenor media links, and reports. Uploader and signed-in commenter names in AmbatuWatch, plus commenter names in lore, open direct chats. Editorial lore entries have no player author.
 
+Players can share a direct chat link and QR code from their profile. Groups can generate seven-day invite links from Manage members; visitors sign in and explicitly accept before joining. Share URLs use the current website origin in browsers and `https://www.ambatu.fun` in the native app. Set `NEXT_PUBLIC_SHARE_BASE_URL` when the public site uses another origin, then rebuild.
+
 See [chat-service/README.md](../chat-service/README.md) for deployment and admin report setup.
 
 - **Discover:** redesigned home, responsive sidebar/bottom navigation, quick access to sounds, characters, and games.

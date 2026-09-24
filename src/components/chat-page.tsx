@@ -10,9 +10,13 @@ import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
 import { ChatSoundCard, ChatSoundPicker } from './chat-soundboard';
 import { ChatReactions } from './chat-reactions';
+import { ChatGroupMembers } from './chat-group-members';
+import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
 import { ChatSocket, type ChatConversation, type ChatMessage } from '@/lib/chat';
+import { initializePlayerProfile } from '@/lib/player-profile';
 
 type Player = { id: string; username: string };
+type InviteDetails = { conversation: string; title: string; memberCount: number; alreadyMember: boolean };
 const wsUrl = process.env.NEXT_PUBLIC_CHAT_WS_URL;
 const playersApi = `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/players`;
 const ChatEmojiPicker = lazy(() => import('./chat-emoji-picker'));
@@ -46,10 +50,20 @@ export function ChatPage() {
   const [revealedReactionMessageKey, setRevealedReactionMessageKey] = useState('');
   const [reactingMessageKey, setReactingMessageKey] = useState('');
   const [reportOpen, setReportOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [membersBusy, setMembersBusy] = useState(false);
+  const [membersError, setMembersError] = useState('');
+  const [shareUrl, setShareUrl] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const socket = useRef<ChatSocket | null>(null);
   const activeRef = useRef('');
   const initialUser = useRef(false);
+  const initialInvite = useRef(false);
   const messagePane = useRef<HTMLDivElement>(null);
   const historyRequest = useRef(false);
   const stickToBottom = useRef(true);
@@ -60,7 +74,14 @@ export function ChatPage() {
 
   const refresh = useCallback(async (client: ChatSocket) => {
     const data = await client.request('conversations');
-    setConversations((data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt));
+    const next = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt);
+    setConversations(next);
+    if (activeRef.current && !next.some(item => item.id === activeRef.current)) {
+      activeRef.current = '';
+      setActive('');
+      setMessages([]);
+      setMembersOpen(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -88,8 +109,20 @@ export function ChatPage() {
         setStatus('ready');
         await refresh(client);
         if (!cancelled) setInitialChatsLoaded(true);
+        const invite = params.get('invite');
         const target = params.get('user');
-        if (target && target !== user.id && !initialUser.current) {
+        if (invite && !initialInvite.current) {
+          initialInvite.current = true;
+          setInviteLoading(true);
+          try {
+            const details = await client.request('previewGroupInvite', { token: invite });
+            if (!cancelled) setInviteDetails(details as InviteDetails);
+          } catch (reason) {
+            if (reason instanceof Error && ['socket', 'timeout'].includes(reason.message)) initialInvite.current = false;
+            if (!cancelled) setInviteError(reason instanceof Error && ['socket', 'timeout'].includes(reason.message) ? t('chat.connectionError') : t('chat.inviteInvalid'));
+          }
+          finally { if (!cancelled) setInviteLoading(false); }
+        } else if (target && target !== user.id && !initialUser.current) {
           initialUser.current = true;
           const name = params.get('name') ?? target;
           const data = await client.request('createConversation', { members: [target], names: { [target]: name, [user.id]: user.name } });
@@ -115,6 +148,7 @@ export function ChatPage() {
     setReactionToolbarMessageKey('');
     setReactionToolbarClosing(false);
     setRevealedReactionMessageKey('');
+    setMembersOpen(false);
     setHistoryCursor(null);
     let cancelled = false;
     socket.current.request('history', { conversation: active }).then(data => {
@@ -235,6 +269,52 @@ export function ChatPage() {
       await refresh(socket.current);
     } catch (reason) { setError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.createError')); } finally { setBusy(false); }
   }
+  async function updateGroupMember(conversation: string, target: Player, adding: boolean) {
+    if (!socket.current || !user) return;
+    setMembersBusy(true); setMembersError('');
+    try {
+      const result = await socket.current.request(adding ? 'addGroupMember' : 'removeGroupMember', { conversation, userId: target.id, ...(adding ? { name: target.username } : {}) });
+      if (!adding && target.id === user.id) {
+        if (activeRef.current === conversation) returnToInbox();
+        setConversations(items => items.filter(item => item.id !== conversation));
+      } else {
+        setConversations(items => items.map(item => item.id === conversation ? { ...item, members: result.members as string[], names: result.names as Record<string, string> } : item));
+      }
+      await refresh(socket.current);
+    } catch (reason) { setMembersError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.memberUpdateError')); }
+    finally { setMembersBusy(false); }
+  }
+  async function shareGroup(conversation: string) {
+    if (!socket.current || sharing) return;
+    setSharing(true); setError('');
+    try {
+      const result = await socket.current.request('createGroupInvite', { conversation });
+      setShareUrl(publicChatUrl({ invite: String(result.token) }));
+    } catch (reason) { setError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.inviteCreateError')); }
+    finally { setSharing(false); }
+  }
+  function dismissInvite() {
+    setInviteDetails(null); setInviteError(''); setInviteLoading(false);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('invite');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }
+  async function acceptInvite() {
+    if (!socket.current || !user || !inviteDetails) return;
+    setInviteBusy(true); setInviteError('');
+    try {
+      if (!inviteDetails.alreadyMember) {
+        const token = await getIdToken();
+        const profile = token ? await initializePlayerProfile(token).catch(() => null) : null;
+        await socket.current.request('acceptGroupInvite', { token: params.get('invite'), name: profile?.username ?? user.name });
+      }
+      const id = inviteDetails.conversation;
+      dismissInvite();
+      setMessages([]); setLoadingHistoryFor(id); activeRef.current = id; setActive(id);
+      await refresh(socket.current);
+    } catch (reason) { setInviteError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.inviteAcceptError')); }
+    finally { setInviteBusy(false); }
+  }
   async function send(kind: ChatMessage['kind'], text = '', key = '') {
     if (!socket.current || !active) return;
     setBusy(true); setError('');
@@ -288,9 +368,10 @@ export function ChatPage() {
     setReactionToolbarMessageKey('');
     setReactionToolbarClosing(false);
     setRevealedReactionMessageKey('');
+    setMembersOpen(false);
   };
   if (!ready) return <div className="page chat-gate"><LoadingIndicator label={t('common.loading')} /></div>;
-  if (!user) return <div className="page chat-gate"><MessageCircle size={36}/><h1>{t('chat.title')}</h1><p>{t('chat.signInHint')}</p><button className="button dark" onClick={() => void signInWithGoogle('/chat/')}>{t('profile.googleSignIn')}</button></div>;
+  if (!user) return <div className="page chat-gate"><MessageCircle size={36}/><h1>{t('chat.title')}</h1><p>{params.get('invite') ? t('chat.inviteSignIn') : t('chat.signInHint')}</p><button className="button dark" onClick={() => void signInWithGoogle(`/chat/${params.toString() ? `?${params.toString()}` : ''}`)}>{t('profile.googleSignIn')}</button></div>;
   if (!wsUrl) return <div className="page chat-gate"><h1>{t('chat.title')}</h1><p>{t('chat.notConfigured')}</p></div>;
   return <div className="page chat-page">
     {error && <p className="chat-notice" role="status">{error}<button onClick={() => setError('')} aria-label={t('chat.dismiss')}><X size={15}/></button></p>}
@@ -301,7 +382,10 @@ export function ChatPage() {
       {matches.length > 0 && <div className="chat-results">{matches.map(player => <button key={player.id} onClick={() => { setSelected(items => items.some(item => item.id === player.id) ? items : [...items, player]); setQuery(''); setMatches([]); setSearchLoading(false); }}>{player.username}<Plus size={15}/></button>)}</div>}
       {selected.length > 0 && <div className="chat-compose-group"><div className="chat-selected">{selected.map(player => <button key={player.id} onClick={() => setSelected(items => items.filter(item => item.id !== player.id))}>{player.username}<X size={13}/></button>)}</div><label><input type="checkbox" checked={group} onChange={event => setGroup(event.target.checked)}/>{t('chat.groupChat')}</label>{group && <input value={groupTitle} maxLength={80} onChange={event => setGroupTitle(event.target.value)} placeholder={t('chat.groupName')}/>}<button className="button dark compact" disabled={busy || (group && !groupTitle.trim())} onClick={() => void createConversation()}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{group ? t('chat.createGroup') : t('chat.startChat')}</button></div>}
       <div className="chat-inbox-list">{!initialChatsLoaded && status !== 'unavailable' ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : conversations.length ? conversations.map(item => <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => { if (active !== item.id) { setMessages([]); setLoadingHistoryFor(item.id); setActive(item.id); } }}><span className="chat-avatar">{item.group ? <UsersRound size={19}/> : title(item).slice(0, 1).toUpperCase()}</span><span><strong>{title(item)}</strong><small>{item.lastMessage === 'sound' ? t('nav.soundboard') : item.lastMessage ?? t('chat.noMessages')}</small></span></button>) : <p className="chat-empty-inbox">{t('chat.emptyInbox')}</p>}</div>
-    </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={returnToInbox} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : title(current).slice(0, 1).toUpperCase()}</span><div><h2>{title(current)}</h2><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><button className="chat-icon" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')}><Flag size={18}/></button></header><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; stickToBottom.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map(message => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={message.id} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (Capacitor.isNativePlatform() && message.messageKey && !isMessageControl(event.target)) { event.preventDefault(); setRevealedReactionMessageKey(message.messageKey); } }}>{current.group && <small>{current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)}</small>}{message.kind === 'image' || message.kind === 'gif' ? <img src={message.kind === 'gif' ? message.text : message.url} alt={t(message.kind === 'gif' ? 'chat.gif' : 'chat.image')}/> : message.kind === 'video' ? <video src={message.url} controls playsInline/> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <p>{message.text}</p>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{new Date(message.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><label className="chat-icon" aria-label={t('chat.attach')}><ImagePlus size={19}/><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></label><button type="button" className="chat-icon chat-sound-toggle" onClick={() => setSoundPickerOpen(value => !value)} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><input value={draft} maxLength={2000} onChange={event => setDraft(event.target.value)} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')}/><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form>{soundPickerOpen && <ChatSoundPicker busy={busy} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
+    </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={returnToInbox} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : title(current).slice(0, 1).toUpperCase()}</span><div><h2>{title(current)}</h2><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><div className="chat-header-actions">{current.group && <button className="chat-icon" onClick={() => { setMembersError(''); setMembersOpen(true); }} aria-label={t('chat.manageMembers')}><UsersRound size={18}/></button>}<button className="chat-icon" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')}><Flag size={18}/></button></div></header><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; stickToBottom.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map(message => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={message.id} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (Capacitor.isNativePlatform() && message.messageKey && !isMessageControl(event.target)) { event.preventDefault(); setRevealedReactionMessageKey(message.messageKey); } }}>{current.group && <small>{current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)}</small>}{message.kind === 'image' || message.kind === 'gif' ? <img src={message.kind === 'gif' ? message.text : message.url} alt={t(message.kind === 'gif' ? 'chat.gif' : 'chat.image')}/> : message.kind === 'video' ? <video src={message.url} controls playsInline/> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <p>{message.text}</p>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{new Date(message.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><label className="chat-icon" aria-label={t('chat.attach')}><ImagePlus size={19}/><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></label><button type="button" className="chat-icon chat-sound-toggle" onClick={() => setSoundPickerOpen(value => !value)} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><input value={draft} maxLength={2000} onChange={event => setDraft(event.target.value)} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')}/><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form>{soundPickerOpen && <ChatSoundPicker busy={busy} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
+    {membersOpen && current?.group && <ChatGroupMembers conversation={current} userId={user.id} busy={membersBusy} sharing={sharing} actionError={membersError} getIdToken={getIdToken} onAdd={player => { void updateGroupMember(current.id, player, true); }} onRemove={id => { void updateGroupMember(current.id, { id, username: current.names?.[id] ?? id }, false); }} onShare={() => { void shareGroup(current.id); }} onClose={() => setMembersOpen(false)} />}
+    {shareUrl && <ChatShareDialog url={shareUrl} group onClose={() => setShareUrl('')}/>}
+    {(inviteLoading || inviteDetails || inviteError) && <div className="chat-modal-backdrop" role="presentation"><section className="chat-modal chat-invite-modal" role="dialog" aria-modal="true" aria-label={t('chat.inviteTitle')}><button type="button" className="chat-icon" onClick={dismissInvite} aria-label={t('chat.dismiss')}><X size={18}/></button><UsersRound size={27}/><h2>{t('chat.inviteTitle')}</h2>{inviteLoading ? <LoadingIndicator label={t('common.loading')}/> : inviteDetails ? <><h3>{inviteDetails.title}</h3><p>{t('chat.inviteMembers', { count: inviteDetails.memberCount })}</p>{inviteError && <p className="form-error" role="alert">{inviteError}</p>}<div className="chat-invite-actions"><button type="button" className="button secondary" onClick={dismissInvite}>{t('chat.declineInvite')}</button><button type="button" className="button dark" disabled={inviteBusy} onClick={() => void acceptInvite()}>{inviteBusy && <LoadingIndicator label={t('common.loading')} compact/>}{t(inviteDetails.alreadyMember ? 'chat.openGroup' : 'chat.acceptInvite')}</button></div></> : <><p className="form-error" role="alert">{inviteError}</p><button type="button" className="button secondary" onClick={dismissInvite}>{t('chat.dismiss')}</button></>}</section></div>}
     {reportOpen && <div className="chat-modal-backdrop" role="presentation"><form className="chat-modal" onSubmit={report} role="dialog" aria-modal="true" aria-label={t('chat.reportTitle')}><button type="button" className="chat-icon" onClick={() => setReportOpen(false)} aria-label={t('chat.dismiss')}><X size={18}/></button><Flag size={23}/><h2>{t('chat.reportTitle')}</h2><p>{t('chat.reportHint')}</p><textarea value={reportReason} onChange={event => setReportReason(event.target.value)} minLength={3} maxLength={500} required placeholder={t('chat.reportPlaceholder')}/><button className="button dark" disabled={busy}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{t('chat.submitReport')}</button></form></div>}
     {reactionPickerMessageKey && <Suspense fallback={<div className="chat-modal-backdrop"><LoadingIndicator label={t('common.loading')}/></div>}><ChatEmojiPicker onClose={() => setReactionPickerMessageKey('')} onSelect={emoji => { void reactToMessage(reactionPickerMessageKey, emoji); }}/></Suspense>}
   </div>;

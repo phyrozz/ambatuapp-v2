@@ -1,11 +1,12 @@
 'use client';
-import { LogIn, LogOut, Save } from 'lucide-react';
+import { LogIn, LogOut, Save, Share2 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useApp } from './app-provider';
 import { useAuth } from './auth-provider';
 import { games } from '@/lib/catalog';
 import { useI18n } from './i18n-provider';
 import { initializePlayerProfile, PlayerProfileError, savePlayerProfile } from '@/lib/player-profile';
+import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
 
 function today() { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 
@@ -15,6 +16,7 @@ export function ProfilePanel() {
   const { configured, ready, signInWithGoogle, signOut, setDisplayName, user, getIdToken } = useAuth();
   const signedIn = Boolean(user);
   const [username, setUsername] = useState(''), [birthDate, setBirthDate] = useState(''), [saving, setSaving] = useState(false), [profileError, setProfileError] = useState(''), [profileStatus, setProfileStatus] = useState('');
+  const [shareUrl, setShareUrl] = useState('');
   useEffect(() => {
     if (!user) return;
     void getIdToken().then((token) => token ? initializePlayerProfile(token) : null).then((profile) => {
@@ -62,6 +64,7 @@ export function ProfilePanel() {
               {profileStatus && <p className="form-success" role="status">{profileStatus}</p>}
               <button className="button dark compact" disabled={saving}><Save size={16}/>{saving ? t('profile.savingProfile') : t('profile.saveProfile')}</button>
             </form>
+            <button type="button" className="button secondary" onClick={() => { if (user) setShareUrl(publicChatUrl({ user: user.id, name: user.name })); }}><Share2 size={17}/>{t('profile.shareProfile')}</button>
             <button className="button secondary" onClick={signOut}><LogOut size={17} />{t('profile.signOut')}</button>
           </>
         ) : (
@@ -71,6 +74,7 @@ export function ProfilePanel() {
           </>
         )}
       </section>
+      {shareUrl && <ChatShareDialog url={shareUrl} onClose={() => setShareUrl('')}/>}
     </div>
   );
 }
