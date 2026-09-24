@@ -50,3 +50,50 @@
 @keyframes chat-reaction-in{from{opacity:0;transform:translateY(-7px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes chat-reaction-out{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-5px) scale(.96)}}@keyframes chat-reaction-pop{0%{transform:scale(.8)}55%{transform:scale(1.2)}100%{transform:scale(1)}}@keyframes chat-emoji-backdrop-in{from{opacity:0}to{opacity:1}}@keyframes chat-emoji-backdrop-out{from{opacity:1}to{opacity:0}}@keyframes chat-emoji-picker-in{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes chat-emoji-picker-out{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(8px) scale(.97)}}
 @media(max-width:480px){.chat-emoji-grid{grid-template-columns:repeat(7,minmax(0,1fr))}.chat-emoji-grid button{font-size:23px}}
 @media(prefers-reduced-motion:reduce){.chat-reaction-popup,.chat-reaction-popup[data-closing],.chat-reaction-popup button.chosen,.chat-reaction-counts button.selected,.chat-reaction-counts button.chosen,.chat-emoji-backdrop,.chat-emoji-backdrop[data-closing],.chat-emoji-picker,.chat-emoji-backdrop[data-closing] .chat-emoji-picker,.chat-emoji-grid button.chosen{animation:none!important}.chat-reaction-popup button,.chat-emoji-grid button,.chat-reaction-add,.chat-bubble footer{transition:none}}
+
+html[data-theme='dark'] .chat-layout,
+html[data-theme='dark'] .chat-inbox,
+html[data-theme='dark'] .chat-thread,
+html[data-theme='dark'] .chat-modal,
+html[data-theme='dark'] .chat-sound-picker,
+html[data-theme='dark'] .chat-emoji-picker { background:#22231f;border-color:var(--line);color:var(--ink) }
+html[data-theme='dark'] .chat-messages { background:linear-gradient(135deg,#191a17,#1d1e1a) }
+html[data-theme='dark'] .chat-search,
+html[data-theme='dark'] .chat-sound-search,
+html[data-theme='dark'] .chat-emoji-search,
+html[data-theme='dark'] .chat-composer,
+html[data-theme='dark'] .chat-composer>input,
+html[data-theme='dark'] .chat-compose-group>input,
+html[data-theme='dark'] .chat-modal textarea,
+html[data-theme='dark'] .chat-gif-form input { background:#1c1d1a;border-color:#45463f;color:var(--ink) }
+html[data-theme='dark'] .chat-icon,
+html[data-theme='dark'] .chat-composer>.chat-icon,
+html[data-theme='dark'] .chat-gif-button,
+html[data-theme='dark'] .chat-member-remove { background:#2d2e29;border-color:#484943;color:#c7c3b8 }
+html[data-theme='dark'] .chat-icon:hover,
+html[data-theme='dark'] .chat-composer>.chat-icon:hover,
+html[data-theme='dark'] .chat-inbox-list button:hover { background:#3a2a23;color:#ff896a }
+html[data-theme='dark'] .chat-results button,
+html[data-theme='dark'] .chat-member-results button,
+html[data-theme='dark'] .chat-sound-card { background:#2b2621;border-color:#5d4032 }
+html[data-theme='dark'] .chat-inbox-list>button { background:#22231f;color:var(--ink) }
+html[data-theme='dark'] .chat-inbox-list>button.active { background:#3a2a23 }
+html[data-theme='dark'] .chat-avatar,
+html[data-theme='dark'] .chat-selected button,
+html[data-theme='dark'] .chat-sound-card-icon { background:#4b2d21;color:#ff9678 }
+html[data-theme='dark'] .chat-member-row:nth-child(odd),
+html[data-theme='dark'] .chat-sound-row:nth-child(odd) { background:#292a25 }
+html[data-theme='dark'] .chat-bubble { background:#292a25;border-color:#44453e }
+html[data-theme='dark'] .chat-bubble.mine { background:#422a20;border-color:#70412f }
+html[data-theme='dark'] .chat-bubble footer,
+html[data-theme='dark'] .chat-reaction-counts button,
+html[data-theme='dark'] .chat-reaction-add,
+html[data-theme='dark'] .chat-reaction-popup,
+html[data-theme='dark'] .chat-reaction-popup button { background:#30312b;border-color:#4b4c44;color:var(--ink) }
+html[data-theme='dark'] .chat-reaction-counts button.selected,
+html[data-theme='dark'] .chat-reaction-counts button.chosen,
+html[data-theme='dark'] .chat-reaction-popup button.selected,
+html[data-theme='dark'] .chat-reaction-popup button.chosen { background:#563321;border-color:var(--orange) }
+html[data-theme='dark'] .chat-notice { background:#422a20;color:#ffb69f }
+html[data-theme='dark'] .chat-welcome,
+html[data-theme='dark'] .chat-gate { color:var(--muted) }

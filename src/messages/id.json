@@ -2,6 +2,8 @@
   "language.label": "Bahasa",
   "language.english": "Bahasa Inggris",
   "language.indonesian": "Bahasa Indonesia",
+  "theme.useDark": "Use dark mode",
+  "theme.useLight": "Use light mode",
   "nav.discover": "Jelajahi",
   "nav.games": "Mini-game",
   "nav.gamesShort": "Game",

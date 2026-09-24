@@ -3554,3 +3554,175 @@ select {
 .home-community-stats { display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 4px; color: var(--muted); }
 .home-community-stats span { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; }
 .home-page .section-heading .text-link { color: var(--orange); }
+
+/* Shared color theme for web and Capacitor builds. */
+.theme-toggle {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface, #fffdf8);
+  color: var(--ink);
+  transition: transform .18s ease, background-color .18s ease, border-color .18s ease;
+}
+.theme-toggle:hover { transform: rotate(-8deg); border-color: #aea99a; }
+
+html[data-theme='dark'] {
+  --paper: #171815;
+  --ink: #f2eee4;
+  --muted: #aaa79d;
+  --line: #393a34;
+  --surface: #22231f;
+  color-scheme: dark;
+}
+html[data-theme='dark'] body,
+html[data-theme='dark'] .sidebar,
+html[data-theme='dark'] .topbar,
+html[data-theme='dark'] .topbar.topbar-scrolled,
+html[data-theme='dark'] .mobile-nav,
+html[data-theme='dark'] .web-ad { background: var(--paper); }
+html[data-theme='dark'] .panel,
+html[data-theme='dark'] .profile-account-panel,
+html[data-theme='dark'] .video-card,
+html[data-theme='dark'] .game-card,
+html[data-theme='dark'] .character-card,
+html[data-theme='dark'] .sound-card,
+html[data-theme='dark'] .community-video-card,
+html[data-theme='dark'] .community-video-reader,
+html[data-theme='dark'] .community-player,
+html[data-theme='dark'] .lore-card,
+html[data-theme='dark'] .lore-reader,
+html[data-theme='dark'] .lore-filters,
+html[data-theme='dark'] .chat-layout,
+html[data-theme='dark'] .chat-inbox,
+html[data-theme='dark'] .chat-thread,
+html[data-theme='dark'] .auth-popup > div,
+html[data-theme='dark'] .app-select-trigger,
+html[data-theme='dark'] .app-select-menu { background: var(--surface); border-color: var(--line); }
+html[data-theme='dark'] .good-vibes,
+html[data-theme='dark'] .stat,
+html[data-theme='dark'] .feed-notice,
+html[data-theme='dark'] .note-panel,
+html[data-theme='dark'] .empty-state,
+html[data-theme='dark'] .character-detail,
+html[data-theme='dark'] .watch-signin-note,
+html[data-theme='dark'] .watch-file,
+html[data-theme='dark'] .video-comments > p,
+html[data-theme='dark'] .lore-language,
+html[data-theme='dark'] .lore-actions button,
+html[data-theme='dark'] .lore-reader-actions button,
+html[data-theme='dark'] .community-video-actions button,
+html[data-theme='dark'] .chat-workspace .chat-back { background: #2b2c27; color: var(--ink); border-color: var(--line); }
+html[data-theme='dark'] .search-box { background: var(--surface); color: var(--muted); border-color: #45463f; }
+html[data-theme='dark'] .filter { color: #aaa79d; border-color: #484943; }
+html[data-theme='dark'] .filter:hover { background: #2b2c27; }
+html[data-theme='dark'] .filter.selected { background: #f6542f; color: #fff9ed; border-color: #f6542f; }
+html[data-theme='dark'] input,
+html[data-theme='dark'] textarea,
+html[data-theme='dark'] select,
+html[data-theme='dark'] .player-profile-form input,
+html[data-theme='dark'] .watch-upload input,
+html[data-theme='dark'] .watch-upload textarea,
+html[data-theme='dark'] .video-comments input { background: #1c1d1a; color: var(--ink); border-color: #45463f; }
+html[data-theme='dark'] input::placeholder,
+html[data-theme='dark'] textarea::placeholder { color: #858278; }
+html[data-theme='dark'] .nav-item { color: #aaa89f; }
+html[data-theme='dark'] .nav-item:hover,
+html[data-theme='dark'] .app-select-menu button.active { background: #2b2c27; }
+html[data-theme='dark'] .nav-item.active { background: #45271f; color: #ff896a; }
+html[data-theme='dark'] .nav-item.active:hover { background: #553026; }
+html[data-theme='dark'] .nav-item small { background: #32332e; }
+html[data-theme='dark'] .beta-badge,
+html[data-theme='dark'] .mobile-beta-badge { background: #41251e; border-color: #78402f; color: #ff9678 !important; }
+html[data-theme='dark'] .button.dark { background: #f2eee4; color: #1d1e1a; }
+html[data-theme='dark'] .button.dark:hover { background: #fffaf0; }
+html[data-theme='dark'] .button.secondary,
+html[data-theme='dark'] .profile-share-button,
+html[data-theme='dark'] .profile-signout-button { background: transparent; border-color: #484943; color: var(--ink); }
+html[data-theme='dark'] .button.secondary:hover,
+html[data-theme='dark'] .profile-share-button:hover,
+html[data-theme='dark'] .profile-signout-button:hover { background: #2b2c27; border-color: #5b5c54; }
+html[data-theme='dark'] .app-select-menu button { color: #c8c4ba; }
+html[data-theme='dark'] .app-select-symbol,
+html[data-theme='dark'] .profile-button svg,
+html[data-theme='dark'] .topbar-note,
+html[data-theme='dark'] .nav-label,
+html[data-theme='dark'] .sidebar-credit { color: #99978e; }
+html[data-theme='dark'] .lore-card-copy > p,
+html[data-theme='dark'] .lore-prose,
+html[data-theme='dark'] .community-video-description,
+html[data-theme='dark'] .community-video-copy > p,
+html[data-theme='dark'] .community-video-byline,
+html[data-theme='dark'] .video-comment-list p,
+html[data-theme='dark'] .video-comments > p,
+html[data-theme='dark'] .video-comments > p b { color: #c5c1b7; }
+html[data-theme='dark'] .lore-tags span { background: #302d40; color: #c5bbed; }
+html[data-theme='dark'] .lore-search,
+html[data-theme='dark'] .lore-language-filter,
+html[data-theme='dark'] .lore-tag-filter button { background: #1c1d1a; border-color: #45463f; color: #c5c1b7; }
+html[data-theme='dark'] .lore-reader-gallery,
+html[data-theme='dark'] .lore-images { background: var(--line); }
+html[data-theme='dark'] .community-video-stats,
+html[data-theme='dark'] .community-video-actions,
+html[data-theme='dark'] .community-video-copy > p,
+html[data-theme='dark'] .video-comment-list p,
+html[data-theme='dark'] .lore-card-footer,
+html[data-theme='dark'] .lore-reader-actions,
+html[data-theme='dark'] .comments { border-color: var(--line); }
+html[data-theme='dark'] .profile-button > svg:first-child,
+html[data-theme='dark'] .profile-button img { border-color: #464740; }
+html[data-theme='dark'] .character-profile > img { border-color: var(--surface); }
+html[data-theme='dark'] .character-bio > p:not(.eyebrow) { color: #c2beb4; }
+html[data-theme='dark'] .lore-label { background: #302f29; color: #c7bfa9; }
+html[data-theme='dark'] .best-pill { background: #39301e; border-color: #69552d; color: #e2c77e; }
+html[data-theme='dark'] .tap-arena,
+html[data-theme='dark'] .mines-arena,
+html[data-theme='dark'] .arcade-arena { background: #24251f; border-color: #44453e; }
+html[data-theme='dark'] .combo-pill { background: #563321; border-color: #865437; }
+html[data-theme='dark'] .game-instructions,
+html[data-theme='dark'] .tap-arena > p:not(.eyebrow),
+html[data-theme='dark'] .game-controls label,
+html[data-theme='dark'] .score-pill,
+html[data-theme='dark'] .mines-status { color: var(--muted); }
+html[data-theme='dark'] .game-overlay { background: rgba(29,30,26,.93); }
+html[data-theme='dark'] .game-overlay .eyebrow,
+html[data-theme='dark'] .game-overlay p { color: #b5b1a4; }
+html[data-theme='dark'] .direction-pad button { background: #2d2e29; border-color: #505148; }
+html[data-theme='dark'] .direction-pad button:active { background: #3a3b34; }
+html[data-theme='dark'] .leaderboard { background: var(--surface); border-color: var(--line); }
+html[data-theme='dark'] .leaderboard-heading { background: linear-gradient(120deg,#40351f,#473a22 58%,#382f1d); border-color: #5a4a2b; }
+html[data-theme='dark'] .leaderboard-heading h2,
+html[data-theme='dark'] .leaderboard-player b { color: var(--ink); }
+html[data-theme='dark'] .leaderboard-live { background: rgba(30,31,27,.7); color: #b8c49a; border-color: #596044; }
+html[data-theme='dark'] .leaderboard li,
+html[data-theme='dark'] .leaderboard-skeleton > span,
+html[data-theme='dark'] .leaderboard-footer { border-color: var(--line); }
+html[data-theme='dark'] .leaderboard-player-avatar,
+html[data-theme='dark'] .leaderboard-message > span { background: #30312b; border-color: #4b4c44; color: #bbb7aa; }
+html[data-theme='dark'] .leaderboard-footer { background: #1d1e1a; }
+html[data-theme='dark'] .leaderboard-skeleton i,
+html[data-theme='dark'] .leaderboard-skeleton b,
+html[data-theme='dark'] .leaderboard-skeleton em { background: linear-gradient(90deg,#292a25 25%,#3a3b34 50%,#292a25 75%); background-size: 200% 100%; }
+html[data-theme='dark'] .birthday-greeting { background: #362d19; border-color: #725a25; color: #f3d995; }
+html[data-theme='dark'] .auth-popup { background: rgba(0,0,0,.68); }
+html[data-theme='dark'] .audio-dock { background: #24251f; border-color: #44453e; }
+html[data-theme='dark'] .watch-banner { background: var(--surface); border-color: var(--line); }
+html[data-theme='dark'] .watch-icon { background: #303129; color: #c1bea9; }
+html[data-theme='dark'] .watch-banner .eyebrow,
+html[data-theme='dark'] .watch-banner p:not(.eyebrow) { color: var(--muted); }
+html[data-theme='dark'] ::selection { background: #7c3f2d; }
+
+@media (max-width: 760px) {
+  .theme-toggle { width: 34px; height: 34px; flex-basis: 34px; }
+  html[data-theme='dark'] .topbar,
+  html[data-theme='dark'] .topbar.topbar-scrolled { background: rgba(23,24,21,.96); }
+}
+@media (max-width: 440px) {
+  .topbar { padding-inline: 14px; }
+  .topbar > div { gap: 7px; }
+  .mobile-brand { font-size: 22px; }
+  .profile-button .profile-mobile-label { display: none; }
+}

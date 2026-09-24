@@ -23,6 +23,7 @@ import { useApp } from './app-provider';
 import { useI18n } from './i18n-provider';
 import { AdBanner } from './ad-banner';
 import { AppSelect, languageFlag } from './app-select';
+import { ThemeToggle } from './theme-toggle';
 const nav = [
   { href: '/', key: 'nav.discover', Icon: House },
   { href: '/watch/', key: 'nav.watch', shortKey: 'nav.watchShort', Icon: Play },
@@ -163,6 +164,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span className="mobile-beta-badge">{t('shell.beta')}</span>
           </div>
           <div>
+            <ThemeToggle />
             <div className="language-picker">
               <AppSelect value={locale} onChange={(value) => setLocale(value as typeof locale)}
                 ariaLabel={t('language.label')} options={locales.map((item) => ({ value: item, label: localeNames[item], icon: languageFlag(item) }))} />
