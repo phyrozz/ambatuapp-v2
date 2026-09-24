@@ -19,6 +19,18 @@ async function request(token: string, init?: RequestInit) {
 }
 
 export function getPlayerProfile(token: string) { return request(token); }
+export async function initializePlayerProfile(token: string, signal?: AbortSignal): Promise<PlayerProfile> {
+  if (!endpoint) throw new Error('Player profile service is not configured.');
+  const response = await fetch(`${endpoint}/profile/initialize`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}` },
+    cache: 'no-store',
+    signal,
+  });
+  const data = await response.json() as PlayerProfile & { error?: string };
+  if (!response.ok) throw new PlayerProfileError(data.error || 'Could not update profile.');
+  return data;
+}
 export function savePlayerProfile(token: string, profile: PlayerProfile) {
   return request(token, { method: 'PUT', body: JSON.stringify(profile) });
 }

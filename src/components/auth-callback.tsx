@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { completeGoogleSignIn } from '@/lib/cognito';
+import { initializePlayerProfile } from '@/lib/player-profile';
 import { useI18n } from './i18n-provider';
 
 export function AuthCallback() {
@@ -14,7 +15,14 @@ export function AuthCallback() {
     const code = params.get('code');
     if (providerError || !code) { setError(providerError || t('profile.connectionError')); return; }
     void completeGoogleSignIn(code, params.get('state'))
-      .then(({ returnTo }) => window.location.replace(returnTo))
+      .then(async ({ tokens, returnTo }) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        try { await initializePlayerProfile(tokens.idToken, controller.signal); }
+        catch { /* The session stays valid and registration retries after redirect. */ }
+        finally { clearTimeout(timeout); }
+        window.location.replace(returnTo);
+      })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : t('profile.connectionError')));
   }, [t]);
   /* eslint-enable react-hooks/set-state-in-effect */

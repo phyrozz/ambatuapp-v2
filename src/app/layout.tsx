@@ -6,9 +6,9 @@ import { Shell } from '@/components/shell';
 import { BirthdayGreeting } from '@/components/birthday-greeting';
 import './globals.css';
 export const metadata: Metadata = {
-  title: { default: 'AmbatuApp — A little chaos. A lot of fun.', template: '%s · AmbatuApp' },
+  title: { default: 'AmbatuApp', template: '%s · AmbatuApp' },
   description:
-    'Your little corner of internet chaos. Play the classics, find your favorite sounds, and meet the Ambaverse.',
+    'Your little corner of internet chaos. Meet the Ambaverse and get bussing!',
 };
 export const viewport: Viewport = {
   width: 'device-width',

@@ -5,19 +5,19 @@ import { useApp } from './app-provider';
 import { useAuth } from './auth-provider';
 import { games } from '@/lib/catalog';
 import { useI18n } from './i18n-provider';
-import { getPlayerProfile, PlayerProfileError, savePlayerProfile } from '@/lib/player-profile';
+import { initializePlayerProfile, PlayerProfileError, savePlayerProfile } from '@/lib/player-profile';
 
 function today() { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 
 export function ProfilePanel() {
   const { t } = useI18n();
   const { favorites, scores, plays } = useApp();
-  const { configured, ready, signInWithGoogle, signOut, user, getIdToken } = useAuth();
+  const { configured, ready, signInWithGoogle, signOut, setDisplayName, user, getIdToken } = useAuth();
   const signedIn = Boolean(user);
   const [username, setUsername] = useState(''), [birthDate, setBirthDate] = useState(''), [saving, setSaving] = useState(false), [profileError, setProfileError] = useState(''), [profileStatus, setProfileStatus] = useState('');
   useEffect(() => {
     if (!user) return;
-    void getIdToken().then((token) => token ? getPlayerProfile(token) : null).then((profile) => {
+    void getIdToken().then((token) => token ? initializePlayerProfile(token) : null).then((profile) => {
       if (!profile) return;
       setUsername(profile.username); setBirthDate(profile.birthDate ?? '');
     }).catch(() => setProfileError(t('profile.editLoadError')));
@@ -28,7 +28,7 @@ export function ProfilePanel() {
       const token = await getIdToken();
       if (!token) throw new Error(t('profile.connectionError'));
       const profile = await savePlayerProfile(token, { username, birthDate: birthDate || null });
-      setUsername(profile.username); setBirthDate(profile.birthDate ?? ''); setProfileStatus(t('profile.savedProfile'));
+      setUsername(profile.username); setDisplayName(profile.username); setBirthDate(profile.birthDate ?? ''); setProfileStatus(t('profile.savedProfile'));
     } catch (error) { setProfileError(error instanceof PlayerProfileError && error.code === 'username_taken' ? t('profile.usernameTaken') : error instanceof Error ? error.message : t('profile.connectionError')); }
     finally { setSaving(false); }
   }

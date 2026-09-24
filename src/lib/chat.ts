@@ -1,15 +1,18 @@
 export type ChatConversation = { id: string; members: string[]; group: boolean; title: string; names: Record<string, string>; updatedAt: number; lastMessage?: string };
-export type ChatMessage = { id: string; conversationId: string; senderId: string; kind: 'text' | 'image' | 'video' | 'gif' | 'sound'; text: string; url?: string; createdAt: number };
+export type ChatMessage = { id: string; conversationId: string; senderId: string; kind: 'text' | 'image' | 'video' | 'gif' | 'sound'; text: string; url?: string; createdAt: number; messageKey?: string; reactions?: Record<string, string> };
+export type ChatReaction = { conversationId: string; messageKey: string; reactions: Record<string, string> };
 
 type ResponseBody = { event: 'response'; requestId: string; data?: Record<string, unknown>; error?: string };
 type MessageBody = { event: 'message'; message: ChatMessage };
 type ConversationBody = { event: 'conversation'; conversationId: string };
+type ReactionBody = { event: 'reaction' } & ChatReaction;
 
 export class ChatSocket {
   private socket: WebSocket | null = null;
   private pending = new Map<string, { resolve: (value: Record<string, unknown>) => void; reject: (reason: Error) => void; timer: ReturnType<typeof setTimeout> }>();
   onMessage?: (message: ChatMessage) => void;
   onConversation?: () => void;
+  onReaction?: (reaction: ChatReaction) => void;
   onClose?: () => void;
 
   async connect(url: string, token: string) {
@@ -20,9 +23,10 @@ export class ChatSocket {
       socket.onerror = () => reject(new Error('socket'));
     });
     socket.onmessage = (event) => {
-      const body = JSON.parse(String(event.data)) as ResponseBody | MessageBody | ConversationBody;
+      const body = JSON.parse(String(event.data)) as ResponseBody | MessageBody | ConversationBody | ReactionBody;
       if (body.event === 'message') { this.onMessage?.(body.message); return; }
       if (body.event === 'conversation') { this.onConversation?.(); return; }
+      if (body.event === 'reaction') { this.onReaction?.(body); return; }
       const pending = this.pending.get(body.requestId);
       if (!pending) return;
       clearTimeout(pending.timer);
