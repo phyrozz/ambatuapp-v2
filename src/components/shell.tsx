@@ -139,14 +139,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {t('nav.profile')}
         </Link>
         <div className="sidebar-bottom">
-          <div className="good-vibes">
+          {/* <div className="good-vibes">
             <Sparkles size={21} />
             <b>{t('shell.plot')}</b>
             <p>{t('shell.vibes').split('\n').map((line, index) => <span key={line}>{index > 0 && <br />}{line}</span>)}</p>
             <Link href="/games/">
               {t('shell.letsPlay')} <ArrowUpRight size={16} />
             </Link>
-          </div>
+          </div> */}
           <span className="sidebar-credit">
             {t('shell.fanProject')} <span>✳</span>
           </span>

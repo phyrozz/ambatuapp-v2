@@ -422,6 +422,8 @@
   "chat.notificationsEnabled": "Message notifications are enabled",
   "chat.notificationsNotConfigured": "Push notifications are not configured yet.",
   "chat.pushError": "Could not enable message notifications. Check your notification permission and try again.",
+  "push.promptDescription": "Get notified when someone sends you a chat message.",
+  "push.notNow": "Not now",
   "push.notificationTitle": "New message",
   "push.notificationBody": "You have a new message."
 }

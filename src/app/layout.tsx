@@ -4,6 +4,7 @@ import { AuthProvider } from '@/components/auth-provider';
 import { I18nProvider } from '@/components/i18n-provider';
 import { Shell } from '@/components/shell';
 import { BirthdayGreeting } from '@/components/birthday-greeting';
+import { PushPermissionPrompt } from '@/components/push-permission-prompt';
 import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'AmbatuApp', template: '%s · AmbatuApp' },
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <AuthProvider>
             <AppProvider>
               <Shell>{children}</Shell>
+              <PushPermissionPrompt />
               <BirthdayGreeting />
             </AppProvider>
           </AuthProvider>

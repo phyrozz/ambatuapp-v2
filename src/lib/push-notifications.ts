@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import type { ChatSocket } from './chat';
+import { ChatSocket } from './chat';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -9,6 +9,7 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
+const chatWsUrl = process.env.NEXT_PUBLIC_CHAT_WS_URL;
 let navigationInstalled = false;
 let activeLocale = 'en';
 let activeUserId: string | null = null;
@@ -33,24 +34,45 @@ export async function enableChatPush(client: ChatSocket, locale: string, userId:
       await FirebaseMessaging.createChannel({ id: 'messages', name: 'Messages', importance: 4 });
     }
   } else {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) throw new Error('unsupported');
-    if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.messagingSenderId || !firebaseConfig.appId) throw new Error('not-configured');
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') throw new Error('permission-denied');
-    if (!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY) throw new Error('not-configured');
-    const [{ initializeApp, getApps }, { getMessaging, getToken, isSupported }] = await Promise.all([
-      import('firebase/app'), import('firebase/messaging'),
-    ]);
-    if (!await isSupported()) throw new Error('unsupported');
-    const app = getApps()[0] ?? initializeApp(firebaseConfig);
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    const messaging = getMessaging(app);
-    token = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY, serviceWorkerRegistration: registration });
+    token = await requestWebPushToken();
     platform = 'web';
   }
   if (!token) throw new Error('token-unavailable');
+  await registerPushToken(client, token, platform, locale, userId);
+}
+
+async function requestWebPushToken() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) throw new Error('unsupported');
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.messagingSenderId || !firebaseConfig.appId || !process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY) throw new Error('not-configured');
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('permission-denied');
+  const [{ initializeApp, getApps }, { getMessaging, getToken, isSupported }] = await Promise.all([
+    import('firebase/app'), import('firebase/messaging'),
+  ]);
+  if (!await isSupported()) throw new Error('unsupported');
+  const app = getApps()[0] ?? initializeApp(firebaseConfig);
+  const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+  return getToken(getMessaging(app), { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY, serviceWorkerRegistration: registration });
+}
+
+async function registerPushToken(client: ChatSocket, token: string, platform: 'android' | 'ios' | 'web', locale: string, userId: string) {
+  if (!token) throw new Error('token-unavailable');
   await client.request('registerPush', { token, platform, locale });
   localStorage.setItem(`ambatuapp-push-enabled:${userId}`, '1');
+}
+
+export async function enableWebPushFromPrompt(locale: string, userId: string, getAccessToken: () => Promise<string | null>) {
+  // Request permission directly from the prompt's click handler before awaiting sign-in/socket work.
+  const token = await requestWebPushToken();
+  const accessToken = await getAccessToken();
+  if (!accessToken || !chatWsUrl) throw new Error('not-configured');
+  const client = new ChatSocket();
+  try {
+    await client.connect(chatWsUrl, accessToken);
+    await registerPushToken(client, token, 'web', locale, userId);
+  } finally {
+    client.close();
+  }
 }
 
 export async function syncChatPush(client: ChatSocket, locale: string, userId: string) {
