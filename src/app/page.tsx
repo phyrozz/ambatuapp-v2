@@ -36,25 +36,6 @@ export default function Home() {
             </span>
           </h1>
           <p>{t('home.heroBody')}</p>
-          <div className="hero-actions">
-            <Link href="/games/" className="button dark">
-              <Gamepad2 size={20} />
-              {t('shell.letsPlay')}
-              <ArrowUpRight size={19} />
-            </Link>
-            <Link href="/soundboard/" className="hero-secondary">
-              {t('home.soundboardCta')}
-              <ArrowRight size={18} />
-            </Link>
-          </div>
-          <div className="hero-foot">
-            <span className="mini-avatars">
-              {characters.slice(0, 3).map((c) => (
-                <img key={c.id} src={c.image} alt="" />
-              ))}
-            </span>
-            <span>{t('home.playground')}</span>
-          </div>
         </div>
         <div className="hero-visual">
           <span className="orbit-text">{t('home.classic')}</span>
@@ -87,6 +68,11 @@ export default function Home() {
         <span>{t('home.tickerEnergy')}</span>
         <span>✳</span>
       </div> */}
+      {(communityVideos.length > 0 || topLores.length > 0) && <section className="section home-community">
+        <SectionHeading eyebrow={t('home.communityEyebrow')} title={t('home.communityTitle')} />
+        {communityVideos.length > 0 && <div className="home-community-block"><div className="home-community-title"><Play size={18}/><h3>{t('home.communityVideos')}</h3><Link href="/watch/">{t('home.exploreCommunityVideos')} <ArrowRight size={16}/></Link></div><div className="home-community-grid">{communityVideos.map(video => <Link href={`/watch/${video.id}/`} className="home-community-card" key={video.id}>{video.thumbnailUrl && <img src={video.thumbnailUrl} alt=""/>}<b>{video.title}</b><span><ThumbsUp size={14}/>{video.upvotes}</span></Link>)}</div></div>}
+        {topLores.length > 0 && <div className="home-community-block"><div className="home-community-title"><BookOpen size={18}/><h3>{t('home.communityLore')}</h3><Link href="/lores/">{t('home.exploreLore')} <ArrowRight size={16}/></Link></div><div className="home-community-grid">{topLores.map(lore => <Link href={`/lores/${lore.id}/`} className="home-community-card" key={lore.id}>{lore.imageUrls[0] && <img src={lore.imageUrls[0]} alt=""/>}<b>{lore.title}</b><span><ThumbsUp size={14}/>{lore.upvotes}</span></Link>)}</div></div>}
+      </section>}
       <section className="section">
         <SectionHeading
           eyebrow={t('home.gamesEyebrow')}
@@ -100,11 +86,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-      {(communityVideos.length > 0 || topLores.length > 0) && <section className="section home-community">
-        <SectionHeading eyebrow={t('home.communityEyebrow')} title={t('home.communityTitle')} />
-        {communityVideos.length > 0 && <div className="home-community-block"><div className="home-community-title"><Play size={18}/><h3>{t('home.communityVideos')}</h3><Link href="/watch/">{t('home.exploreCommunityVideos')} <ArrowRight size={16}/></Link></div><div className="home-community-grid">{communityVideos.map(video => <Link href={`/watch/${video.id}/`} className="home-community-card" key={video.id}>{video.thumbnailUrl && <img src={video.thumbnailUrl} alt=""/>}<b>{video.title}</b><span><ThumbsUp size={14}/>{video.upvotes}</span></Link>)}</div></div>}
-        {topLores.length > 0 && <div className="home-community-block"><div className="home-community-title"><BookOpen size={18}/><h3>{t('home.communityLore')}</h3><Link href="/lores/">{t('home.exploreLore')} <ArrowRight size={16}/></Link></div><div className="home-community-grid">{topLores.map(lore => <Link href={`/lores/${lore.id}/`} className="home-community-card" key={lore.id}>{lore.imageUrls[0] && <img src={lore.imageUrls[0]} alt=""/>}<b>{lore.title}</b><span><ThumbsUp size={14}/>{lore.upvotes}</span></Link>)}</div></div>}
-      </section>}
       <section className="section sound-section">
         <SectionHeading
           eyebrow={t('home.soundsEyebrow')}

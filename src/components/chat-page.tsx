@@ -12,13 +12,14 @@ import { ChatSoundCard, ChatSoundPicker } from './chat-soundboard';
 import { ChatReactions } from './chat-reactions';
 import { ChatGroupMembers } from './chat-group-members';
 import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
-import { ChatSocket, type ChatConversation, type ChatMessage } from '@/lib/chat';
+import { ChatSocket, withCurrentNames, type ChatConversation, type ChatMessage } from '@/lib/chat';
 import { initializePlayerProfile } from '@/lib/player-profile';
 
 type Player = { id: string; username: string };
 type InviteDetails = { conversation: string; title: string; memberCount: number; alreadyMember: boolean };
 const wsUrl = process.env.NEXT_PUBLIC_CHAT_WS_URL;
 const playersApi = `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/players`;
+const playerNamesApi = `${playersApi}/names`;
 const ChatEmojiPicker = lazy(() => import('./chat-emoji-picker'));
 
 export function ChatPage() {
@@ -64,6 +65,9 @@ export function ChatPage() {
   const activeRef = useRef('');
   const initialUser = useRef(false);
   const initialInvite = useRef(false);
+  const resolvedNames = useRef<Record<string, string>>({});
+  const lastNamesFetch = useRef(0);
+  const namesFetchVersion = useRef(0);
   const messagePane = useRef<HTMLDivElement>(null);
   const historyRequest = useRef(false);
   const stickToBottom = useRef(true);
@@ -74,7 +78,8 @@ export function ChatPage() {
 
   const refresh = useCallback(async (client: ChatSocket) => {
     const data = await client.request('conversations');
-    const next = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt);
+    const next = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt)
+      .map(item => withCurrentNames(item, resolvedNames.current));
     setConversations(next);
     if (activeRef.current && !next.some(item => item.id === activeRef.current)) {
       activeRef.current = '';
@@ -82,32 +87,75 @@ export function ChatPage() {
       setMessages([]);
       setMembersOpen(false);
     }
-  }, []);
+    const ids = [...new Set(next.flatMap(item => [...item.members, ...Object.keys(item.names)]))];
+    if (!ids.length || Date.now() - lastNamesFetch.current < 15000) return;
+    lastNamesFetch.current = Date.now();
+    const version = ++namesFetchVersion.current;
+    void (async () => {
+      try {
+        const token = await getIdToken();
+        if (!token) throw new Error('token');
+        const chunks = Array.from({ length: Math.ceil(ids.length / 100) }, (_, index) => ids.slice(index * 100, (index + 1) * 100));
+        const results = await Promise.all(chunks.map(async chunk => {
+          const response = await fetch(playerNamesApi, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ ids: chunk }), cache: 'no-store' });
+          if (!response.ok) throw new Error('names');
+          return (await response.json() as { names: Record<string, string> }).names;
+        }));
+        if (version !== namesFetchVersion.current) return;
+        resolvedNames.current = { ...resolvedNames.current, ...Object.assign({}, ...results) };
+        setConversations(items => items.map(item => withCurrentNames(item, resolvedNames.current)));
+      } catch { if (version === namesFetchVersion.current) lastNamesFetch.current = 0; }
+    })();
+  }, [getIdToken]);
+
+  useEffect(() => {
+    resolvedNames.current = {};
+    lastNamesFetch.current = 0;
+    namesFetchVersion.current++;
+  }, [user?.id]);
 
   useEffect(() => {
     if (!ready || !user || !wsUrl) return;
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let namesTimer: ReturnType<typeof setInterval> | undefined;
     let client: ChatSocket;
+    const retry = () => {
+      if (cancelled || retryTimer) return;
+      setStatus('unavailable');
+      retryTimer = setTimeout(() => setReconnect(value => value + 1), 2000);
+    };
     const run = async () => {
-      const token = await getAccessToken();
-      if (!token || cancelled) return;
-      client = new ChatSocket();
-      socket.current = client;
-      client.onMessage = (message) => {
-        if (message.conversationId === activeRef.current) setMessages(items => items.some(item => item.id === message.id) ? items : [...items, message]);
-        void refresh(client).catch(() => {});
-      };
-      client.onConversation = () => { void refresh(client).catch(() => {}); };
-      client.onReaction = reaction => {
-        if (reaction.conversationId === activeRef.current) setMessages(items => items.map(item => item.messageKey === reaction.messageKey ? { ...item, reactions: reaction.reactions } : item));
-      };
-      client.onClose = () => { if (!cancelled) { setStatus('unavailable'); retryTimer = setTimeout(() => setReconnect(value => value + 1), 2000); } };
       try {
+        const token = await getAccessToken();
+        if (!token || cancelled) { if (!cancelled) retry(); return; }
+        client = new ChatSocket();
+        socket.current = client;
+        client.onMessage = (message) => {
+          if (message.conversationId === activeRef.current) setMessages(items => items.some(item => item.id === message.id) ? items : [...items, message]);
+          void refresh(client).catch(() => {});
+        };
+        client.onConversation = () => { void refresh(client).catch(() => {}); };
+        client.onReaction = reaction => {
+          if (reaction.conversationId === activeRef.current) setMessages(items => items.map(item => item.messageKey === reaction.messageKey ? { ...item, reactions: reaction.reactions } : item));
+        };
+        client.onClose = retry;
         await client.connect(wsUrl, token);
         if (cancelled) return client.close();
         setStatus('ready');
+        setError('');
         await refresh(client);
+        const checkConnection = () => {
+          if (document.hidden || cancelled) return;
+          if (!client.isOpen) { retry(); return; }
+          void refresh(client).catch(() => { client.close(); retry(); });
+        };
+        namesTimer = setInterval(checkConnection, 30000);
+        const onVisible = () => { if (!document.hidden) { lastNamesFetch.current = 0; checkConnection(); } };
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('pageshow', onVisible);
+        window.addEventListener('online', onVisible);
+        visibilityCleanup = () => { document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('pageshow', onVisible); window.removeEventListener('online', onVisible); };
         if (!cancelled) setInitialChatsLoaded(true);
         const invite = params.get('invite');
         const target = params.get('user');
@@ -132,14 +180,15 @@ export function ChatPage() {
           setActive(id);
           await refresh(client);
         }
-      } catch { if (!cancelled) { setStatus('unavailable'); setError(t('chat.connectionError')); } }
+      } catch { if (!cancelled) { setError(t('chat.connectionError')); client?.close(); retry(); } }
     };
+    let visibilityCleanup: (() => void) | undefined;
     void run();
-    return () => { cancelled = true; clearTimeout(retryTimer); client?.close(); socket.current = null; };
+    return () => { cancelled = true; clearTimeout(retryTimer); clearInterval(namesTimer); visibilityCleanup?.(); client?.close(); socket.current = null; };
   }, [ready, user, getAccessToken, params, refresh, reconnect, t]);
 
   useEffect(() => {
-    if (!active || !socket.current) return;
+    if (!active || !socket.current || status !== 'ready') return;
     activeRef.current = active;
     stickToBottom.current = true;
     restoreScroll.current = null;
@@ -157,9 +206,9 @@ export function ChatPage() {
         setMessages(items => [...page, ...items.filter(item => item.conversationId === active && !page.some(message => message.id === item.id))].sort((a, b) => a.createdAt - b.createdAt));
         setHistoryCursor(typeof data.nextCursor === 'string' ? data.nextCursor : null);
       }
-    }).catch(() => { if (!cancelled) setError(t('chat.historyError')); }).finally(() => { if (!cancelled) setLoadingHistoryFor(''); });
+    }).catch(() => { if (!cancelled && socket.current?.isOpen) setError(t('chat.historyError')); }).finally(() => { if (!cancelled) setLoadingHistoryFor(''); });
     return () => { cancelled = true; };
-  }, [active, t]);
+  }, [active, status, reconnect, t]);
   useLayoutEffect(() => {
     const pane = messagePane.current;
     if (!pane) return;
@@ -376,7 +425,7 @@ export function ChatPage() {
   return <div className="page chat-page">
     {error && <p className="chat-notice" role="status">{error}<button onClick={() => setError('')} aria-label={t('chat.dismiss')}><X size={15}/></button></p>}
     {status !== 'ready' && <p className="chat-notice" role="status">{t(status === 'connecting' ? 'chat.connecting' : 'chat.connectionError')}</p>}
-    <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}><aside className="chat-inbox"><div className="chat-inbox-header"><h2>{t('chat.inbox')}</h2><button className="chat-icon" onClick={() => { setGroup(true); returnToInbox(); }} aria-label={t('chat.newGroup')}><Plus size={18}/></button></div>
+    <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}><aside className="chat-inbox"><div className="chat-inbox-header"><h2>{t('chat.inbox')}</h2></div>
       <div className="chat-search"><Search size={17}/><input value={query} onChange={event => { setQuery(event.target.value); setMatches([]); setSearchLoading(event.target.value.trim().length >= 2); }} placeholder={t('chat.searchUsername')} aria-label={t('chat.searchUsername')}/></div>
       {searchLoading && <div className="chat-search-loading"><LoadingIndicator label={t('common.loading')} /></div>}
       {matches.length > 0 && <div className="chat-results">{matches.map(player => <button key={player.id} onClick={() => { setSelected(items => items.some(item => item.id === player.id) ? items : [...items, player]); setQuery(''); setMatches([]); setSearchLoading(false); }}>{player.username}<Plus size={15}/></button>)}</div>}

@@ -2,6 +2,12 @@ export type ChatConversation = { id: string; members: string[]; group: boolean; 
 export type ChatMessage = { id: string; conversationId: string; senderId: string; kind: 'text' | 'image' | 'video' | 'gif' | 'sound'; text: string; url?: string; createdAt: number; messageKey?: string; reactions?: Record<string, string> };
 export type ChatReaction = { conversationId: string; messageKey: string; reactions: Record<string, string> };
 
+export function withCurrentNames(item: ChatConversation, resolved: Record<string, string>): ChatConversation {
+  const names = { ...item.names };
+  for (const id of new Set([...item.members, ...Object.keys(names)])) if (resolved[id]) names[id] = resolved[id];
+  return { ...item, names };
+}
+
 type ResponseBody = { event: 'response'; requestId: string; data?: Record<string, unknown>; error?: string };
 type MessageBody = { event: 'message'; message: ChatMessage };
 type ConversationBody = { event: 'conversation'; conversationId: string };
@@ -21,6 +27,7 @@ export class ChatSocket {
     await new Promise<void>((resolve, reject) => {
       socket.onopen = () => resolve();
       socket.onerror = () => reject(new Error('socket'));
+      socket.onclose = () => reject(new Error('socket'));
     });
     socket.onmessage = (event) => {
       const body = JSON.parse(String(event.data)) as ResponseBody | MessageBody | ConversationBody | ReactionBody;
@@ -51,5 +58,6 @@ export class ChatSocket {
     });
   }
 
+  get isOpen() { return this.socket?.readyState === WebSocket.OPEN; }
   close() { this.socket?.close(); }
 }

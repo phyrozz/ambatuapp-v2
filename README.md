@@ -28,6 +28,8 @@ Set `NEXT_PUBLIC_CHAT_WS_URL` to the deployed `wss://` endpoint printed by `chat
 
 Players can share a direct chat link and QR code from their profile. Groups can generate seven-day invite links from Manage members; visitors sign in and explicitly accept before joining. Share URLs use the current website origin in browsers and `https://www.ambatu.fun` in the native app. Set `NEXT_PUBLIC_SHARE_BASE_URL` when the public site uses another origin, then rebuild.
 
+Chat resolves participant names from the player profiles API (`POST /api/public/players/names`) when conversations load and every 30 seconds while the chat page is visible. This keeps direct-message titles, group member lists, and message names current after a player changes their MyDreamy username. Deploy the admin API and revamp together for this behavior.
+
 See [chat-service/README.md](../chat-service/README.md) for deployment and admin report setup.
 
 - **Discover:** redesigned home, responsive sidebar/bottom navigation, quick access to sounds, characters, and games.

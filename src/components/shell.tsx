@@ -25,12 +25,12 @@ import { AdBanner } from './ad-banner';
 import { AppSelect, languageFlag } from './app-select';
 const nav = [
   { href: '/', key: 'nav.discover', Icon: House },
+  { href: '/watch/', key: 'nav.watch', shortKey: 'nav.watchShort', Icon: Play },
+  { href: '/lores/', key: 'nav.lore', Icon: BookOpen },
+  { href: '/chat/', key: 'nav.chat', Icon: MessageCircle },
   { href: '/games/', key: 'nav.games', shortKey: 'nav.gamesShort', Icon: Gamepad2 },
   { href: '/soundboard/', key: 'nav.soundboard', Icon: AudioLines },
-  { href: '/chat/', key: 'nav.chat', Icon: MessageCircle },
   { href: '/characters/', key: 'nav.characters', Icon: UsersRound },
-  { href: '/lores/', key: 'nav.lore', Icon: BookOpen },
-  { href: '/watch/', key: 'nav.watch', shortKey: 'nav.watchShort', Icon: Play },
 ];
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -149,7 +149,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <main id="main" tabIndex={-1}>
           {children}
         </main>
-        <AdBanner disabled={adDisabled} />
+        <AdBanner disabled={adDisabled || path === '/watch/'} />
         <footer className="footer">
           <span>
             ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
