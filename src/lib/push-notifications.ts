@@ -100,7 +100,29 @@ export function installPushNavigation(getSocket: () => ChatSocket | null, locale
     return;
   }
   if (!('serviceWorker' in navigator)) return;
-  void navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => undefined);
+  if (firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.messagingSenderId && firebaseConfig.appId) {
+    void Promise.all([
+      import('firebase/app'),
+      import('firebase/messaging'),
+      navigator.serviceWorker.register('/firebase-messaging-sw.js'),
+    ]).then(async ([firebase, messagingSdk, registration]) => {
+      if (!await messagingSdk.isSupported()) return;
+      const app = firebase.getApps()[0] ?? firebase.initializeApp(firebaseConfig);
+      const messaging = messagingSdk.getMessaging(app);
+      messagingSdk.onMessage(messaging, payload => {
+        if (Notification.permission !== 'granted' || !payload.notification) return;
+        const conversationId = String(payload.data?.conversationId ?? '');
+        void registration.showNotification(payload.notification.title ?? '', {
+          body: payload.notification.body,
+          icon: '/app-icon.svg',
+          tag: conversationId ? `chat-${conversationId}` : undefined,
+          data: { conversationId },
+        });
+      });
+    }).catch(() => undefined);
+  } else {
+    void navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => undefined);
+  }
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data?.type === 'chat-notification-click') goToConversation(event.data.conversationId, activeNavigate);
   });
