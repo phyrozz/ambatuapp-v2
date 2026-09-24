@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+
 export type CognitoUser = {
   id: string;
   email: string;
@@ -113,7 +115,8 @@ export async function beginGoogleSignIn(returnTo = '/profile/') {
   const verifier = encodeBase64Url(crypto.getRandomValues(new Uint8Array(32)));
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   const challenge = encodeBase64Url(new Uint8Array(digest));
-  const state = encodeBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+  const native = Capacitor.isNativePlatform();
+  const state = `${native ? 'native.' : ''}${encodeBase64Url(crypto.getRandomValues(new Uint8Array(24)))}`;
   sessionStorage.setItem(verifierKey, verifier);
   sessionStorage.setItem(stateKey, state);
   sessionStorage.setItem(returnToKey, returnTo.startsWith('/') ? returnTo : '/profile/');
@@ -128,7 +131,12 @@ export async function beginGoogleSignIn(returnTo = '/profile/') {
     code_challenge: challenge,
     state,
   }).toString();
-  window.location.assign(url.toString());
+  if (native) {
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url: url.toString() });
+  } else {
+    window.location.assign(url.toString());
+  }
 }
 
 export async function completeGoogleSignIn(code: string, state: string | null) {

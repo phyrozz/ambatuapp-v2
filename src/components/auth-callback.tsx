@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { completeGoogleSignIn } from '@/lib/cognito';
 import { initializePlayerProfile } from '@/lib/player-profile';
 import { useI18n } from './i18n-provider';
+import { Capacitor } from '@capacitor/core';
 
 export function AuthCallback() {
   const { t } = useI18n();
@@ -13,8 +14,13 @@ export function AuthCallback() {
     const params = new URLSearchParams(window.location.search);
     const providerError = params.get('error_description') || params.get('error');
     const code = params.get('code');
+    const state = params.get('state');
+    if (!Capacitor.isNativePlatform() && state?.startsWith('native.')) {
+      window.location.replace(`com.example.ambatuapp://auth/callback?${params.toString()}`);
+      return;
+    }
     if (providerError || !code) { setError(providerError || t('profile.connectionError')); return; }
-    void completeGoogleSignIn(code, params.get('state'))
+    void completeGoogleSignIn(code, state)
       .then(async ({ tokens, returnTo }) => {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);

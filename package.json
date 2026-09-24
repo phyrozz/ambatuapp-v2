@@ -22,7 +22,7 @@
     "lint": "eslint .",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "test:e2e": "playwright test",
-    "cap:sync": "npm run build && cap sync",
+    "cap:sync": "node scripts/cap-sync.mjs",
     "cap:android": "cap open android",
     "cap:ios": "cap open ios"
   },

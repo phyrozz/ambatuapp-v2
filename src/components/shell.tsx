@@ -29,8 +29,8 @@ const nav = [
   { href: '/lores/', key: 'nav.lore', Icon: BookOpen },
   { href: '/chat/', key: 'nav.chat', Icon: MessageCircle },
   { href: '/games/', key: 'nav.games', shortKey: 'nav.gamesShort', Icon: Gamepad2 },
-  { href: '/soundboard/', key: 'nav.soundboard', Icon: AudioLines },
   { href: '/characters/', key: 'nav.characters', Icon: UsersRound },
+  { href: '/soundboard/', key: 'nav.soundboard', Icon: AudioLines },
 ];
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -43,14 +43,40 @@ export function Shell({ children }: { children: React.ReactNode }) {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+    const openNativeDetail = (event: MouseEvent) => {
+      const anchor = (event.target as Element).closest('a[href]');
+      if (!anchor || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const url = new URL(anchor.getAttribute('href')!, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      const match = url.pathname.match(/^\/(watch|lores|characters)\/([^/]+)\/?$/);
+      if (!match || match[2] === 'native') return;
+      event.preventDefault();
+      event.stopPropagation();
+      router.push(`/${match[1]}/native/?id=${encodeURIComponent(decodeURIComponent(match[2]))}`);
+    };
+    document.addEventListener('click', openNativeDetail, true);
     const listener = import('@capacitor/app').then(({ App }) =>
       App.addListener('backButton', () => {
         if (window.location.pathname !== '/') router.back();
         else void App.minimizeApp();
       }),
     );
+    const openAppUrl = (url: string) => {
+      const incoming = new URL(url);
+      if (incoming.protocol !== 'com.example.ambatuapp:' || incoming.host !== 'auth') return;
+      void import('@capacitor/browser').then(({ Browser }) => Browser.close()).catch(() => undefined);
+      router.replace(`/auth/callback/?${incoming.searchParams.toString()}`);
+    };
+    const urlListener = import('@capacitor/app').then(async ({ App }) => {
+      const handle = await App.addListener('appUrlOpen', ({ url }) => openAppUrl(url));
+      const launch = await App.getLaunchUrl();
+      if (launch?.url) openAppUrl(launch.url);
+      return handle;
+    });
     return () => {
+      document.removeEventListener('click', openNativeDetail, true);
       void listener.then((l) => l.remove());
+      void urlListener.then((l) => l.remove());
     };
   }, [router]);
   useEffect(() => {
