@@ -3710,6 +3710,12 @@ html[data-theme='dark'] .birthday-greeting { background: #362d19; border-color: 
 html[data-theme='dark'] .auth-popup { background: rgba(0,0,0,.68); }
 html[data-theme='dark'] .audio-dock { background: #24251f; border-color: #44453e; }
 html[data-theme='dark'] .watch-banner { background: var(--surface); border-color: var(--line); }
+html[data-theme='dark'] .watch-page-heading {
+  border-color: #393a34;
+  background: radial-gradient(circle at 88% 22%, rgba(246, 84, 47, .16) 0, transparent 30%), linear-gradient(115deg, #22231f, #2c281f);
+  color: var(--ink);
+}
+html[data-theme='dark'] .watch-page-heading > p:last-child { color: var(--muted); }
 html[data-theme='dark'] .watch-icon { background: #303129; color: #c1bea9; }
 html[data-theme='dark'] .watch-banner .eyebrow,
 html[data-theme='dark'] .watch-banner p:not(.eyebrow) { color: var(--muted); }
