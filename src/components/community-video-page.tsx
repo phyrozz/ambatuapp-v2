@@ -6,8 +6,8 @@ import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { AdBanner } from './ad-banner';
 
-type VideoData = { id: string; title: string; description: string; uploader: string; uploaderId?: string; videoUrl: string; upvotes: number; downvotes: number; commentCount: number };
-type Comment = { id: string; text: string; author: string; authorId?: string };
+type VideoData = { id: string; title: string; description: string; uploader: string; uploaderId?: string; uploaderAvatarUrl?: string | null; videoUrl: string; upvotes: number; downvotes: number; commentCount: number };
+type Comment = { id: string; text: string; author: string; authorId?: string; avatarUrl?: string | null };
 const base = () => `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/videos`;
 function viewerId() { const key = 'ambatu-anonymous-id'; let id = localStorage.getItem(key); if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id); } return id; }
 
@@ -26,7 +26,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
         <div className="community-video-story">
           <p className="eyebrow"><span className="watch-accent-dot" />{t('watch.communityEyebrow')}</p>
           <h1>{video.title}</h1>
-          <span className="community-video-byline">{video.uploaderId && video.uploaderId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(video.uploaderId)}&name=${encodeURIComponent(video.uploader)}`} aria-label={t('chat.messageUser', { name: video.uploader })}>{t('watch.uploadedBy', { email: video.uploader })}</Link> : t('watch.uploadedBy', { email: video.uploader })}</span>
+          <span className="community-video-byline">{video.uploaderAvatarUrl && <img className="profile-avatar-inline" src={video.uploaderAvatarUrl} alt=""/>}{video.uploaderId && video.uploaderId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(video.uploaderId)}&name=${encodeURIComponent(video.uploader)}`} aria-label={t('chat.messageUser', { name: video.uploader })}>{t('watch.uploadedBy', { email: video.uploader })}</Link> : t('watch.uploadedBy', { email: video.uploader })}</span>
           {video.description && <p className="community-video-description">{video.description}</p>}
           <div className="community-video-actions" aria-label={t('watch.communityEyebrow')}>
             <button className={`up ${userVote === 1 ? 'selected' : ''} ${votePulse === 'up' ? 'vote-pop' : ''}`} aria-label={`${t('lore.upvote')}: ${video.upvotes}`} aria-pressed={userVote === 1} onClick={() => void vote(1)}><ArrowBigUp size={20}/><span>{video.upvotes}</span></button>
@@ -37,7 +37,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
         <section className="video-comments" aria-labelledby="video-comments-title">
           <div className="video-comments-heading"><MessageCircle size={18}/><h2 id="video-comments-title">{t('lore.comments')}</h2><span>{video.commentCount}</span></div>
           <form onSubmit={comment}><input aria-label={t('watch.commentPlaceholder')} value={text} maxLength={1000} onChange={event => setText(event.target.value)} placeholder={t('watch.commentPlaceholder')}/><button aria-label={t('watch.postComment')} disabled={!text.trim()}><Send size={16}/></button></form>
-          <div className="video-comment-list">{comments.map(item => <p key={item.id}><b>{item.authorId && item.authorId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(item.authorId)}&name=${encodeURIComponent(item.author)}`} aria-label={t('chat.messageUser', { name: item.author })}>{item.author}</Link> : item.author}</b><span>{item.text}</span></p>)}</div>
+          <div className="video-comment-list">{comments.map(item => <p key={item.id}>{item.avatarUrl && <img className="profile-avatar-inline" src={item.avatarUrl} alt=""/>}<b>{item.authorId && item.authorId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(item.authorId)}&name=${encodeURIComponent(item.author)}`} aria-label={t('chat.messageUser', { name: item.author })}>{item.author}</Link> : item.author}</b><span>{item.text}</span></p>)}</div>
         </section>
       </div>
     </article>}

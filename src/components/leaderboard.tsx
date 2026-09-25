@@ -34,7 +34,7 @@ export function Leaderboard({ gameId, refreshKey = 0 }: { gameId: string; refres
       {state === 'ready' && (entries.length
         ? <ol>{entries.map((entry) => <li className={entry.rank <= 3 ? `leaderboard-top rank-${entry.rank}` : ''} key={`${entry.player}-${entry.rank}`}>
           <span className="leaderboard-rank">{entry.rank <= 3 ? <Trophy size={14} /> : entry.rank}</span>
-          <span className="leaderboard-player-avatar">{entry.player.trim().charAt(0).toUpperCase() || '?'}</span>
+          <span className="leaderboard-player-avatar">{entry.avatarUrl ? <img src={entry.avatarUrl} alt=""/> : entry.player.trim().charAt(0).toUpperCase() || '?'}</span>
           <span className="leaderboard-player"><b>{entry.player}</b><small>{t('leaderboard.rank', { rank: entry.rank })}</small></span>
           <span className="leaderboard-score"><b>{entry.score.toLocaleString()}</b><small>{t('leaderboard.points')}</small></span>
         </li>)}</ol>

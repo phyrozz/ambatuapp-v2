@@ -1,4 +1,4 @@
-export type LeaderboardEntry = { rank: number; player: string; score: number; updatedAt: string | null };
+export type LeaderboardEntry = { rank: number; player: string; avatarUrl?: string | null; score: number; updatedAt: string | null };
 const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '');
 export const leaderboardConfigured = Boolean(endpoint);
 
