@@ -1,14 +1,16 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowBigDown, ArrowBigUp, ArrowRight, ArrowUpRight, AudioLines, BookOpen, Gamepad2, MessageCircle, Play, Sparkles } from 'lucide-react';
-import { games, sounds } from '@/lib/catalog';
+import { ArrowBigDown, ArrowBigUp, ArrowRight, ArrowUpRight, AudioLines, BookOpen, MessageCircle, Play, Sparkles } from 'lucide-react';
+import { games } from '@/lib/catalog';
 import { getCharacters, type Character } from '@/lib/characters';
 import { GameCard, SoundCard, CharacterCard } from '@/components/cards';
 import { SectionHeading } from '@/components/shell';
 import { useI18n } from '@/components/i18n-provider';
+import { useApp } from '@/components/app-provider';
 export default function Home() {
   const { t } = useI18n();
+  const { sounds } = useApp();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [communityVideos, setCommunityVideos] = useState<Array<{ id: string; title: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number }>>([]);
   const [topLores, setTopLores] = useState<Array<{ id: string; title: string; text: string; imageUrls: string[]; upvotes: number; downvotes: number; commentCount: number }>>([]);
@@ -93,11 +95,11 @@ export default function Home() {
           href="/soundboard/"
           link={t('home.openSoundboard')}
         />
-        <div className="sound-grid">
-          {[sounds[0], sounds[2], sounds[15], sounds[25]].map((sound, i) => (
+        {sounds.length > 0 && <div className="sound-grid">
+          {sounds.slice(0, 4).map((sound, i) => (
             <SoundCard key={sound.id} sound={sound} index={i} />
           ))}
-        </div>
+        </div>}
         <p className="section-footnote">
           <AudioLines size={14} /> {t('home.soundHint')}
         </p>

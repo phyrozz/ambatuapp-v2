@@ -1,13 +1,16 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { sounds, type Sound } from '@/lib/catalog';
+import type { Sound } from '@/lib/catalog';
 import { haptic } from '@/lib/native';
 import { useI18n } from './i18n-provider';
 type Saved = { favorites: string[]; scores: Record<string, number>; plays: number; volume: number };
 const defaults: Saved = { favorites: [], scores: {}, plays: 0, volume: 0.7 };
 type AppContext = Saved & {
   ready: boolean;
+  sounds: Sound[];
+  soundCatalogStatus: 'loading' | 'ready' | 'error';
+  refreshSoundCatalog: () => void;
   playing: string[];
   current: Sound | undefined;
   error: string;
@@ -22,6 +25,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const [saved, setSaved] = useState(defaults);
   const [ready, setReady] = useState(false);
+  const [soundCatalog, setSoundCatalog] = useState<{ status: 'loading' | 'ready' | 'error'; sounds: Sound[] }>({ status: 'loading', sounds: [] });
+  const [soundCatalogAttempt, setSoundCatalogAttempt] = useState(0);
   const [playing, setPlaying] = useState<string[]>([]);
   const [error, setError] = useState('');
   const players = useRef(new Map<string, HTMLAudioElement>());
@@ -33,7 +38,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSaved({
         favorites: Array.isArray(data.favorites)
           ? data.favorites.filter(
-              (id: unknown) => typeof id === 'string' && sounds.some((s) => s.id === id),
+              (id: unknown) => typeof id === 'string',
             )
           : [],
         scores:
@@ -53,6 +58,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? `${window.location.origin}/api/public`;
+    const controller = new AbortController();
+    void fetch(`${endpoint}/sounds`, { cache: 'no-store', signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json() as { sounds?: unknown; error?: string };
+        if (!response.ok || !Array.isArray(data.sounds)) throw new Error(data.error || 'Sound catalog unavailable.');
+        const items = data.sounds.flatMap((value, index): Sound[] => {
+          if (!value || typeof value !== 'object') return [];
+          const item = value as Record<string, unknown>;
+          if (typeof item.id !== 'string' || !item.id || typeof item.name !== 'string' || !item.name || typeof item.file !== 'string' || typeof item.category !== 'string' || !item.category) return [];
+          try {
+            const url = new URL(item.file);
+            if (url.protocol !== 'https:' && url.protocol !== 'http:') return [];
+          } catch { return []; }
+          return [{
+            id: item.id,
+            name: item.name,
+            file: item.file,
+            category: item.category,
+            color: typeof item.color === 'number' && Number.isInteger(item.color) ? Math.min(3, Math.max(0, item.color)) : index % 4,
+          }];
+        });
+        if (controller.signal.aborted) return;
+        setSoundCatalog({ status: 'ready', sounds: items });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setSoundCatalog({ status: 'error', sounds: [] });
+      });
+    return () => controller.abort();
+  }, [soundCatalogAttempt]);
+
   useEffect(() => {
     if (ready) {
       try {
@@ -136,7 +174,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...saved,
         ready,
         playing,
-        current: sounds.find((s) => s.id === playing.at(-1)),
+        sounds: soundCatalog.sounds,
+        soundCatalogStatus: soundCatalog.status,
+        refreshSoundCatalog: () => {
+          setSoundCatalog({ status: 'loading', sounds: [] });
+          setSoundCatalogAttempt((attempt) => attempt + 1);
+        },
+        current: soundCatalog.sounds.find((s) => s.id === playing.at(-1)),
         error,
         play,
         stop,

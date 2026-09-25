@@ -8,7 +8,7 @@ export default function Soundboard() {
       <div className="page-heading">
         <p className="eyebrow">{t('soundboard.eyebrow')}</p>
         <h1>{t('soundboard.title')}</h1>
-        <p>{t('soundboard.description')}</p>
+        <p>{t('soundboard.dynamicDescription')}</p>
       </div>
       <SoundLibrary />
     </div>

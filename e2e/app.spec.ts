@@ -35,8 +35,13 @@ test('Hero and navigation fit small phones, tablets, and desktop', async ({ page
   }
 });
 test('Sound search, playback, stop, favorites, and persistence', async ({ page }) => {
+  await page.route(/\/sounds\/?(?:\?.*)?$/, async (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ sounds: [{ id: 'yes_king', name: 'Yes King', file: new URL('/assets/sounds/yes_king.mp3', page.url()).toString(), category: 'Classics', color: 1 }] }),
+  }));
   await page.goto('/soundboard/');
-  await expect(page.locator('.sound-card')).toHaveCount(26);
+  await expect(page.locator('.sound-card')).toHaveCount(1);
   await page.getByRole('textbox', { name: 'Search sounds' }).fill('yes king');
   await expect(page.locator('.sound-card')).toHaveCount(1);
   await page.getByRole('button', { name: 'Favorite Yes King', exact: true }).click();

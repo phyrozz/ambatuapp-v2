@@ -1,6 +1,11 @@
-import legacy from '@/data/legacy.json';
-export const sounds = legacy.sounds;
-export type Sound = (typeof sounds)[number];
+export type Sound = {
+  id: string;
+  name: string;
+  file: string;
+  category: string;
+  color: number;
+};
+
 export const games = [
   {
     id: 'ambatutap',

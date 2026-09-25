@@ -33,7 +33,7 @@ Chat resolves participant names from the player profiles API (`POST /api/public/
 See [chat-service/README.md](../chat-service/README.md) for deployment and admin report setup.
 
 - **Discover:** redesigned home, responsive sidebar/bottom navigation, quick access to sounds, characters, and games.
-- **Soundboard:** all 26 original clips, text search, categories, up to ten simultaneous sounds, stop-all, volume, and persistent favorites. Playback stops when the app goes into the background.
+- **Soundboard:** an admin-managed catalog shared with AmbatuChat, with text search, categories, up to ten simultaneous sounds, stop-all, volume, and persistent favorites. Playback stops when the app goes into the background.
 - **Characters:** all 13 original entries, artwork, available archive copy, and original profile links. The legacy fictional biographies are explicitly marked as community meme lore. Previously unfinished entries use a collection description rather than an empty construction page.
 - **AmbatuTap:** click/touch/keyboard input, one-second combos, and saved best score.
 - **AmbatuSnake:** increasing speed, keyboard/swipe/direction controls, pause/resume, collision detection, and saved best score.
@@ -42,6 +42,8 @@ See [chat-service/README.md](../chat-service/README.md) for deployment and admin
 - **AmbatuWatch:** YouTube discovery/search by default; optional live video feed with loading, empty, retry, and error states.
 - **MyDreamy:** local activity and game scores, optional Supabase email/password signup/login/logout, optional live Dreamy profile stats.
 - **Native:** Android back handling, native external video browsing, light haptics, safe-area layouts, branded icons and splash artwork.
+
+The Soundboard and AmbatuChat sound picker load the public catalog from the admin API's `/api/public/sounds` endpoint. Set `NEXT_PUBLIC_CHARACTER_API_URL` to the admin public API base ending in `/api/public`, then rebuild the static app. Run `npm run seed:sounds` in `admin/` once to migrate the bundled clips while preserving IDs already used by chat messages.
 
 ## Optional services
 

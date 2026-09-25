@@ -73,6 +73,13 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
   const { play, playing, favorites, toggleFavorite } = useApp();
   const { t } = useI18n();
   const active = playing.includes(sound.id);
+  const category = sound.category === 'Classics'
+    ? t('sounds.classics')
+    : sound.category === 'Remixes'
+      ? t('sounds.remixes')
+      : sound.category === 'The crew'
+        ? t('sounds.crew')
+        : sound.category;
   return (
     <article className={`sound-card sound-color-${sound.color} ${active ? 'is-playing' : ''}`}>
       <div className="sound-top">
@@ -99,7 +106,7 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
         <span className="sound-caption">
           <span>
             <b>{sound.name}</b>
-            <small>{t(sound.category === 'Classics' ? 'sounds.classics' : sound.category === 'Remixes' ? 'sounds.remixes' : 'sounds.crew')}</small>
+            <small>{category}</small>
           </span>
           <span className="round-play">
             {active ? (
@@ -133,7 +140,7 @@ export function EmptyState({ title, description }: { title: string; description:
     <div className="empty-state">
       <AudioLines size={32} />
       <h3>{title}</h3>
-      <p>{description}</p>
+      {description && <p>{description}</p>}
     </div>
   );
 }

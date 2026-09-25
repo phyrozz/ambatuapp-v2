@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowUpRight } from 'lucide-react';
 import { EmptyState, SoundCard } from './cards';
-import { sounds } from '@/lib/catalog';
 import { getCharacter, type Character } from '@/lib/characters';
 import { ApiLoading } from './api-loading';
 import { useI18n } from './i18n-provider';
+import { useApp } from './app-provider';
 
 export function CharacterDetail({ id }: { id: string }) {
   const { t } = useI18n();
+  const { sounds } = useApp();
   const [character, setCharacter] = useState<Character | null | undefined>(undefined);
   const [error, setError] = useState('');
   useEffect(() => {
