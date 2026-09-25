@@ -7,6 +7,7 @@ import { openExternal } from '@/lib/native';
 import { EmptyState } from './cards';
 import { useI18n } from './i18n-provider';
 import { CommunityWatch } from './community-watch';
+import { LoadingIndicator } from './loading-indicator';
 const endpoint = process.env.NEXT_PUBLIC_VIDEO_FEED_URL;
 export function WatchFeed() {
   const { t } = useI18n();
@@ -16,7 +17,8 @@ export function WatchFeed() {
     [error, setError] = useState(''),
     [attempt, setAttempt] = useState(0);
   const [characters, setCharacters] = useState<Character[]>([]);
-  useEffect(() => { void getCharacters().then(setCharacters).catch(() => {}); }, []);
+  const [charactersLoading, setCharactersLoading] = useState(true);
+  useEffect(() => { void getCharacters().then(setCharacters).catch(() => {}).finally(() => setCharactersLoading(false)); }, []);
   useEffect(() => {
     if (!endpoint) return;
     const controller = new AbortController();
@@ -64,8 +66,8 @@ export function WatchFeed() {
         </button>
       </form>
       {status === 'loading' && (
-        <div className="loading-panel" role="status">
-          {t('watch.loading')}
+        <div className="module-loading">
+          <LoadingIndicator label={t('watch.loading')} />
         </div>
       )}
       {status === 'error' && (
@@ -112,7 +114,7 @@ export function WatchFeed() {
               <h2>{t('watch.originals')}</h2>
             </div>
           </div>
-          <div className="video-grid">
+          {charactersLoading ? <div className="module-loading"><LoadingIndicator label={t('characters.loading')} /></div> : <div className="video-grid">
             {characters
               .filter((c) =>
                 ['dreamy', 'yes_king', 'kakangku', 'nissan', 'bunda', 'bus_soldier'].includes(c.id),
@@ -135,7 +137,7 @@ export function WatchFeed() {
                   <p>{t('watch.exploreYouTube')}</p>
                 </button>
               ))}
-          </div>
+          </div>}
           {status === 'unconfigured' && (
             <p className="feed-notice">
               {t('watch.unconfigured')}

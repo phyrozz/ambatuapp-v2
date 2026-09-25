@@ -533,7 +533,7 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
   const swipe = useRef<Point | null>(null);
   return (
     <div className="arcade-arena">
-      <div className="game-controls">
+      <div className={`game-controls ${kind === 'flappy-bus' ? 'game-controls-has-select' : ''}`}>
         <span className="score-pill">
           {t('arcade.score')} <b>{score}</b>
         </span>

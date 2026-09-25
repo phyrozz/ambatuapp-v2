@@ -3138,8 +3138,14 @@ select {
 .community-video-page { max-width: 1160px; }
 .watch-back-link { display: inline-flex; align-items: center; gap: 8px; margin: 7px 0 25px; font-size: 12px; font-weight: 700; }
 .community-video-reader { border-color: #e3dfd3; border-radius: 18px; background: #fffdf8; }
-.community-video-stage { display: grid; place-items: center; background: #1d1e1b; }
+.community-video-stage { position: relative; display: grid; place-items: center; background: #1d1e1b; }
 .community-video-stage video { display: block; width: 100%; max-height: min(72vh, 720px); aspect-ratio: 16/9; background: #1d1e1b; }
+.module-loading { display: grid; min-height: 150px; place-items: center; padding: 24px; }
+.page .module-loading { min-height: 38vh; }
+.community-scroll-sentinel { display: grid; min-height: 48px; place-items: center; }
+.video-media-loading { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; background: #1d1e1b; pointer-events: none; }
+.video-media-loading .loading-indicator { color: #fff4ec; }
+.comments-loading { display: flex; justify-content: center; padding: 16px; }
 .community-video-reader-copy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(290px, 350px); gap: clamp(28px, 4vw, 60px); padding: clamp(24px, 4vw, 44px); }
 .community-video-story { min-width: 0; }
 .community-video-story h1 { margin: 10px 0 12px; font-size: clamp(30px, 3.5vw, 46px); line-height: 1.08; overflow-wrap: anywhere; }
@@ -3576,6 +3582,45 @@ select {
 .profile-share-button:hover, .profile-signout-button:hover { background: #f6f3e9; border-color: #c9c3b4; }
 .profile-action-bar .button:focus-visible { outline: 3px solid rgba(232, 93, 42, .45); outline-offset: 3px; }
 @media (max-width: 440px) { .profile-secondary-actions { grid-template-columns: 1fr; } }
+@media (max-width: 480px) {
+  .game-controls-has-select {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    align-items: center;
+    gap: 10px;
+  }
+  .game-controls-has-select .score-pill {
+    grid-column: 1;
+    justify-content: center;
+    gap: 7px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .game-controls-has-select .game-select-control {
+    grid-column: 2;
+    min-width: 0;
+  }
+  .game-controls-has-select .game-select-control .app-select {
+    min-width: 0;
+    width: 100%;
+  }
+  .game-controls-has-select .game-select-control .app-select-trigger {
+    min-width: 0;
+    gap: 5px;
+  }
+  .game-controls-has-select .game-select-control .app-select-value,
+  .game-controls-has-select .game-select-control .app-select-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .game-controls-has-select > .button {
+    grid-column: 1 / -1;
+    justify-self: center;
+    min-width: 112px;
+  }
+}
 .form-success { color: #317047 !important; }
 .birthday-greeting { position: fixed; z-index: 50; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); max-width: min(390px, calc(100vw - 36px)); display: flex; align-items: flex-start; gap: 12px; padding: 15px; border: 1px solid #e3b558; border-radius: 13px; background: #fff8df; color: #624512; box-shadow: 0 12px 34px rgba(73, 52, 15, .2); animation: birthday-in .3s ease-out; }
 .birthday-greeting > svg { flex: 0 0 auto; color: #e28b28; margin-top: 2px; }
