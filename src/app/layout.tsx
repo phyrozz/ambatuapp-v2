@@ -25,6 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('ambatuapp-theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){}})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var pwa=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;var homeLink=new URLSearchParams(location.search).get('home')==='1';if(pwa&&location.pathname==='/'&&!homeLink)location.replace('/chat/')}catch(e){}})()` }} />
         <meta
           name="6a97888e-site-verification"
           content="aad370aac4185df449de5028f75c18fd"

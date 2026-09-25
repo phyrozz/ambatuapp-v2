@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { Capacitor } from '@capacitor/core';
 import {
   ArrowUpRight,
@@ -33,6 +33,12 @@ const nav = [
   { href: '/characters/', key: 'nav.characters', Icon: UsersRound },
   { href: '/soundboard/', key: 'nav.soundboard', Icon: AudioLines },
 ];
+function isStandalonePwa() {
+  return typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
@@ -41,6 +47,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { current, playing, stop, volume, setVolume, error } = useApp();
   const { locale, locales, localeNames, setLocale, t } = useI18n();
   const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || path === '/chat/' || Boolean(current);
+  useEffect(() => {
+    if (path === '/' && isStandalonePwa() && new URLSearchParams(window.location.search).get('home') !== '1') {
+      router.replace('/chat/');
+    }
+  }, [path, router]);
+  const openPwaHomepage = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (!isStandalonePwa()) return;
+    event.preventDefault();
+    router.push('/?home=1');
+  };
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -104,7 +121,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </a>
       <aside className="sidebar">
         <div className="brand-block">
-          <Link href="/" className="brand">
+          <Link href="/" onClick={openPwaHomepage} className="brand">
             <span className="brand-mark">
               a<span>✳</span>
             </span>
@@ -121,6 +138,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Link
               key={href}
               href={href}
+              onClick={href === '/' ? openPwaHomepage : undefined}
               className={`nav-item ${href === '/chat/' ? 'chat-featured' : ''} ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
             >
               <Icon size={20} />
@@ -158,7 +176,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span className="status-dot" /> {t('shell.chaos')}
           </span>
           <div className="mobile-brand-group">
-            <Link href="/" className="mobile-brand">
+            <Link href="/" onClick={openPwaHomepage} className="mobile-brand">
               ambatu<span>app</span> ✳
             </Link>
             <span className="mobile-beta-badge">{t('shell.beta')}</span>
@@ -195,6 +213,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         {nav.map(({ href, key, shortKey, Icon }) => (
           <Link
             href={href}
+            onClick={href === '/' ? openPwaHomepage : undefined}
             key={href}
             className={`${href === '/chat/' ? 'chat-featured' : ''} ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
           >
