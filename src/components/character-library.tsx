@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { getCharacters, type Character } from '@/lib/characters';
 import { CharacterCard, EmptyState } from './cards';
-import { ApiLoading } from './api-loading';
+import { CharacterLoading } from './character-loading';
 import { useI18n } from './i18n-provider';
 export function CharacterLibrary() {
   const { t } = useI18n();
@@ -12,10 +12,18 @@ export function CharacterLibrary() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   useEffect(() => {
+    let active = true;
     void getCharacters()
-      .then(setCharacters)
-      .catch(() => setError(t('characters.loadError')))
-      .finally(() => setLoading(false));
+      .then((items) => {
+        if (active) setCharacters(items);
+      })
+      .catch(() => {
+        if (active) setError(t('characters.loadError'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, [t]);
   const results = characters.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()));
   return (
@@ -30,13 +38,13 @@ export function CharacterLibrary() {
         />
       </label>
       {loading ? (
-        <ApiLoading label={t('characters.loading')} />
+        <CharacterLoading label={t('characters.loading')} variant="grid" />
       ) : error ? (
         <EmptyState title={t('characters.unavailable')} description={error} />
       ) : results.length ? (
         <div className="character-grid">
           {results.map((c) => (
-            <CharacterCard key={c.id} character={c} />
+            <CharacterCard key={c.id} character={c} featured />
           ))}
         </div>
       ) : (

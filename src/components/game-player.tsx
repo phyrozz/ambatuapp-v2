@@ -29,33 +29,70 @@ import { useI18n } from './i18n-provider';
 import { AppSelect } from './app-select';
 import { Leaderboard } from './leaderboard';
 import { submitLeaderboardScore } from '@/lib/leaderboard';
+import {
+  gameCharacters,
+  getGameCharacter,
+  isGameCharacterId,
+} from '@/lib/game-characters';
 import { useAuth } from './auth-provider';
 type Status = 'ready' | 'playing' | 'paused' | 'over' | 'won';
 export function GamePlayer({ id }: { id: GameId }) {
   const { t } = useI18n();
   const game = games.find((g) => g.id === id)!;
-  const { scores, saveScore, volume, stop } = useApp();
+  const { scores, saveScore, volume, stop, gameCharacter, setGameCharacter } = useApp();
   const { user, getAccessToken } = useAuth();
   const [muted, setMuted] = useState(false);
   const [leaderboardVersion, setLeaderboardVersion] = useState(0);
+  const [gamePlaying, setGamePlaying] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
+  const audioFile = useRef<string | null>(null);
+  const characterAudio = useRef<HTMLAudioElement | null>(null);
+  const character = getGameCharacter(gameCharacter);
   useEffect(() => {
     stop();
     return () => {
       audio.current?.pause();
+      characterAudio.current?.pause();
     };
   }, [stop]);
   const sound = useCallback(
     (file = 'audio/tap.mp3') => {
       if (muted) return;
+      const current = audio.current;
+      // Repeated flap taps shouldn't interrupt score or game-over cues.
+      if (
+        file === 'audio/tap.mp3' &&
+        current &&
+        !current.paused &&
+        !current.ended &&
+        audioFile.current !== 'audio/tap.mp3'
+      ) return;
       audio.current?.pause();
       const a = new Audio(`/assets/${file}`);
       a.volume = volume;
       audio.current = a;
+      audioFile.current = file;
+      a.onended = () => {
+        if (audio.current === a) audioFile.current = null;
+      };
       void a.play().catch(() => {});
     },
     [muted, volume],
   );
+  const characterSound = useCallback(() => {
+    if (muted) return;
+    const current = characterAudio.current;
+    if (current && !current.paused && !current.ended) return;
+    const file = character.scoreSounds[Math.floor(Math.random() * character.scoreSounds.length)];
+    const a = new Audio(`/assets/${file}`);
+    a.volume = volume;
+    characterAudio.current = a;
+    const clear = () => {
+      if (characterAudio.current === a) characterAudio.current = null;
+    };
+    a.onended = clear;
+    void a.play().catch(clear);
+  }, [character, muted, volume]);
   const pendingScore = useRef(0);
   const submitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (submitTimer.current) clearTimeout(submitTimer.current); }, []);
@@ -92,25 +129,39 @@ export function GamePlayer({ id }: { id: GameId }) {
             onClick={() => {
               setMuted(!muted);
               audio.current?.pause();
+              audioFile.current = null;
+              characterAudio.current?.pause();
+              characterAudio.current = null;
             }}
           >
             {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
         </div>
       </div>
+      <div className="game-character-picker game-select-control">
+        <span>{t('arcade.character')}</span>
+        <AppSelect
+          ariaLabel={t('arcade.character')}
+          value={gameCharacter}
+          disabled={gamePlaying}
+          onChange={(value) => { if (isGameCharacterId(value)) setGameCharacter(value); }}
+          options={gameCharacters.map((item) => ({ value: item.id, label: t(item.labelKey) }))}
+        />
+      </div>
       {id === 'ambatutap' ? (
-        <TapGame onScore={onScore} sound={sound} />
+        <TapGame onScore={onScore} sound={sound} character={character} characterSound={characterSound} />
       ) : id === 'ambatublou' ? (
-        <MinesGame onScore={onScore} sound={sound} />
+        <MinesGame onScore={onScore} sound={sound} characterSound={characterSound} onPlayingChange={setGamePlaying} />
       ) : (
-        <ArcadeGame kind={id} onScore={onScore} sound={sound} />
+        <ArcadeGame kind={id} onScore={onScore} sound={sound} character={character} characterSound={characterSound} onPlayingChange={setGamePlaying} />
       )}
       <Leaderboard gameId={id} refreshKey={leaderboardVersion} />
     </div>
   );
 }
+type GameCharacterProps = { character: ReturnType<typeof getGameCharacter>; characterSound: () => void };
 type Props = { onScore: (n: number) => void; sound: (file?: string) => void };
-function TapGame({ onScore, sound }: Props) {
+function TapGame({ onScore, sound, character, characterSound }: Props & GameCharacterProps) {
   const { t } = useI18n();
   const [score, setScore] = useState(0),
     [combo, setCombo] = useState(0);
@@ -133,6 +184,7 @@ function TapGame({ onScore, sound }: Props) {
     setCombo(comboRef.current);
     onScore(next);
     sound();
+    characterSound();
     void haptic();
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
@@ -151,7 +203,7 @@ function TapGame({ onScore, sound }: Props) {
         {combo ? t('tap.combo', { count: combo }) : t('tap.nextCombo')}
       </span>
       <button className="tap-target" onClick={tap} aria-label={t('tap.label')}>
-        <img src="/assets/dreamy_face.jpg" alt="Dreamy" />
+        <img src={character.avatar} alt={t(character.labelKey)} />
         <span>{t('tap.energy')}</span>
       </button>
       <p>{t('tap.controls')}</p>
@@ -171,7 +223,10 @@ function TapGame({ onScore, sound }: Props) {
     </div>
   );
 }
-function MinesGame({ onScore, sound }: Props) {
+function MinesGame({ onScore, sound, characterSound, onPlayingChange }: Props &
+  Pick<GameCharacterProps, 'characterSound'> & {
+    onPlayingChange: (playing: boolean) => void;
+  }) {
   const { t } = useI18n();
   const [difficulty, setDifficulty] = useState(0),
     [mines, setMines] = useState<Set<number>>(new Set()),
@@ -181,6 +236,7 @@ function MinesGame({ onScore, sound }: Props) {
     [status, setStatus] = useState<Status>('ready');
   const size = [8, 10, 12][difficulty],
     count = [10, 20, 30][difficulty];
+  useEffect(() => { onPlayingChange(status === 'playing'); }, [onPlayingChange, status]);
   function reset(d = difficulty) {
     setDifficulty(d);
     setMines(new Set());
@@ -220,8 +276,8 @@ function MinesGame({ onScore, sound }: Props) {
     onScore(next.size);
     if (next.size === size * size - count) {
       setStatus('won');
-      sound('audio/score_1.mp3');
     } else sound();
+    characterSound();
   }
   return (
     <div className="mines-arena">
@@ -318,18 +374,22 @@ const initialWorld = (): World => ({
   pipes: [{ x: 430, gap: 190, passed: false }],
   ticks: 0,
 });
-function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
+function ArcadeGame({ kind, onScore, sound, character, characterSound, onPlayingChange }: Props &
+  GameCharacterProps & {
+    kind: ArcadeKind;
+    onPlayingChange: (playing: boolean) => void;
+  }) {
   const { t } = useI18n();
   const canvas = useRef<HTMLCanvasElement>(null),
     world = useRef(initialWorld()),
     statusRef = useRef<Status>('ready'),
-    callback = useRef({ onScore, sound });
+    callback = useRef({ onScore, sound, characterSound, character });
   const [status, setStatus] = useState<Status>('ready'),
-    [score, setScore] = useState(0),
-    [skin, setSkin] = useState('1');
+    [score, setScore] = useState(0);
   useEffect(() => {
-    callback.current = { onScore, sound };
-  }, [onScore, sound]);
+    callback.current = { onScore, sound, characterSound, character };
+  }, [onScore, sound, characterSound, character]);
+  useEffect(() => { onPlayingChange(status === 'playing'); }, [onPlayingChange, status]);
   const changeStatus = useCallback((s: Status) => {
     statusRef.current = s;
     setStatus(s);
@@ -392,15 +452,15 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
     const ctx = canvas.current?.getContext('2d');
     if (!ctx) return;
     const face = new Image();
-    face.src =
-      kind === 'ambatusnake' ? '/assets/dreamy_face.jpg' : `/assets/images/bird_${skin}.png`;
+    face.src = kind === 'ambatusnake' ? character.avatar : character.sprite;
     let frame = 0,
       last = 0,
       accumulator = 0;
     const finish = (won = false) => {
       changeStatus(won ? 'won' : 'over');
       callback.current.onScore(world.current.score);
-      callback.current.sound(won ? 'audio/score_1.mp3' : 'audio/death.mp3');
+      if (won) callback.current.characterSound();
+      else callback.current.sound('audio/death.mp3');
     };
     function update() {
       const w = world.current;
@@ -417,6 +477,7 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
           setScore(w.score);
           callback.current.onScore(w.score);
           callback.current.sound('sounds/snake_food1.mp3');
+          callback.current.characterSound();
           const food = spawnFood(w.snake, 16);
           if (!food) {
             finish(true);
@@ -449,7 +510,7 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
             w.score++;
             setScore(w.score);
             callback.current.onScore(w.score);
-            callback.current.sound('audio/score_1.mp3');
+            callback.current.characterSound();
           }
         }
         w.pipes = w.pipes.filter((p) => p.x > -60);
@@ -529,23 +590,14 @@ function ArcadeGame({ kind, onScore, sound }: Props & { kind: ArcadeKind }) {
     }
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [kind, skin, changeStatus]);
+  }, [character, kind, changeStatus]);
   const swipe = useRef<Point | null>(null);
   return (
     <div className="arcade-arena">
-      <div className={`game-controls ${kind === 'flappy-bus' ? 'game-controls-has-select' : ''}`}>
+      <div className="game-controls">
         <span className="score-pill">
           {t('arcade.score')} <b>{score}</b>
         </span>
-        {kind === 'flappy-bus' && (
-          <div className="game-select-control">
-            <span>{t('arcade.character')}</span>
-            <AppSelect ariaLabel={t('arcade.character')} value={skin} disabled={status === 'playing'} onChange={setSkin} options={[
-              { value: '1', label: 'Dreamy' }, { value: '2', label: 'Kakangku' },
-              { value: '3', label: 'Nissan' }, { value: '4', label: 'Bunda Rahma' },
-            ]} />
-          </div>
-        )}
         <button
           className="button secondary compact"
           disabled={!['playing', 'paused'].includes(status)}

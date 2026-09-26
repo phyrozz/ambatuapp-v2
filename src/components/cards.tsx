@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Heart, Play, Square, AudioLines, Gamepad2 } from 'lucide-react';
 import { games, type Sound } from '@/lib/catalog';
@@ -120,12 +121,19 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
     </article>
   );
 }
-export function CharacterCard({ character }: { character: Character }) {
+export function CharacterCard({ character, featured = false }: { character: Character; featured?: boolean }) {
   const { t } = useI18n();
+  const [imageFailed, setImageFailed] = useState(false);
   return (
-    <Link className="character-card" href={`/characters/${character.id}/`}>
+    <Link className={`character-card ${featured ? 'character-card-featured' : ''}`} href={`/characters/${character.id}/`}>
       <div>
-        {character.image && <img src={character.image} alt={character.name} />}
+        {character.image && !imageFailed ? (
+          <img src={character.image} alt={character.name} onError={() => setImageFailed(true)} />
+        ) : (
+          <span className="character-card-placeholder" aria-hidden="true">
+            {character.name.trim().charAt(0).toUpperCase()}
+          </span>
+        )}
         <span className="character-arrow">
           <ArrowUpRight size={20} />
         </span>

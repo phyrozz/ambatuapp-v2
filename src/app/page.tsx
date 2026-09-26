@@ -122,7 +122,7 @@ export default function Home() {
           <AudioLines size={14} /> {t('home.soundHint')}
         </p>
       </section>
-      <section className="section home-characters-section">
+      {/* <section className="section home-characters-section">
         <SectionHeading
           eyebrow={t('home.legendsEyebrow')}
           title={t('home.legendsTitle')}
@@ -137,7 +137,7 @@ export default function Home() {
             <CharacterCard key={c.id} character={c} />
           ))}
         </div>
-      </section>
+      </section> */}
       <Link href="/watch/" className="watch-banner">
         <span className="watch-icon">
           <Play size={27} fill="currentColor" />

@@ -2,10 +2,17 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import type { Sound } from '@/lib/catalog';
+import { isGameCharacterId, type GameCharacterId } from '@/lib/game-characters';
 import { haptic } from '@/lib/native';
 import { useI18n } from './i18n-provider';
-type Saved = { favorites: string[]; scores: Record<string, number>; plays: number; volume: number };
-const defaults: Saved = { favorites: [], scores: {}, plays: 0, volume: 0.7 };
+type Saved = {
+  favorites: string[];
+  scores: Record<string, number>;
+  plays: number;
+  volume: number;
+  gameCharacter: GameCharacterId;
+};
+const defaults: Saved = { favorites: [], scores: {}, plays: 0, volume: 0.7, gameCharacter: 'dreamy' };
 type AppContext = Saved & {
   ready: boolean;
   sounds: Sound[];
@@ -19,6 +26,7 @@ type AppContext = Saved & {
   toggleFavorite: (id: string) => void;
   saveScore: (id: string, score: number) => void;
   setVolume: (n: number) => void;
+  setGameCharacter: (id: GameCharacterId) => void;
 };
 const Context = createContext<AppContext | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -51,6 +59,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             : {},
         plays: Number.isFinite(data.plays) ? Math.max(0, data.plays) : 0,
         volume: Number.isFinite(data.volume) ? Math.min(1, Math.max(0, data.volume)) : 0.7,
+        gameCharacter: isGameCharacterId(data.gameCharacter)
+          ? data.gameCharacter
+          : defaults.gameCharacter,
       });
     } catch {
       /* A fresh session is usable when storage is unavailable. */
@@ -200,6 +211,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           players.current.forEach((p) => (p.volume = volume));
           setSaved((s) => ({ ...s, volume }));
         },
+        setGameCharacter: (gameCharacter) => setSaved((s) => ({ ...s, gameCharacter })),
       }}
     >
       {children}
