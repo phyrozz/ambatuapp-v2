@@ -392,6 +392,7 @@
   "chat.createGroup": "Create group",
   "chat.startChat": "Start chat",
   "chat.noMessages": "No messages yet",
+  "chat.unreadMessages": "Unread messages: {count}",
   "chat.emptyInbox": "Search for a username to start a chat.",
   "chat.memberCount": "{count} members",
   "chat.manageMembers": "Manage members",

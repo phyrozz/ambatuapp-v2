@@ -392,6 +392,7 @@
   "chat.createGroup": "Buat grup",
   "chat.startChat": "Mulai grup",
   "chat.noMessages": "Belum ada pesan",
+  "chat.unreadMessages": "Unread messages: {count}",
   "chat.emptyInbox": "Telusuri nama pengguna untuk memulai obrolan.",
   "chat.memberCount": "{count} anggota",
   "chat.manageMembers": "Kelola anggota",

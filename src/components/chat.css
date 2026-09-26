@@ -207,3 +207,9 @@ html[data-theme='dark'] .chat-bubble > small > .chat-message-avatar.fallback {
   right: -33px;
 }
 .chat-sound-empty button{margin-top:8px;padding:7px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);cursor:pointer}
+
+.chat-inbox-content{display:grid;gap:4px;min-width:0;flex:1}
+.chat-inbox-list>button.has-unread .chat-inbox-title>strong{font-weight:800}
+.chat-inbox-list>button.has-unread small{font-weight:700;color:var(--ink)}
+.chat-unread-badge{display:inline-grid;place-items:center;flex:none;min-width:23px;height:23px;padding:0 5px;border-radius:999px;background:#bd4828;color:#fff;font-size:11px;font-weight:800;line-height:1}
+html[data-theme='dark'] .chat-unread-badge{background:#ff8059;color:#27150f}
