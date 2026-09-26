@@ -213,3 +213,21 @@ html[data-theme='dark'] .chat-bubble > small > .chat-message-avatar.fallback {
 .chat-inbox-list>button.has-unread small{font-weight:700;color:var(--ink)}
 .chat-unread-badge{display:inline-grid;place-items:center;flex:none;min-width:23px;height:23px;padding:0 5px;border-radius:999px;background:#bd4828;color:#fff;font-size:11px;font-weight:800;line-height:1}
 html[data-theme='dark'] .chat-unread-badge{background:#ff8059;color:#27150f}
+
+/* Touch browsers keep :hover on the last tapped inbox row after returning from a thread. */
+@media (hover: hover) and (pointer: fine) {
+  .chat-inbox-list > button:not(.active):hover { background: #fff0e6; }
+  html[data-theme='dark'] .chat-inbox-list > button:not(.active):hover { background: #3a2a23; color: #ff896a; }
+}
+@media (hover: none), (pointer: coarse) {
+  .chat-inbox-list > button:hover:not(.active) { background: #fff; color: var(--ink); }
+  html[data-theme='dark'] .chat-inbox-list > button:hover:not(.active) { background: #22231f; color: var(--ink); }
+  .chat-layout.chat-show-inbox .chat-inbox-list > button.active { border-left: 0; background: #fff; color: var(--ink); }
+  html[data-theme='dark'] .chat-layout.chat-show-inbox .chat-inbox-list > button.active { border-left: 0; background: #22231f; color: var(--ink); }
+}
+@media (max-width: 760px) {
+  .chat-layout.chat-show-inbox .chat-inbox-list > button:hover,
+  .chat-layout.chat-show-inbox .chat-inbox-list > button.active { border-left: 0; background: #fff; color: var(--ink); }
+  html[data-theme='dark'] .chat-layout.chat-show-inbox .chat-inbox-list > button:hover,
+  html[data-theme='dark'] .chat-layout.chat-show-inbox .chat-inbox-list > button.active { border-left: 0; background: #22231f; color: var(--ink); }
+}
