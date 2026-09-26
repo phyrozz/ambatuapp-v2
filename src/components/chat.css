@@ -276,3 +276,18 @@ html[data-theme='dark'] .chat-camera-preview { background: #090909; }
 @media (prefers-reduced-motion: reduce) {
   .chat-attachment-menu,.chat-attachment-menu button,.chat-camera-preview video,.chat-camera-timer[data-recording='true']::before,.chat-camera-actions .button { animation: none !important; transition: none !important; transform: none !important; }
 }
+
+.chat-bubble.media-bubble > .ambatu-video {
+  grid-column: 1 / -1;
+  display: block;
+  max-width: 100%;
+  max-height: 340px;
+  border-radius: 15px 15px 15px 3px;
+}
+.chat-bubble.media-bubble.mine > .ambatu-video { border-radius: 15px 15px 3px 15px; }
+.chat-bubble.media-bubble:has(> small) > .ambatu-video { border-radius: 0 0 15px 3px; }
+.chat-bubble.media-bubble.mine:has(> small) > .ambatu-video { border-radius: 0 0 3px 15px; }
+.chat-camera-preview > .ambatu-video { animation: chat-camera-preview-in .22s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .chat-camera-preview > .ambatu-video { animation: none !important; }
+}

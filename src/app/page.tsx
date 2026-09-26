@@ -60,11 +60,11 @@ export default function Home() {
         <div className="hero-visual">
           <span className="orbit-text">{t('home.classic')}</span>
           <div className="hero-photo">
-            <img src="/assets/dreamy_smiling.jpg" alt="Dreamybull smiling" />
+            <img src="/assets/dreamy_smiling.jpg" alt={t('home.heroImageAlt')} />
             <div>
               <span>{t('home.original')}</span>
               <b>
-                Dreamybull <span>↗</span>
+                {t('home.heroName')} <span>↗</span>
               </b>
             </div>
           </div>
@@ -93,7 +93,7 @@ export default function Home() {
         {(communityVideosLoading || communityVideos.length > 0) && <div className="home-community-block"><div className="home-community-title"><Play size={18}/><h3>{t('home.communityVideos')}</h3><Link href="/watch/">{t('home.exploreCommunityVideos')} <ArrowRight size={16}/></Link></div>{communityVideosLoading ? <div className="module-loading"><LoadingIndicator label={t('watch.loading')} /></div> : <div className="home-community-grid">{communityVideos.map(video => <Link href={`/watch/${video.id}/`} className="home-community-card" key={video.id}>{video.thumbnailUrl && <img src={video.thumbnailUrl} alt=""/>}<b>{video.title}</b><div className="home-community-stats"><span aria-label={`${t('lore.upvote')}: ${video.upvotes}`}><ArrowBigUp size={14} aria-hidden="true"/>{video.upvotes}</span><span aria-label={`${t('lore.downvote')}: ${video.downvotes}`}><ArrowBigDown size={14} aria-hidden="true"/>{video.downvotes}</span><span aria-label={`${t('lore.comments')}: ${video.commentCount}`}><MessageCircle size={14} aria-hidden="true"/>{video.commentCount}</span></div></Link>)}</div>}</div>}
         {(topLoresLoading || topLores.length > 0) && <div className="home-community-block"><div className="home-community-title"><BookOpen size={18}/><h3>{t('home.communityLore')}</h3><Link href="/lores/">{t('home.exploreLore')} <ArrowRight size={16}/></Link></div>{topLoresLoading ? <div className="module-loading"><LoadingIndicator label={t('lore.searchingArchive')} /></div> : <div className="home-community-grid">{topLores.map(lore => <Link href={`/lores/${lore.id}/`} className="home-community-card" key={lore.id}>{lore.imageUrls[0] && <img src={lore.imageUrls[0]} alt=""/>}<b>{lore.title}</b><div className="home-community-stats"><span aria-label={`${t('lore.upvote')}: ${lore.upvotes}`}><ArrowBigUp size={14} aria-hidden="true"/>{lore.upvotes}</span><span aria-label={`${t('lore.downvote')}: ${lore.downvotes}`}><ArrowBigDown size={14} aria-hidden="true"/>{lore.downvotes}</span><span aria-label={`${t('lore.comments')}: ${lore.commentCount}`}><MessageCircle size={14} aria-hidden="true"/>{lore.commentCount}</span></div></Link>)}</div>}</div>}
       </section>}
-      <section className="section">
+      <section className="section home-games-section">
         <SectionHeading
           eyebrow={t('home.gamesEyebrow')}
           title={t('home.gamesTitle')}
@@ -106,7 +106,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-      <section className="section sound-section">
+      <section className="section sound-section home-sounds-section">
         <SectionHeading
           eyebrow={t('home.soundsEyebrow')}
           title={t('home.soundsTitle')}
@@ -122,7 +122,7 @@ export default function Home() {
           <AudioLines size={14} /> {t('home.soundHint')}
         </p>
       </section>
-      <section className="section">
+      <section className="section home-characters-section">
         <SectionHeading
           eyebrow={t('home.legendsEyebrow')}
           title={t('home.legendsTitle')}

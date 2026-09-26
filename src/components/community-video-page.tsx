@@ -6,6 +6,7 @@ import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { AdBanner } from './ad-banner';
 import { LoadingIndicator } from './loading-indicator';
+import { MediaPlayer } from './media-player';
 
 type VideoData = { id: string; title: string; description: string; uploader: string; uploaderId?: string; uploaderAvatarUrl?: string | null; videoUrl: string; upvotes: number; downvotes: number; commentCount: number };
 type Comment = { id: string; text: string; author: string; authorId?: string; avatarUrl?: string | null };
@@ -37,7 +38,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
     <Link className="back-link watch-back-link" href="/watch/"><ArrowLeft size={17}/>{t('watch.back')}</Link>
     <AdBanner />
     {error ? <div className="feed-notice" role="alert">{error}</div> : !video ? <div className="module-loading"><LoadingIndicator label={t('watch.openingVideo')} /></div> : <article className="community-video-reader">
-      <div className="community-video-stage">{!videoReady && <div className="video-media-loading"><LoadingIndicator label={t('watch.openingVideo')} /></div>}<video controls autoPlay playsInline src={video.videoUrl} onLoadedData={() => setVideoReady(true)} onError={() => setVideoReady(true)}/></div>
+      <div className="community-video-stage">{!videoReady && <div className="video-media-loading"><LoadingIndicator label={t('watch.openingVideo')} /></div>}<MediaPlayer src={video.videoUrl} autoPlay variant="watch" onLoadedData={() => setVideoReady(true)} onError={() => setVideoReady(true)} /></div>
       <div className="community-video-reader-copy">
         <div className="community-video-story">
           <p className="eyebrow"><span className="watch-accent-dot" />{t('watch.communityEyebrow')}</p>
