@@ -47,7 +47,7 @@ export function ChatGroupMembers({ conversation, userId, busy, sharing, actionEr
     return () => { clearTimeout(timer); controller.abort(); };
   }, [query, full, getIdToken, conversation.members, t]);
 
-  return <div className="chat-modal-backdrop" role="presentation" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+  return <div className="chat-modal-backdrop chat-member-backdrop" role="presentation" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="chat-modal chat-member-modal" role="dialog" aria-modal="true" aria-label={t('chat.manageMembers')}>
       <header><h2><UsersRound size={21}/>{t('chat.manageMembers')}</h2><button type="button" className="chat-icon" onClick={onClose} aria-label={t('chat.dismiss')}><X size={18}/></button></header>
       <button type="button" className="button secondary chat-group-share" disabled={sharing} onClick={onShare}><Share2 size={17}/>{t('chat.shareGroup')}</button>

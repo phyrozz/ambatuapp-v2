@@ -3186,7 +3186,7 @@ select {
 .video-comments form { gap: 8px; }
 .video-comments input { padding: 12px 13px; border-radius: 9px; background: #fff; font-size: 12px; }
 .video-comments form button { width: 43px; min-height: 43px; border-radius: 9px; }
-.video-comment-list { max-height: 390px; overflow-y: auto; margin-top: 17px; }
+.video-comment-list { max-height: 390px; overflow-x: hidden; overflow-y: auto; margin-top: 17px; }
 .video-comment-list p { margin: 0; padding: 13px 0; border-top: 1px solid #eeece4; color: #55564e; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .video-comment-list b { display: block; margin-bottom: 5px; color: #2e302a; font-size: 11px; }
 .video-comment-list span { white-space: pre-wrap; }
@@ -3992,8 +3992,6 @@ html[data-theme='dark'] .avatar-crop-actions .button.primary{background:#f6542f;
 .watch-search > .button:active { transform: scale(.97); }
 .watch-file:hover { border-color: #e87950; background: #fff0df; }
 .community-video-copy h3 a:hover { color: var(--orange); }
-.video-comment-list > p { transition: background-color .18s ease, transform .18s ease; }
-.video-comment-list > p:hover { transform: translateX(3px); }
 .watch-page :focus-visible,
 .community-video-page :focus-visible { outline-color: #f07b53; outline-offset: 3px; }
 
@@ -4131,15 +4129,9 @@ html[data-theme='dark'] .avatar-crop-actions .button.primary{background:#f6542f;
   box-shadow: 0 8px 30px rgba(0,0,0,.32), inset 0 1px rgba(255,255,255,.22);
   cursor: pointer;
   animation: media-play-arrive .2s cubic-bezier(.2,.8,.25,1.15) both;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .18s ease, transform .18s ease, box-shadow .18s ease, filter .18s ease;
-}
-.ambatu-video:hover .ambatu-video__center-play,
-.ambatu-video:focus-within .ambatu-video__center-play,
-.ambatu-video[data-controls-visible='true'] .ambatu-video__center-play {
   opacity: 1;
   pointer-events: auto;
+  transition: opacity .18s ease, transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
 .ambatu-video__center-play:hover { transform: translate(-50%,-50%) scale(1.07); filter: brightness(1.08); box-shadow: 0 12px 34px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.25); }
 .ambatu-video__center-play:focus-visible,
@@ -4204,10 +4196,6 @@ html[data-theme='dark'] .ambatu-video__volume-range::-moz-range-thumb {
   .ambatu-video:hover:not([data-controls-visible='true']):not(:focus-within) .ambatu-video__controls {
     opacity: 0;
     transform: translateY(6px);
-    pointer-events: none;
-  }
-  .ambatu-video:hover:not([data-controls-visible='true']):not(:focus-within) .ambatu-video__center-play {
-    opacity: 0;
     pointer-events: none;
   }
 }
