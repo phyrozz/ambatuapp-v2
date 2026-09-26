@@ -280,10 +280,29 @@ html[data-theme='dark'] .chat-camera-preview { background: #090909; }
 .chat-bubble.media-bubble > .ambatu-video {
   grid-column: 1 / -1;
   display: block;
+  width: 100%;
   max-width: 100%;
-  max-height: 340px;
+  max-height: none;
+  aspect-ratio: 16 / 9;
   border-radius: 15px 15px 15px 3px;
 }
+.chat-bubble.media-bubble:has(> .ambatu-video) {
+  box-sizing: border-box;
+  width: min(360px, 80vw);
+}
+.chat-bubble.media-bubble > .ambatu-video .ambatu-video__controls {
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  gap: 4px;
+  padding: 6px 8px 5px;
+  border-radius: 12px;
+}
+.chat-bubble.media-bubble > .ambatu-video .ambatu-video__seek { height: 4px; }
+.chat-bubble.media-bubble > .ambatu-video .ambatu-video__toolbar { gap: 8px; }
+.chat-bubble.media-bubble > .ambatu-video .ambatu-video__control-group { gap: 6px; }
+.chat-bubble.media-bubble > .ambatu-video .ambatu-video__control { width: 30px; height: 28px; }
+.chat-bubble.media-bubble > .ambatu-video .ambatu-video__time { font-size: 10px; }
 .chat-bubble.media-bubble.mine > .ambatu-video { border-radius: 15px 15px 3px 15px; }
 .chat-bubble.media-bubble:has(> small) > .ambatu-video { border-radius: 0 0 15px 3px; }
 .chat-bubble.media-bubble.mine:has(> small) > .ambatu-video { border-radius: 0 0 3px 15px; }

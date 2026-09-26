@@ -4624,6 +4624,7 @@ html[data-theme='dark'] .ambatu-video__volume-range::-moz-range-thumb {
 }
 .character-profile > .character-profile-copy {
   padding: 0 0 9px;
+  transform: translateY(12px);
 }
 .character-profile .eyebrow {
   margin-bottom: 7px;
@@ -4778,7 +4779,10 @@ html[data-theme='dark'] .character-detail-loading-cover {
   .character-profile { gap: 13px; margin-top: -42px; padding: 0 18px; }
   .character-profile > img,
   .character-profile-placeholder { border-width: 5px; border-radius: 20px; }
-  .character-profile > .character-profile-copy { padding-bottom: 6px; }
+  .character-profile > .character-profile-copy {
+    padding-bottom: 6px;
+    transform: translateY(8px);
+  }
   .character-profile h1 { font-size: clamp(24px, 6vw, 34px); }
   .character-profile .eyebrow { font-size: 7px; }
   .character-bio { padding: 21px 20px 28px; }
