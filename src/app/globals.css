@@ -4042,7 +4042,17 @@ html[data-theme='dark'] .avatar-crop-actions .button.primary{background:#f6542f;
   background: rgba(24,25,22,.76);
   box-shadow: 0 8px 24px rgba(0,0,0,.25);
   backdrop-filter: blur(16px) saturate(1.15);
-  transition: border-color .18s ease, background-color .18s ease, transform .2s ease;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .2s ease, border-color .18s ease, background-color .18s ease;
+}
+.ambatu-video:hover .ambatu-video__controls,
+.ambatu-video:focus-within .ambatu-video__controls,
+.ambatu-video[data-controls-visible='true'] .ambatu-video__controls {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 .ambatu-video__seek,
 .ambatu-video__volume-range {
@@ -4118,7 +4128,15 @@ html[data-theme='dark'] .avatar-crop-actions .button.primary{background:#f6542f;
   box-shadow: 0 8px 30px rgba(0,0,0,.32), inset 0 1px rgba(255,255,255,.22);
   cursor: pointer;
   animation: media-play-arrive .2s cubic-bezier(.2,.8,.25,1.15) both;
-  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.ambatu-video:hover .ambatu-video__center-play,
+.ambatu-video:focus-within .ambatu-video__center-play,
+.ambatu-video[data-controls-visible='true'] .ambatu-video__center-play {
+  opacity: 1;
+  pointer-events: auto;
 }
 .ambatu-video__center-play:hover { transform: translate(-50%,-50%) scale(1.07); filter: brightness(1.08); box-shadow: 0 12px 34px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.25); }
 .ambatu-video__center-play:focus-visible,
@@ -4126,7 +4144,7 @@ html[data-theme='dark'] .avatar-crop-actions .button.primary{background:#f6542f;
 .ambatu-video__seek:focus-visible,
 .ambatu-video__volume-range:focus-visible { outline: 2px solid #ffd2b8; outline-offset: 3px; }
 .ambatu-video--chat .ambatu-video__controls { right: 4px; bottom: 4px; left: 4px; gap: 1px; padding: 3px 4px 2px; border-radius: 9px; }
-.ambatu-video--chat .ambatu-video__seek { height: 3px; }
+.ambatu-video--chat .ambatu-video__seek { display: none; }
 .ambatu-video--chat .ambatu-video__toolbar { gap: 4px; }
 .ambatu-video--chat .ambatu-video__control-group { gap: 3px; }
 .ambatu-video--chat .ambatu-video__volume-range { display: none; }
@@ -4158,14 +4176,37 @@ html[data-theme='dark'] .ambatu-video__volume-range::-moz-range-thumb {
   box-shadow: 0 0 0 1px rgba(17, 18, 15, .8), 0 1px 6px rgba(0, 0, 0, .7);
 }
 
+.ambatu-video:fullscreen { max-height: none; }
+.ambatu-video:fullscreen > .ambatu-video__screen {
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  object-position: center;
+}
+.chat-bubble .ambatu-video:fullscreen > .ambatu-video__screen {
+  max-width: none;
+  max-height: none;
+}
+
 @keyframes watch-rise-in { from { opacity: 0; translate: 0 9px; } to { opacity: 1; translate: 0 0; } }
-@keyframes media-play-arrive { from { opacity: 0; scale: .88; } to { opacity: 1; scale: 1; } }
+@keyframes media-play-arrive { from { scale: .88; } to { scale: 1; } }
 @media (max-width: 600px) {
   .ambatu-video__controls { right: 8px; bottom: 8px; left: 8px; padding: 6px 8px 5px; }
   .ambatu-video__volume-range { width: 48px; }
   .ambatu-video__center-play { width: 54px; height: 54px; }
   .ambatu-video--chat .ambatu-video__controls { right: 4px; bottom: 4px; left: 4px; padding: 3px 4px 2px; }
   .ambatu-video--chat .ambatu-video__time { font-size: 8px; }
+}
+@media (hover: none) {
+  .ambatu-video:hover:not([data-controls-visible='true']):not(:focus-within) .ambatu-video__controls {
+    opacity: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+  }
+  .ambatu-video:hover:not([data-controls-visible='true']):not(:focus-within) .ambatu-video__center-play {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .watch-page-heading > .eyebrow,
@@ -4200,6 +4241,7 @@ html[data-theme='dark'] .ambatu-video__volume-range::-moz-range-thumb {
   .community-video-copy h3 a,
   .video-comment-list > p,
   .ambatu-video__controls,
+  .ambatu-video__center-play,
   .ambatu-video__control { transition: none !important; }
 }
 .lore-sort-filter{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:10px;color:var(--muted);font-size:12px}

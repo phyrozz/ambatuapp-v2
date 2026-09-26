@@ -41,12 +41,39 @@ export function MediaPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const controlsVisibleRef = useRef(false);
+  const controlsHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const syncFullscreen = () => setFullscreen(document.fullscreenElement === player.current);
     document.addEventListener('fullscreenchange', syncFullscreen);
-    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFullscreen);
+      if (controlsHideTimer.current) clearTimeout(controlsHideTimer.current);
+    };
   }, []);
+
+  function clearControlsHideTimer() {
+    if (controlsHideTimer.current) clearTimeout(controlsHideTimer.current);
+    controlsHideTimer.current = null;
+  }
+
+  function setControlsVisibility(visible: boolean) {
+    controlsVisibleRef.current = visible;
+    setControlsVisible(visible);
+  }
+
+  function scheduleControlsHide() {
+    clearControlsHideTimer();
+    if (!controlsVisibleRef.current || !media.current || media.current.paused) return;
+    controlsHideTimer.current = setTimeout(() => setControlsVisibility(false), 2500);
+  }
+
+  function revealControls() {
+    setControlsVisibility(true);
+    scheduleControlsHide();
+  }
 
   function togglePlayback() {
     const element = media.current;
@@ -83,7 +110,11 @@ export function MediaPlayer({
       ref={player}
       className={`ambatu-video ambatu-video--${variant}`}
       data-playing={playing}
+      data-controls-visible={controlsVisible}
       data-message-control=""
+      onPointerDown={event => {
+        if (event.pointerType === 'touch') revealControls();
+      }}
     >
       <video
         ref={media}
@@ -95,9 +126,18 @@ export function MediaPlayer({
         preload="metadata"
         tabIndex={-1}
         onClick={togglePlayback}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
+        onPlay={() => {
+          setPlaying(true);
+          scheduleControlsHide();
+        }}
+        onPause={() => {
+          setPlaying(false);
+          clearControlsHideTimer();
+        }}
+        onEnded={() => {
+          setPlaying(false);
+          clearControlsHideTimer();
+        }}
         onTimeUpdate={event => setCurrentTime(event.currentTarget.currentTime)}
         onLoadedMetadata={event => {
           setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0);
