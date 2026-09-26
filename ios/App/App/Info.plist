@@ -7,6 +7,10 @@
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This identifier may be used to deliver and measure ads that are more relevant to you.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>AmbatuApp uses your camera to take photos and record videos for chat.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AmbatuApp uses your microphone to include audio in chat videos.</string>
   <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
