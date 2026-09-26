@@ -32,6 +32,24 @@ async function thumbnailFromVideo(file: File) {
   } finally { URL.revokeObjectURL(url); }
 }
 
+const pause = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+async function waitForCompression(token: string, sourceKey: string, videoKey: string) {
+  const start = await fetch(`${api()}/transcode`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ sourceKey, videoKey }) });
+  const created = await start.json();
+  if (!start.ok) throw new Error(created.error);
+  const deadline = Date.now() + 30 * 60 * 1000;
+  while (Date.now() < deadline) {
+    await pause(5000);
+    const response = await fetch(`${api()}/transcode?jobId=${encodeURIComponent(created.jobId)}`, { cache: 'no-store', headers: { authorization: `Bearer ${token}` } });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+    if (result.status === 'COMPLETE' && result.videoKey === videoKey) return;
+    if (result.status === 'ERROR' || result.status === 'CANCELED') throw new Error(result.error || result.status);
+  }
+  throw new Error('Video compression timed out.');
+}
+
 export function CommunityWatch() {
   const { t } = useI18n(), { user, getIdToken } = useAuth();
   const [videos, setVideos] = useState<CommunityVideo[]>([]), [loading, setLoading] = useState(true), [loadingMore, setLoadingMore] = useState(false), [cursor, setCursor] = useState<number | null | undefined>(undefined), [error, setError] = useState('');
@@ -83,16 +101,18 @@ export function CommunityWatch() {
     setUploading(true); setUploadError('');
     try {
       const [token, thumbnail] = await Promise.all([getIdToken(), thumbnailFromVideo(file)]);
-      const presign = await fetch(`${api()}/presign`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ fileName: file.name, contentType: file.type }) });
+      if (!token) throw new Error('Authentication required.');
+      const presign = await fetch(`${api()}/presign`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ fileName: file.name, contentType: file.type, fileSize: file.size }) });
       const signed = await presign.json(); if (!presign.ok) throw new Error(signed.error);
       let uploads: Response[];
-      try { uploads = await Promise.all([fetch(signed.uploadUrl, { method: 'PUT', headers: signed.uploadHeaders, body: file }), fetch(signed.thumbnailUploadUrl, { method: 'PUT', headers: signed.thumbnailUploadHeaders, body: thumbnail })]); }
+      try { uploads = await Promise.all([fetch(signed.sourceUploadUrl, { method: 'PUT', headers: signed.sourceUploadHeaders, body: file }), fetch(signed.thumbnailUploadUrl, { method: 'PUT', headers: signed.thumbnailUploadHeaders, body: thumbnail })]); }
       catch { throw new Error(t('watch.uploadCorsError')); }
       if (uploads.some(response => !response.ok)) throw new Error(`${t('watch.uploadFailed')} (S3 ${uploads.find(response => !response.ok)?.status})`);
-      const response = await fetch(api(), { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ title, description, videoKey: signed.key, thumbnailKey: signed.thumbnailKey }) });
+      await waitForCompression(token, signed.sourceKey, signed.videoKey);
+      const response = await fetch(api(), { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ title, description, videoKey: signed.videoKey, thumbnailKey: signed.thumbnailKey }) });
       const created = await response.json(); if (!response.ok) throw new Error(created.error);
       setVideos(items => orderVideos([created, ...items], sort)); setTitle(''); setDescription(''); setFile(null); setUploadOpen(false);
-    } catch (reason) { setUploadError(reason instanceof Error && reason.message !== 'thumbnail' ? reason.message : t('watch.thumbnailFailed')); } finally { setUploading(false); }
+    } catch (reason) { setUploadError(reason instanceof Error && reason.message === 'thumbnail' ? t('watch.thumbnailFailed') : t('watch.uploadFailed')); } finally { setUploading(false); }
   }
 
   return <section className="community-watch" aria-labelledby="community-watch-title">
@@ -105,7 +125,7 @@ export function CommunityWatch() {
       {user ? <button className="button dark compact" onClick={() => setUploadOpen(true)}><Upload size={16}/>{t('watch.upload')}</button> : <span className="watch-signin-note">{t('watch.signInUpload')}</span>}
     </div>
     <div className="community-watch-toolbar"><span>{t('common.sortBy')}</span><AppSelect value={sort} onChange={changeSort} ariaLabel={t('common.sortBy')} options={[{ value: 'upvotes', label: t('common.sortPopularity') }, { value: 'newest', label: t('common.sortNewest') }]} /></div>
-    {uploadOpen && <form className="watch-upload panel" onSubmit={publish}><button type="button" className="icon-button" aria-label={t('watch.closeVideo')} onClick={() => setUploadOpen(false)}><X size={17}/></button><h3>{t('watch.uploadTitle')}</h3><label>{t('watch.videoTitle')}<input value={title} maxLength={120} onChange={event => setTitle(event.target.value)} required /></label><label>{t('watch.descriptionLabel')}<textarea value={description} maxLength={1000} onChange={event => setDescription(event.target.value)} /></label><label className="watch-file"><Video size={22}/><span>{file?.name ?? t('watch.chooseVideo')}</span><input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={event => setFile(event.target.files?.[0] ?? null)} required /></label>{uploadError && <p className="form-error">{uploadError}</p>}<button className="button dark" disabled={uploading}>{uploading ? t('watch.uploading') : t('watch.publish')}</button></form>}
+    {uploadOpen && <form className="watch-upload panel" onSubmit={publish}><button type="button" className="icon-button" aria-label={t('watch.closeVideo')} onClick={() => setUploadOpen(false)}><X size={17}/></button><h3>{t('watch.uploadTitle')}</h3><label>{t('watch.videoTitle')}<input value={title} maxLength={120} onChange={event => setTitle(event.target.value)} required /></label><label>{t('watch.descriptionLabel')}<textarea value={description} maxLength={1000} onChange={event => setDescription(event.target.value)} /></label><label className="watch-file"><Video size={22}/><span>{file?.name ?? t('watch.chooseVideo')}</span><input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={event => setFile(event.target.files?.[0] ?? null)} required disabled={uploading}/></label>{uploadError && <p className="form-error">{uploadError}</p>}<button className="button dark" disabled={uploading}>{uploading ? t('watch.uploading') : t('watch.publish')}</button></form>}
     <AdBanner />
 
     {loading ? <div className="module-loading"><LoadingIndicator label={t('watch.loading')} /></div> : error ? <p className="feed-notice" role="alert">{error}</p> : videos.length ? <div className="community-video-grid">{videos.map(video => <article className="community-video-card" key={video.id}>
