@@ -411,6 +411,12 @@ img {
     flex-direction: column;
     overflow: hidden;
   }
+  .workspace.chat-workspace:has(.chat-layout.chat-show-thread) {
+    padding-top: env(safe-area-inset-top);
+  }
+  .workspace.chat-workspace:has(.chat-layout.chat-show-thread) > .topbar {
+    display: none;
+  }
   .chat-workspace > main {
     flex: 1;
     min-height: 0;
