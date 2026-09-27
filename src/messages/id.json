@@ -327,6 +327,8 @@
   "watch.uploadedBy": "Diunggah oleh {email}",
   "watch.commentPlaceholder": "Ikuti percakapan",
   "watch.postComment": "Kirimkan komentar",
+  "watch.showMoreDescription": "Show more",
+  "watch.showLessDescription": "Show less",
   "watch.noCommunityVideos": "Belum ada video masyarakat",
   "watch.noCommunityVideosHint": "Unggahan pertama disorotkan.",
   "watch.thumbnailFailed": "Tidak bisa membuat thumbnail dari video ini.",

@@ -3241,6 +3241,10 @@ select {
 .community-video-story h1 { margin: 10px 0 12px; font-size: clamp(30px, 3.5vw, 46px); line-height: 1.08; overflow-wrap: anywhere; }
 .community-video-byline { color: #79776b; font-size: 12px; overflow-wrap: anywhere; }
 .community-video-description { margin-top: 24px; color: #55564e; font-size: 14px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.community-video-description.is-collapsed { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; overflow: hidden; }
+.community-video-description-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 9px; padding: 0; background: transparent; color: var(--orange); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.community-video-description-toggle:hover { text-decoration: underline; }
+.community-video-description-toggle:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; border-radius: 3px; }
 .community-video-reader .community-video-actions { max-width: none; margin-top: 28px; padding-top: 19px; gap: 9px; }
 .community-video-actions button,
 .community-video-reader .community-video-actions > span { min-width: 66px; min-height: 44px; justify-content: center; padding: 10px 13px; border: 1px solid #e4e1d6; border-radius: 10px; background: #f6f4ed; color: #55564e; font-size: 12px; font-weight: 700; }
@@ -3802,6 +3806,8 @@ html[data-theme='dark'] .player-profile-form input,
 html[data-theme='dark'] .watch-upload input,
 html[data-theme='dark'] .watch-upload textarea,
 html[data-theme='dark'] .video-comments input { background: #1c1d1a; color: var(--ink); border-color: #45463f; }
+html[data-theme='dark'] .video-comments form button { background: #f6542f; color: #fffdf4; }
+html[data-theme='dark'] .video-comments form button:disabled { background: #3a3b35; color: #d6d2c8; opacity: 1; }
 html[data-theme='dark'] input::placeholder,
 html[data-theme='dark'] textarea::placeholder { color: #858278; }
 html[data-theme='dark'] .nav-item { color: #aaa89f; }

@@ -327,6 +327,8 @@
   "watch.uploadedBy": "Uploaded by {email}",
   "watch.commentPlaceholder": "Join the conversation",
   "watch.postComment": "Post comment",
+  "watch.showMoreDescription": "Show more",
+  "watch.showLessDescription": "Show less",
   "watch.noCommunityVideos": "No community videos yet",
   "watch.noCommunityVideosHint": "The first upload gets the spotlight.",
   "watch.thumbnailFailed": "Could not create a thumbnail from this video.",

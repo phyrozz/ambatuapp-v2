@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, MessageCircle, Send } from 'lucide-react';
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Send } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { AdBanner } from './ad-banner';
@@ -16,10 +16,12 @@ function viewerId() { const key = 'ambatu-anonymous-id'; let id = localStorage.g
 export function CommunityVideoPage({ id }: { id: string }) {
   const { t } = useI18n(), { user, getIdToken } = useAuth();
   const [video, setVideo] = useState<VideoData | null>(null), [comments, setComments] = useState<Comment[]>([]), [text, setText] = useState(''), [error, setError] = useState(''), [commentsError, setCommentsError] = useState(''), [commentsLoading, setCommentsLoading] = useState(true), [videoReady, setVideoReady] = useState(false), [userVote, setUserVote] = useState(0), [votePulse, setVotePulse] = useState<'up' | 'down' | null>(null);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const descriptionIsCollapsible = Boolean(video && (video.description.length > 240 || video.description.split(/\r?\n/).length > 5));
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const controller = new AbortController(), key = `ambatu-video-vote:${id}`;
-    setVideo(null); setComments([]); setError(''); setCommentsError(''); setCommentsLoading(true); setVideoReady(false);
+    setVideo(null); setComments([]); setError(''); setCommentsError(''); setCommentsLoading(true); setVideoReady(false); setDescriptionExpanded(false);
     fetch(`${base()}/${encodeURIComponent(id)}`, { cache: 'no-store', signal: controller.signal })
       .then(response => response.json().then(data => { if (!response.ok) throw new Error(data.error); return data as VideoData; }))
       .then(item => { setVideo(item); setUserVote(Number(localStorage.getItem(key)) || 0); })
@@ -44,7 +46,12 @@ export function CommunityVideoPage({ id }: { id: string }) {
           <p className="eyebrow"><span className="watch-accent-dot" />{t('watch.communityEyebrow')}</p>
           <h1>{video.title}</h1>
           <span className="community-video-byline">{video.uploaderAvatarUrl && <img className="profile-avatar-inline" src={video.uploaderAvatarUrl} alt=""/>}{video.uploaderId && video.uploaderId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(video.uploaderId)}&name=${encodeURIComponent(video.uploader)}`} aria-label={t('chat.messageUser', { name: video.uploader })}>{t('watch.uploadedBy', { email: video.uploader })}</Link> : t('watch.uploadedBy', { email: video.uploader })}</span>
-          {video.description && <p className="community-video-description">{video.description}</p>}
+          {video.description && <>
+            <p id={`community-video-description-${video.id}`} className={`community-video-description${descriptionIsCollapsible && !descriptionExpanded ? ' is-collapsed' : ''}`}>{video.description}</p>
+            {descriptionIsCollapsible && <button className="community-video-description-toggle" type="button" aria-expanded={descriptionExpanded} aria-controls={`community-video-description-${video.id}`} onClick={() => setDescriptionExpanded(expanded => !expanded)}>
+              {descriptionExpanded ? <>{t('watch.showLessDescription')}<ChevronUp size={16}/></> : <>{t('watch.showMoreDescription')}<ChevronDown size={16}/></>}
+            </button>}
+          </>}
           <div className="community-video-actions" aria-label={t('watch.communityEyebrow')}>
             <button className={`up ${userVote === 1 ? 'selected' : ''} ${votePulse === 'up' ? 'vote-pop' : ''}`} aria-label={`${t('lore.upvote')}: ${video.upvotes}`} aria-pressed={userVote === 1} onClick={() => void vote(1)}><ArrowBigUp size={20}/><span>{video.upvotes}</span></button>
             <button className={`down ${userVote === -1 ? 'selected' : ''} ${votePulse === 'down' ? 'vote-pop' : ''}`} aria-label={`${t('lore.downvote')}: ${video.downvotes}`} aria-pressed={userVote === -1} onClick={() => void vote(-1)}><ArrowBigDown size={20}/><span>{video.downvotes}</span></button>
