@@ -3218,6 +3218,8 @@ select {
 .community-video-stage video { display: block; width: 100%; max-height: min(72vh, 720px); aspect-ratio: 16/9; background: #1d1e1b; }
 .module-loading { display: grid; min-height: 150px; place-items: center; padding: 24px; }
 .page .module-loading { min-height: 38vh; }
+.profile-load-error { display: flex; flex-direction: column; gap: 12px; color: var(--muted); text-align: center; }
+.profile-load-error p { margin: 0; }
 .community-scroll-sentinel { display: grid; min-height: 48px; place-items: center; }
 .video-media-loading { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; background: #1d1e1b; pointer-events: none; }
 .video-media-loading .loading-indicator { color: #fff4ec; }
