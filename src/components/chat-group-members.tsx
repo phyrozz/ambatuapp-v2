@@ -9,8 +9,9 @@ import { LoadingIndicator } from './loading-indicator';
 type Player = { id: string; username: string };
 const playersApi = `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/players`;
 
-export function ChatGroupMembers({ conversation, userId, busy, sharing, actionError, getIdToken, onAdd, onRemove, onShare, onClose }: {
+export function ChatGroupMembers({ conversation, avatarUrls, userId, busy, sharing, actionError, getIdToken, onAdd, onRemove, onShare, onClose }: {
   conversation: ChatConversation;
+  avatarUrls: Record<string, string>;
   userId: string;
   busy: boolean;
   sharing: boolean;
@@ -59,7 +60,7 @@ export function ChatGroupMembers({ conversation, userId, busy, sharing, actionEr
         {query.trim().length >= 2 && !loading && !error && matches.length === 0 && <p className="chat-member-empty">{t('chat.noUsersFound')}</p>}
       </> : <p className="chat-member-limit">{t('chat.memberLimit')}</p>}
       {actionError && <p className="form-error" role="alert">{actionError}</p>}
-      <div className="chat-member-list">{conversation.members.map(id => <div className="chat-member-row" key={id}><span className="chat-avatar">{(conversation.names?.[id] ?? id).slice(0, 1).toUpperCase()}</span><strong>{conversation.names?.[id] ?? id}</strong><button type="button" className="chat-member-remove" disabled={busy} onClick={() => onRemove(id)} aria-label={id === userId ? t('chat.leaveGroup') : t('chat.removeMember', { name: conversation.names?.[id] ?? id })}><UserMinus size={17}/><span>{id === userId ? t('chat.leaveGroup') : t('chat.removeMember', { name: conversation.names?.[id] ?? id })}</span></button></div>)}</div>
+      <div className="chat-member-list">{conversation.members.map(id => <div className="chat-member-row" key={id}><span className="chat-avatar">{avatarUrls[id] ? <img src={avatarUrls[id]} alt="" aria-hidden="true"/> : (conversation.names?.[id] ?? id).slice(0, 1).toUpperCase()}</span><strong>{conversation.names?.[id] ?? id}</strong><button type="button" className="chat-member-remove" disabled={busy} onClick={() => onRemove(id)} aria-label={id === userId ? t('chat.leaveGroup') : t('chat.removeMember', { name: conversation.names?.[id] ?? id })}><UserMinus size={17}/><span>{id === userId ? t('chat.leaveGroup') : t('chat.removeMember', { name: conversation.names?.[id] ?? id })}</span></button></div>)}</div>
     </section>
   </div>;
 }
