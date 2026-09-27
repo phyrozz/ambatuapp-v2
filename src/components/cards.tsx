@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Heart, Play, Square, AudioLines, Gamepad2 } from 'lucide-react';
 import { games, type Sound } from '@/lib/catalog';
@@ -149,10 +150,10 @@ export function CharacterCard({ character, featured = false }: { character: Char
     </Link>
   );
 }
-export function EmptyState({ title, description }: { title: string; description: string }) {
+export function EmptyState({ title, description, icon, className }: { title: string; description: string; icon?: ReactNode; className?: string }) {
   return (
-    <div className="empty-state">
-      <AudioLines size={32} />
+    <div className={`empty-state${className ? ` ${className}` : ''}`}>
+      {icon ?? <AudioLines size={32} />}
       <h3>{title}</h3>
       {description && <p>{description}</p>}
     </div>
