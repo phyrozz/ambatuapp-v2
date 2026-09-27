@@ -21,12 +21,51 @@ import { enableChatPush, installPushNavigation, syncChatPush } from '@/lib/push-
 
 type Player = { id: string; username: string; avatarUrl?: string | null };
 type InviteDetails = { conversation: string; title: string; memberCount: number; alreadyMember: boolean };
+type ConversationCursor = { pk: string; sk: string; updatedAt: number };
 const wsUrl = process.env.NEXT_PUBLIC_CHAT_WS_URL;
 const playersApi = `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/players`;
 const playerNamesApi = `${playersApi}/names`;
 const chatHistoryKey = '__ambatuChatConversation';
 const chatMediaSizeLimit = 5 * 1024 * 1024;
 const ChatEmojiPicker = lazy(() => import('./chat-emoji-picker'));
+
+function isConversationCursor(value: unknown): value is ConversationCursor {
+  if (!value || typeof value !== 'object') return false;
+  const cursor = value as Partial<ConversationCursor>;
+  return typeof cursor.pk === 'string' && typeof cursor.sk === 'string' && typeof cursor.updatedAt === 'number';
+}
+
+function mergeConversations(existing: ChatConversation[], incoming: ChatConversation[]) {
+  const merged = new Map(existing.map(item => [item.id, item]));
+  incoming.forEach(item => merged.set(item.id, item));
+  return [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function loadAvatarImage(url: string) {
+  return new Promise<boolean>(resolve => {
+    const image = new Image();
+    let finished = false;
+    const finish = (loaded: boolean) => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timeout);
+      image.onload = null;
+      image.onerror = null;
+      resolve(loaded);
+    };
+    const timeout = window.setTimeout(() => finish(false), 10000);
+    image.onload = () => finish(true);
+    image.onerror = () => finish(false);
+    image.src = url;
+    if (image.complete) finish(image.naturalWidth > 0);
+  });
+}
+
+async function preloadAvatarImages(urls: string[]) {
+  const uniqueUrls = [...new Set(urls)];
+  const loaded = await Promise.all(uniqueUrls.map(loadAvatarImage));
+  return new Set(uniqueUrls.filter((_, index) => loaded[index]));
+}
 
 async function compressPhotoToJpeg(file: File): Promise<File> {
   let bitmap: ImageBitmap | null = null;
@@ -140,6 +179,9 @@ export function ChatPage() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [playerAvatarUrls, setPlayerAvatarUrls] = useState<Record<string, string>>({});
   const [initialChatsLoaded, setInitialChatsLoaded] = useState(false);
+  const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
+  const [hasMoreConversations, setHasMoreConversations] = useState(false);
+  const [conversationRetryBlocked, setConversationRetryBlocked] = useState(false);
   const [active, setActive] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingHistoryFor, setLoadingHistoryFor] = useState('');
@@ -195,8 +237,13 @@ export function ChatPage() {
   const initialInvite = useRef(false);
   const resolvedNames = useRef<Record<string, string>>({});
   const resolvedAvatarUrls = useRef<Record<string, string>>({});
+  const resolvedProfileIds = useRef(new Set<string>());
   const lastNamesFetch = useRef(0);
-  const namesFetchVersion = useRef(0);
+  const conversationCursor = useRef<ConversationCursor | null>(null);
+  const conversationPageGeneration = useRef(0);
+  const conversationPageLoading = useRef(false);
+  const inboxList = useRef<HTMLDivElement>(null);
+  const inboxLoadMoreSentinel = useRef<HTMLDivElement>(null);
   const messagePane = useRef<HTMLDivElement>(null);
   const messageInput = useRef<HTMLInputElement>(null);
   const chatActionsMenu = useRef<HTMLDivElement>(null);
@@ -310,30 +357,14 @@ export function ChatPage() {
     if (status === 'ready' && userId && socket.current) void syncChatPush(socket.current, locale, userId);
   }, [locale, status, userId]);
 
-  const refresh = useCallback(async (client: ChatSocket) => {
-    if (client !== socket.current) return;
-    const requestVersion = ++conversationRefreshVersion.current;
-    const data = await client.request('conversations');
-    if (client !== socket.current || requestVersion !== conversationRefreshVersion.current) return;
-    const next = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt)
-      .map(item => {
-        const conversation = withCurrentNames(item, resolvedNames.current);
-        return pendingReadConversations.current.has(item.id) ? { ...conversation, unreadCount: 0 } : conversation;
-      });
-    setConversations(next);
-    if (activeRef.current && !next.some(item => item.id === activeRef.current)) {
-      activeGeneration.current++;
-      activeRef.current = '';
-      setActive('');
-      setDraftMentions({}); setMentionQuery(null);
-      setMessages([]);
-      setMembersOpen(false);
-    }
-    const ids = [...new Set(next.flatMap(item => [...item.members, ...Object.keys(item.names)]))];
-    if (!ids.length || Date.now() - lastNamesFetch.current < 15000) return;
-    lastNamesFetch.current = Date.now();
-    const version = ++namesFetchVersion.current;
-    void (async () => {
+  const hydrateConversationPage = useCallback(async (client: ChatSocket, page: ChatConversation[]) => {
+    if (client !== socket.current) return null;
+    const ids = [...new Set(page.flatMap(item => [...item.members, ...Object.keys(item.names)]))];
+    let fetchedNames: Record<string, string> = {};
+    let fetchedAvatarUrls: Record<string, string> = {};
+    const unresolvedProfiles = ids.some(id => !resolvedProfileIds.current.has(id));
+    if (ids.length && (unresolvedProfiles || Date.now() - lastNamesFetch.current >= 15000)) {
+      lastNamesFetch.current = Date.now();
       try {
         const token = await getIdToken();
         if (!token) throw new Error('token');
@@ -343,14 +374,120 @@ export function ChatPage() {
           if (!response.ok) throw new Error('names');
           return await response.json() as { names: Record<string, string>; avatars?: Record<string, string> };
         }));
-        if (version !== namesFetchVersion.current) return;
-        resolvedNames.current = { ...resolvedNames.current, ...Object.assign({}, ...results.map(result => result.names)) };
-        resolvedAvatarUrls.current = { ...resolvedAvatarUrls.current, ...Object.assign({}, ...results.map(result => result.avatars ?? {})) };
-        setPlayerAvatarUrls(resolvedAvatarUrls.current);
-        setConversations(items => items.map(item => withCurrentNames(item, resolvedNames.current)));
-      } catch { if (version === namesFetchVersion.current) lastNamesFetch.current = 0; }
-    })();
-  }, [getIdToken]);
+        fetchedNames = Object.assign({}, ...results.map(result => result.names));
+        fetchedAvatarUrls = Object.assign({}, ...results.map(result => result.avatars ?? {}));
+      } catch (reason) {
+        lastNamesFetch.current = 0;
+        throw reason;
+      }
+    }
+    if (client !== socket.current) return null;
+    const nextNames = { ...resolvedNames.current, ...fetchedNames };
+    const nextAvatarUrls = { ...resolvedAvatarUrls.current, ...fetchedAvatarUrls };
+    const inboxAvatarIds = [...new Set(page.flatMap(item => {
+      if (item.group) return [];
+      const otherId = item.members.find(id => id !== userId);
+      return otherId ? [otherId] : [];
+    }))];
+    const avatarUrls = inboxAvatarIds.map(id => nextAvatarUrls[id]).filter((url): url is string => Boolean(url));
+    const loadedAvatarUrls = await preloadAvatarImages(avatarUrls);
+    if (client !== socket.current) return null;
+    for (const id of inboxAvatarIds) {
+      const avatarUrl = nextAvatarUrls[id];
+      if (avatarUrl && !loadedAvatarUrls.has(avatarUrl)) delete nextAvatarUrls[id];
+    }
+    resolvedNames.current = nextNames;
+    resolvedAvatarUrls.current = nextAvatarUrls;
+    ids.forEach(id => resolvedProfileIds.current.add(id));
+    setPlayerAvatarUrls(nextAvatarUrls);
+    return page.map(item => withCurrentNames(item, nextNames));
+  }, [getIdToken, userId]);
+
+  const refresh = useCallback(async (client: ChatSocket) => {
+    if (client !== socket.current) return;
+    const requestVersion = ++conversationRefreshVersion.current;
+    const pageGeneration = ++conversationPageGeneration.current;
+    conversationPageLoading.current = false;
+    setLoadingMoreConversations(false);
+    conversationCursor.current = null;
+    setHasMoreConversations(false);
+    setConversationRetryBlocked(false);
+    try {
+      const requestedActive = activeRef.current;
+      const data = await client.request('conversations', requestedActive ? { activeConversation: requestedActive } : {});
+      if (client !== socket.current || requestVersion !== conversationRefreshVersion.current) return;
+      const page = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt)
+        .map(item => pendingReadConversations.current.has(item.id) ? { ...item, unreadCount: 0 } : item);
+      const activeConversation = data.activeConversation as ChatConversation | null | undefined;
+      const pageIds = new Set(page.map(item => item.id));
+      const hydrationPage = activeConversation && !pageIds.has(activeConversation.id) ? [...page, activeConversation] : page;
+      const hydrated = await hydrateConversationPage(client, hydrationPage);
+      if (!hydrated || client !== socket.current || requestVersion !== conversationRefreshVersion.current || pageGeneration !== conversationPageGeneration.current) return;
+      const next = hydrated.filter(item => pageIds.has(item.id) || item.id === requestedActive);
+      const cursor = isConversationCursor(data.nextCursor) ? data.nextCursor : null;
+      conversationCursor.current = cursor;
+      setHasMoreConversations(Boolean(cursor));
+      const removedActive = requestedActive && data.activeConversation === null && activeRef.current === requestedActive;
+      if (removedActive || (!cursor && activeRef.current && !next.some(item => item.id === activeRef.current))) {
+        activeGeneration.current++;
+        activeRef.current = '';
+        setActive('');
+        setDraftMentions({}); setMentionQuery(null);
+        setMessages([]);
+        setMembersOpen(false);
+      }
+      setConversations(items => {
+        const current = removedActive ? items.filter(item => item.id !== requestedActive) : items;
+        return cursor ? mergeConversations(current, next) : next;
+      });
+      setInitialChatsLoaded(true);
+    } catch {
+      if (client === socket.current && requestVersion === conversationRefreshVersion.current) lastNamesFetch.current = 0;
+    }
+  }, [hydrateConversationPage]);
+
+  const loadMoreConversations = useCallback(async () => {
+    const client = socket.current;
+    const cursor = conversationCursor.current;
+    const pageGeneration = conversationPageGeneration.current;
+    if (!client || !cursor || !hasMoreConversations || conversationPageLoading.current) return;
+    conversationPageLoading.current = true;
+    setLoadingMoreConversations(true);
+    try {
+      const data = await client.request('conversations', { cursor });
+      if (client !== socket.current || pageGeneration !== conversationPageGeneration.current) return;
+      const page = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt)
+        .map(item => pendingReadConversations.current.has(item.id) ? { ...item, unreadCount: 0 } : item);
+      const next = await hydrateConversationPage(client, page);
+      if (!next || client !== socket.current || pageGeneration !== conversationPageGeneration.current) return;
+      const nextCursor = isConversationCursor(data.nextCursor) ? data.nextCursor : null;
+      conversationCursor.current = nextCursor;
+      setHasMoreConversations(Boolean(nextCursor));
+      setConversationRetryBlocked(false);
+      setConversations(items => mergeConversations(items, next));
+    } catch {
+      if (client === socket.current && pageGeneration === conversationPageGeneration.current) {
+        setError(t('chat.connectionError'));
+        setConversationRetryBlocked(true);
+      }
+    } finally {
+      if (pageGeneration === conversationPageGeneration.current) {
+        conversationPageLoading.current = false;
+        setLoadingMoreConversations(false);
+      }
+    }
+  }, [hasMoreConversations, hydrateConversationPage, t]);
+
+  useEffect(() => {
+    const root = inboxList.current;
+    const sentinel = inboxLoadMoreSentinel.current;
+    if (!initialChatsLoaded || !hasMoreConversations || conversationRetryBlocked || !root || !sentinel) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) void loadMoreConversations();
+    }, { root, rootMargin: '100px 0px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [conversations.length, conversationRetryBlocked, hasMoreConversations, initialChatsLoaded, loadingMoreConversations, loadMoreConversations]);
 
   const markConversationRead = useCallback(async (client: ChatSocket, conversation: string, seenThrough: string) => {
     const requestVersion = conversationReadVersions.current.get(conversation) ?? 0;
@@ -377,12 +514,23 @@ export function ChatPage() {
     }
   }, [refresh]);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     resolvedNames.current = {};
     resolvedAvatarUrls.current = {};
+    resolvedProfileIds.current.clear();
     lastNamesFetch.current = 0;
-    namesFetchVersion.current++;
+    conversationPageGeneration.current++;
+    conversationPageLoading.current = false;
+    conversationCursor.current = null;
+    setConversations([]);
+    setPlayerAvatarUrls({});
+    setInitialChatsLoaded(false);
+    setLoadingMoreConversations(false);
+    setHasMoreConversations(false);
+    setConversationRetryBlocked(false);
   }, [user?.id]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!ready || !user || !wsUrl) return;
@@ -435,7 +583,6 @@ export function ChatPage() {
         window.addEventListener('pageshow', onVisible);
         window.addEventListener('online', onVisible);
         visibilityCleanup = () => { document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('pageshow', onVisible); window.removeEventListener('online', onVisible); };
-        if (!cancelled) setInitialChatsLoaded(true);
         const invite = params.get('invite');
         const target = params.get('user');
         if (invite && !initialInvite.current) {
@@ -474,6 +621,7 @@ export function ChatPage() {
             activeRef.current = conversation;
             setDraftMentions({}); setMentionQuery(null);
             setActive(conversation);
+            await refresh(client);
           }
         }
       } catch { if (!cancelled) { setError(t('chat.connectionError')); client?.close(); retry(); } }
@@ -944,15 +1092,20 @@ export function ChatPage() {
       {searchLoading && <div className="chat-search-loading"><LoadingIndicator label={t('common.loading')} /></div>}
       {matches.length > 0 && <div className="chat-results">{matches.map(player => <button key={player.id} onClick={() => { setSelected(items => items.some(item => item.id === player.id) ? items : [...items, player]); setQuery(''); setMatches([]); setSearchLoading(false); }}>{player.avatarUrl ? <img className="chat-result-avatar" src={player.avatarUrl} alt=""/> : <span className="chat-result-avatar">{player.username.slice(0, 1).toUpperCase()}</span>}<span>{player.username}</span><Plus size={15}/></button>)}</div>}
       {selected.length > 0 && <div className="chat-compose-group"><div className="chat-selected">{selected.map(player => <button key={player.id} onClick={() => setSelected(items => items.filter(item => item.id !== player.id))}>{player.avatarUrl && <img src={player.avatarUrl} alt=""/>}{player.username}<X size={13}/></button>)}</div><CustomCheckbox checked={group} onChange={setGroup}>{t('chat.groupChat')}</CustomCheckbox>{group && <input value={groupTitle} maxLength={80} onChange={event => setGroupTitle(event.target.value)} placeholder={t('chat.groupName')}/>}<button className="button dark compact" disabled={busy || (group && !groupTitle.trim())} onClick={() => void createConversation()}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{group ? t('chat.createGroup') : t('chat.startChat')}</button></div>}
-      <div className="chat-inbox-list">{!initialChatsLoaded && status !== 'unavailable' ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : conversations.length ? conversations.map(item => {
-        const unreadCount = Math.max(0, Number(item.unreadCount ?? 0));
-        const unread = item.id !== active && unreadCount > 0;
-        return <button key={item.id} className={`${active === item.id ? 'active' : ''} ${unread ? 'has-unread' : ''}`} onClick={() => openConversation(item.id)}>
-          <span className="chat-avatar">{item.group ? <UsersRound size={19}/> : (() => { const other = item.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <img src={playerAvatarUrls[other]} alt="" aria-hidden="true"/> : title(item).slice(0, 1).toUpperCase(); })()}</span>
-          <span className="chat-inbox-content"><span className="chat-inbox-title"><strong>{title(item)}</strong>{item.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</span><small>{item.lastMessage === 'sound' ? t('nav.soundboard') : item.lastMessage ?? t('chat.noMessages')}</small></span>
-          {unread && <span className="chat-unread-badge" aria-label={t('chat.unreadMessages', { count: unreadCount })}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
-        </button>;
-      }) : <p className="chat-empty-inbox">{t('chat.emptyInbox')}</p>}</div>
+      <div ref={inboxList} className="chat-inbox-list" aria-busy={!initialChatsLoaded || loadingMoreConversations} onScroll={() => { if (conversationRetryBlocked) setConversationRetryBlocked(false); }}>
+        {!initialChatsLoaded ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : conversations.length ? <>
+          {conversations.map(item => {
+            const unreadCount = Math.max(0, Number(item.unreadCount ?? 0));
+            const unread = item.id !== active && unreadCount > 0;
+            return <button key={item.id} className={`${active === item.id ? 'active' : ''} ${unread ? 'has-unread' : ''}`} onClick={() => openConversation(item.id)}>
+              <span className="chat-avatar">{item.group ? <UsersRound size={19}/> : (() => { const other = item.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <img src={playerAvatarUrls[other]} alt="" aria-hidden="true"/> : title(item).slice(0, 1).toUpperCase(); })()}</span>
+              <span className="chat-inbox-content"><span className="chat-inbox-title"><strong>{title(item)}</strong>{item.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</span><small>{item.lastMessage === 'sound' ? t('nav.soundboard') : item.lastMessage ?? t('chat.noMessages')}</small></span>
+              {unread && <span className="chat-unread-badge" aria-label={t('chat.unreadMessages', { count: unreadCount })}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+            </button>;
+          })}
+          {hasMoreConversations && <div ref={inboxLoadMoreSentinel} className="chat-inbox-pagination">{loadingMoreConversations && <LoadingIndicator label={t('common.loading')} compact/>}</div>}
+        </> : <p className="chat-empty-inbox">{t('chat.emptyInbox')}</p>}
+      </div>
     </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={() => returnToInbox()} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : (() => { const other = current.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <img src={playerAvatarUrls[other]} alt="" aria-hidden="true"/> : title(current).slice(0, 1).toUpperCase(); })()}</span><div className="chat-thread-title"><div className="chat-thread-title-row"><h2>{title(current)}</h2>{current.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</div><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><div className="chat-header-actions"><button type="button" className="chat-icon chat-header-action" onClick={() => void toggleMute()} aria-label={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')} title={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')}>{current.muted ? <BellOff size={18}/> : <Bell size={18}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-icon chat-header-action" onClick={() => { setMembersError(''); setMembersOpen(true); }} aria-label={t('chat.manageMembers')} title={t('chat.manageMembers')}><UsersRound size={18}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-icon chat-header-action" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')} title={t('chat.reportConversation')}><Flag size={18}/><span>{t('chat.actionReport')}</span></button></div><div className="chat-actions-mobile" ref={chatActionsMenu}><button type="button" className="chat-icon" aria-label={t('chat.moreActions')} ref={chatActionsTrigger} aria-expanded={chatActionsOpen} aria-controls="chat-actions-menu" onClick={() => setChatActionsOpen(open => !open)}><MoreHorizontal size={19}/></button><div className="chat-actions-menu" id="chat-actions-menu" role="group" aria-label={t('chat.moreActions')} aria-hidden={!chatActionsOpen} data-open={chatActionsOpen}><button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); void toggleMute(); }}>{current.muted ? <BellOff size={17}/> : <Bell size={17}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setMembersError(''); setMembersOpen(true); }}><UsersRound size={17}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setReportOpen(true); }}><Flag size={17}/><span>{t('chat.actionReport')}</span></button></div></div></header><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; stickToBottom.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map(message => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${(message.kind === 'image' || message.kind === 'gif' || message.kind === 'video') ? 'media-bubble' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={message.id} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (message.messageKey && !isMessageControl(event.target)) { event.preventDefault(); setRevealedReactionMessageKey(message.messageKey); if (reactionToolbarMessageKey !== message.messageKey) toggleReactionToolbar(message.messageKey); } }}>{current.group && <small>{playerAvatarUrls[message.senderId] ? <img className="chat-message-avatar" src={playerAvatarUrls[message.senderId]} alt="" aria-hidden="true"/> : <span className="chat-message-avatar fallback" aria-hidden="true">{(current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)).slice(0, 1).toUpperCase()}</span>}{current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)}</small>}{message.kind === 'image' || message.kind === 'gif' ? <img src={message.kind === 'gif' ? message.text : message.url} alt={t(message.kind === 'gif' ? 'chat.gif' : 'chat.image')} onLoad={() => { if (stickToBottom.current) scrollMessagesToBottom(); }}/> : message.kind === 'video' ? message.url && <MediaPlayer src={message.url} variant="chat" onLoadedMetadata={() => { if (stickToBottom.current) scrollMessagesToBottom(); }} /> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <p><ChatMessageText text={message.text}/></p>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{new Date(message.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><div className="chat-attachment" ref={attachmentMenu}><button ref={attachmentTrigger} type="button" className="chat-icon chat-attachment-trigger" onClick={() => setAttachmentsOpen(open => !open)} aria-label={t('chat.attach')} aria-expanded={attachmentsOpen} aria-controls="chat-attachment-menu"><ImagePlus size={19}/></button><div className="chat-attachment-menu" id="chat-attachment-menu" role="menu" aria-label={t('chat.attach')} aria-hidden={!attachmentsOpen} data-open={attachmentsOpen}><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); photoInput.current?.click(); }}><Camera size={17}/><span>{t('chat.takePhoto')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { void openVideoRecorder(); }}><Video size={17}/><span>{t('chat.recordVideo')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); mediaInput.current?.click(); }}><ImagePlus size={17}/><span>{t('chat.chooseMedia')}</span></button></div><input ref={photoInput} className="chat-file-input" type="file" accept="image/*" capture="environment" onChange={event => { void upload(event.target.files?.[0], true); event.target.value = ''; }}/><input ref={mediaInput} className="chat-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></div><button type="button" className="chat-icon chat-sound-toggle" onClick={() => { setAttachmentsOpen(false); setSoundPickerOpen(value => !value); }} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><div className="chat-message-field"><input ref={messageInput} value={draft} maxLength={2000} onChange={event => updateDraft(event.target.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)} onClick={event => updateDraft(draft, event.currentTarget.selectionStart ?? draft.length)} onKeyDown={event => { if (mentionOptions.length && event.key === 'Enter') { event.preventDefault(); insertMention(mentionOptions[0].id, mentionOptions[0].name); } else if (mentionOptions.length && event.key === 'ArrowDown') { event.preventDefault(); event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.chat-mention-menu button')?.focus(); } }} role="combobox" aria-autocomplete="list" aria-expanded={mentionOptions.length > 0} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')} aria-controls={mentionOptions.length ? 'chat-mention-list' : undefined}/>{mentionOptions.length > 0 && <div className="chat-mention-menu" id="chat-mention-list" role="listbox">{mentionOptions.map(player => <button key={player.id} type="button" role="option" aria-selected={false} aria-label={t('chat.mentionUser', { name: player.name })} onPointerDown={event => event.preventDefault()} onClick={() => insertMention(player.id, player.name)}><span className="chat-mention-avatar">{player.name.slice(0, 1).toUpperCase()}</span><span>{player.name}</span></button>)}</div>}</div><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form><ChatSoundPicker busy={busy} open={soundPickerOpen} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>{cameraOpen && createPortal(<div className="chat-modal-backdrop chat-camera-backdrop" role="presentation"><section className="chat-modal chat-camera-modal" role="dialog" aria-modal="true" aria-labelledby="chat-camera-title" onClick={event => event.stopPropagation()}><button type="button" className="chat-icon chat-camera-close" onClick={closeVideoRecorder} aria-label={t('chat.closeCamera')}><X size={18}/></button><Video size={24}/><h2 id="chat-camera-title">{t('chat.cameraTitle')}</h2><p>{t('chat.cameraInstructions')}</p>{cameraError && <p className="form-error" role="alert">{cameraError}</p>}<div className="chat-camera-preview">{recordedVideoUrl ? <MediaPlayer src={recordedVideoUrl} variant="chat" /> : <video ref={cameraVideo} autoPlay muted playsInline/>}</div><p className="chat-camera-timer" data-recording={recording} aria-live="polite">{t('chat.recordingTimer', { time: `0:${String(recordingSeconds).padStart(2, '0')}` })}</p><div className="chat-camera-actions">{recording ? <button type="button" className="button dark" onClick={stopVideoRecording}>{t('chat.stopRecording')}</button> : recordedVideo ? <><button type="button" className="button secondary" onClick={startVideoRecording}>{t('chat.recordAgain')}</button><button type="button" className="button dark" disabled={busy} onClick={sendRecordedVideo}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{t('chat.sendVideo')}</button></> : <button type="button" className="button dark" disabled={!cameraStream} onClick={startVideoRecording}>{t('chat.startRecording')}</button>}</div></section></div>, document.body)}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
     {membersOpen && current?.group && <ChatGroupMembers conversation={current} userId={user.id} busy={membersBusy} sharing={sharing} actionError={membersError} getIdToken={getIdToken} onAdd={player => { void updateGroupMember(current.id, player, true); }} onRemove={id => { void updateGroupMember(current.id, { id, username: current.names?.[id] ?? id }, false); }} onShare={() => { void shareGroup(current.id); }} onClose={() => setMembersOpen(false)} />}
     {shareUrl && <ChatShareDialog url={shareUrl} group onClose={() => setShareUrl('')}/>}
