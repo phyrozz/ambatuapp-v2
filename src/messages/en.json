@@ -179,6 +179,7 @@
   "sounds.remixes": "Remixes",
   "sounds.crew": "The crew",
   "sounds.count": "{count} sounds",
+  "sounds.loadedCount": "Showing {count} of {total} sounds",
   "sounds.favoritesEmpty": "Your favorites start here.",
   "sounds.none": "No sounds found.",
   "sounds.favoritesHint": "Tap the heart on any sound to keep it in your personal collection.",

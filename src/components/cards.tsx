@@ -6,6 +6,7 @@ import { games, type Sound } from '@/lib/catalog';
 import type { Character } from '@/lib/characters';
 import { useApp } from './app-provider';
 import { useI18n } from './i18n-provider';
+import { LoadingIndicator } from './loading-indicator';
 export function GameCard({ game }: { game: (typeof games)[number] }) {
   const { t } = useI18n();
   return (
@@ -71,9 +72,10 @@ function GameArtwork({ id }: { id: string }) {
   );
 }
 export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }) {
-  const { play, playing, favorites, toggleFavorite } = useApp();
+  const { play, playing, loadingSounds, favorites, toggleFavorite } = useApp();
   const { t } = useI18n();
   const active = playing.includes(sound.id);
+  const loading = loadingSounds.includes(sound.id);
   const category = sound.category === 'Classics'
     ? t('sounds.classics')
     : sound.category === 'Remixes'
@@ -82,7 +84,7 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
         ? t('sounds.crew')
         : sound.category;
   return (
-    <article className={`sound-card sound-color-${sound.color} ${active ? 'is-playing' : ''}`}>
+    <article className={`sound-card sound-color-${sound.color} ${active ? 'is-playing' : ''} ${loading ? 'is-loading' : ''}`}>
       <div className="sound-top">
         <span className="sound-number">{String(index + 1).padStart(2, '0')}</span>
         <button
@@ -97,7 +99,8 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
       <button
         className="sound-play"
         onClick={() => play(sound)}
-        aria-label={`${t(active ? 'common.stop' : 'common.play')} ${sound.name}`}
+        aria-label={`${t(loading ? 'common.loading' : active ? 'common.stop' : 'common.play')} ${sound.name}`}
+        aria-busy={loading}
       >
         <span className="waveform" aria-hidden="true">
           {[12, 23, 16, 30, 21, 36, 18, 29, 14, 24, 11, 19].map((h, i) => (
@@ -110,7 +113,9 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
             <small>{category}</small>
           </span>
           <span className="round-play">
-            {active ? (
+            {loading ? (
+              <LoadingIndicator label={t('common.loading')} compact />
+            ) : active ? (
               <Square size={14} fill="currentColor" />
             ) : (
               <Play size={16} fill="currentColor" />

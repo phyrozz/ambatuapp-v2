@@ -179,6 +179,7 @@
   "sounds.remixes": "Remix",
   "sounds.crew": "Kru",
   "sounds.count": "{count} suara",
+  "sounds.loadedCount": "Showing {count} of {total} sounds",
   "sounds.favoritesEmpty": "Favoritmu mulai dari sini.",
   "sounds.none": "Tidak ada suara yang ditemukan.",
   "sounds.favoritesHint": "Ketuk ikon hati di suara tertentu untuk menjaganya dalam koleksi pribadi kamu.",

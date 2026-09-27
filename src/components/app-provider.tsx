@@ -19,6 +19,7 @@ type AppContext = Saved & {
   soundCatalogStatus: 'loading' | 'ready' | 'error';
   refreshSoundCatalog: () => void;
   playing: string[];
+  loadingSounds: string[];
   current: Sound | undefined;
   error: string;
   play: (sound: Sound) => void;
@@ -36,6 +37,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [soundCatalog, setSoundCatalog] = useState<{ status: 'loading' | 'ready' | 'error'; sounds: Sound[] }>({ status: 'loading', sounds: [] });
   const [soundCatalogAttempt, setSoundCatalogAttempt] = useState(0);
   const [playing, setPlaying] = useState<string[]>([]);
+  const [loadingSounds, setLoadingSounds] = useState<string[]>([]);
   const [error, setError] = useState('');
   const players = useRef(new Map<string, HTMLAudioElement>());
   // Hydrate browser storage after mount so the server export and first client render match.
@@ -113,6 +115,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [ready, saved]);
   const stop = useCallback(() => {
     players.current.forEach((p) => {
+      p.onplaying = null;
       p.onended = null;
       p.onerror = null;
       p.pause();
@@ -120,6 +123,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     players.current.clear();
     setPlaying([]);
+    setLoadingSounds([]);
   }, []);
   useEffect(() => {
     const pause = () => {
@@ -143,26 +147,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setError('');
     const existing = players.current.get(sound.id);
     if (existing) {
+      existing.onplaying = null;
+      existing.onended = null;
+      existing.onerror = null;
       existing.pause();
+      existing.removeAttribute('src');
       players.current.delete(sound.id);
-      setPlaying([...players.current.keys()]);
+      setPlaying(ids => ids.filter(id => id !== sound.id));
+      setLoadingSounds(ids => ids.filter(id => id !== sound.id));
       return;
     }
     if (players.current.size >= 10) {
       const first = players.current.keys().next().value!;
-      players.current.get(first)?.pause();
+      const previous = players.current.get(first);
+      if (previous) {
+        previous.onplaying = null;
+        previous.onended = null;
+        previous.onerror = null;
+        previous.pause();
+        previous.removeAttribute('src');
+      }
       players.current.delete(first);
+      setPlaying(ids => ids.filter(id => id !== first));
+      setLoadingSounds(ids => ids.filter(id => id !== first));
     }
     const audio = new Audio(sound.file);
     audio.volume = saved.volume;
     players.current.set(sound.id, audio);
-    setPlaying([...players.current.keys()]);
+    setLoadingSounds(ids => ids.includes(sound.id) ? ids : [...ids, sound.id]);
+    const start = () => {
+      if (players.current.get(sound.id) !== audio) return;
+      setLoadingSounds(ids => ids.filter(id => id !== sound.id));
+      setPlaying(ids => ids.includes(sound.id) ? ids : [...ids, sound.id]);
+    };
     const clear = () => {
       if (players.current.get(sound.id) === audio) {
         players.current.delete(sound.id);
-        setPlaying([...players.current.keys()]);
+        setPlaying(ids => ids.filter(id => id !== sound.id));
+        setLoadingSounds(ids => ids.filter(id => id !== sound.id));
       }
     };
+    audio.onplaying = start;
     audio.onended = clear;
     audio.onerror = () => {
       if (players.current.get(sound.id) !== audio) return;
@@ -171,7 +196,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     void audio
       .play()
-      .then(() => setSaved((s) => ({ ...s, plays: s.plays + 1 })))
+      .then(() => {
+        if (players.current.get(sound.id) !== audio) return;
+        start();
+        setSaved((s) => ({ ...s, plays: s.plays + 1 }));
+      })
       .catch(() => {
         if (players.current.get(sound.id) !== audio) return;
         clear();
@@ -185,6 +214,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...saved,
         ready,
         playing,
+        loadingSounds,
         sounds: soundCatalog.sounds,
         soundCatalogStatus: soundCatalog.status,
         refreshSoundCatalog: () => {
