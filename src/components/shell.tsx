@@ -46,7 +46,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [topbarScrolled, setTopbarScrolled] = useState(false);
   const { current, playing, stop, volume, setVolume, error } = useApp();
   const { locale, locales, localeNames, setLocale, t } = useI18n();
-  const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || path === '/chat/' || Boolean(current);
+  const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || path === '/chat/' || ['/privacy', '/privacy/', '/terms', '/terms/'].includes(path) || Boolean(current);
   useEffect(() => {
     if (path === '/' && isStandalonePwa() && new URLSearchParams(window.location.search).get('home') !== '1') {
       router.replace('/chat/');
@@ -206,6 +206,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span>
             ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
           </span>
+          <nav className="footer-legal" aria-label={t('legal.footerNavigation')}>
+            <Link href="/privacy/">{t('legal.privacyLink')}</Link>
+            <Link href="/terms/">{t('legal.termsLink')}</Link>
+          </nav>
           <span>{t('shell.community')}</span>
         </footer>
       </div>

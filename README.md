@@ -60,6 +60,8 @@ Google-only sign-in uses a Cognito User Pool managed-login domain. Set `NEXT_PUB
 
 Google sessions are renewed in the browser with Cognito refresh tokens. Configure the player app client's refresh-token validity to the desired persistent-login period (Cognito supports up to 10 years) and enable token revocation. Refresh-token rotation is recommended; the app saves the replacement token returned by Cognito. Signing out revokes the stored refresh token and clears the browser session. As with any static web app, persistent browser tokens require strong XSS protections.
 
+For Google OAuth branding, publish the public `/privacy/` and `/terms/` pages on the same verified domain as the app homepage. The homepage footer links to both pages. In Google Auth Platform → Branding, set the homepage, Privacy Policy, and Terms of Service URLs to those live pages, add the authorized domain, verify domain ownership, then complete and publish brand verification. Keep separate Google Cloud projects for development and production as required by [Google's OAuth policies](https://developers.google.com/identity/protocols/oauth2/policies). Review the policy text whenever account data handling, storage, advertising, or contact details change. See [Google's branding requirements](https://support.google.com/cloud/answer/15549049?hl=en) for the current review criteria.
+
 Favorites, volume, play counts, and game scores are local to this browser or app installation, including for signed-in users. They are **not cloud-synced**. There is no database migration or score table requirement. Flutter SharedPreferences are not imported automatically.
 
 ### Leaderboards
