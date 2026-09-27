@@ -2091,6 +2091,9 @@ select {
 .watch-upload textarea { min-height: 90px; resize: vertical; }
 .watch-file { min-height: 62px; padding: 12px; display: flex !important; align-items: center; gap: 10px !important; border: 1px dashed #c9c2ac; border-radius: 10px; background: #f7f4e9; cursor: pointer; }
 .watch-file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.watch-upload .watch-upload-agreement { display: flex; align-items: flex-start; gap: 10px; color: var(--muted); font-weight: 500; line-height: 1.55; cursor: pointer; }
+.watch-upload .watch-upload-agreement input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; flex: 0 0 16px; margin: 2px 0 0; padding: 0; accent-color: var(--orange); }
+.watch-upload-agreement a { color: var(--orange); text-decoration: underline; text-underline-offset: 2px; }
 .form-error { margin: 0 !important; color: #a43e2a !important; }
 .community-video-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
 .community-video-card { overflow: hidden; border: 1px solid #e0dccd; border-radius: 14px; background: #fffdf7; box-shadow: 0 7px 24px rgba(45,40,30,.05); }

@@ -137,6 +137,7 @@ async function waitForCompression(token: string, sourceKey: string, videoKey: st
 
 export function CommunityWatch() {
   const { t } = useI18n(), { user, getIdToken } = useAuth();
+  const [uploadAgreementBefore, uploadAgreementAfter] = t('watch.uploadAgreement').split('{terms}');
   const [videos, setVideos] = useState<CommunityVideo[]>([]), [loading, setLoading] = useState(true), [loadingMore, setLoadingMore] = useState(false), [cursor, setCursor] = useState<number | null | undefined>(undefined), [error, setError] = useState('');
   const [sort, setSort] = useState<SortOrder>('upvotes');
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -210,7 +211,19 @@ export function CommunityWatch() {
       {user ? <button className="button dark compact" onClick={() => setUploadOpen(true)}><Upload size={16}/>{t('watch.upload')}</button> : <span className="watch-signin-note">{t('watch.signInUpload')}</span>}
     </div>
     <div className="community-watch-toolbar"><span>{t('common.sortBy')}</span><AppSelect value={sort} onChange={changeSort} ariaLabel={t('common.sortBy')} options={[{ value: 'upvotes', label: t('common.sortPopularity') }, { value: 'newest', label: t('common.sortNewest') }]} /></div>
-    {uploadOpen && <form className="watch-upload panel" onSubmit={publish}><button type="button" className="icon-button" aria-label={t('watch.closeVideo')} onClick={() => setUploadOpen(false)}><X size={17}/></button><h3>{t('watch.uploadTitle')}</h3><label>{t('watch.videoTitle')}<input value={title} maxLength={120} onChange={event => setTitle(event.target.value)} required /></label><label>{t('watch.descriptionLabel')}<textarea value={description} maxLength={1000} onChange={event => setDescription(event.target.value)} /></label><label className="watch-file"><Video size={22}/><span>{file?.name ?? t('watch.chooseVideo')}</span><input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={event => setFile(event.target.files?.[0] ?? null)} required disabled={uploading}/></label>{uploadError && <p className="form-error">{uploadError}</p>}<button className="button dark" disabled={uploading}>{uploading ? t('watch.uploading') : t('watch.publish')}</button></form>}
+    {uploadOpen && <form className="watch-upload panel" onSubmit={publish}>
+      <button type="button" className="icon-button" aria-label={t('watch.closeVideo')} onClick={() => setUploadOpen(false)}><X size={17}/></button>
+      <h3>{t('watch.uploadTitle')}</h3>
+      <label>{t('watch.videoTitle')}<input value={title} maxLength={120} onChange={event => setTitle(event.target.value)} required /></label>
+      <label>{t('watch.descriptionLabel')}<textarea value={description} maxLength={1000} onChange={event => setDescription(event.target.value)} /></label>
+      <label className="watch-file"><Video size={22}/><span>{file?.name ?? t('watch.chooseVideo')}</span><input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={event => setFile(event.target.files?.[0] ?? null)} required disabled={uploading}/></label>
+      <label className="watch-upload-agreement">
+        <input type="checkbox" required disabled={uploading}/>
+        <span>{uploadAgreementBefore}<Link href="/terms/">{t('terms.title')}</Link>{uploadAgreementAfter}</span>
+      </label>
+      {uploadError && <p className="form-error">{uploadError}</p>}
+      <button className="button dark" disabled={uploading}>{uploading ? t('watch.uploading') : t('watch.publish')}</button>
+    </form>}
     <AdBanner />
 
     {loading ? <div className="module-loading"><LoadingIndicator label={t('watch.loading')} /></div> : error ? <p className="feed-notice" role="alert">{error}</p> : videos.length ? <div className="community-video-grid">{videos.map(video => <article className="community-video-card" key={video.id}>

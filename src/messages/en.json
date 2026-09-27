@@ -316,6 +316,7 @@
   "watch.upload": "Upload video",
   "watch.signInUpload": "Sign in to MyDreamy to share a video.",
   "watch.uploadTitle": "Share a video",
+  "watch.uploadAgreement": "By uploading, I confirm I have the rights to share this video and agree to the {terms}.",
   "watch.videoTitle": "Title",
   "watch.descriptionLabel": "Description",
   "watch.chooseVideo": "Choose an MP4, WebM, or MOV file",
