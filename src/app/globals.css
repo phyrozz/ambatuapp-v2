@@ -224,26 +224,12 @@ img {
 .brand-block { width: max-content; max-width: 100%; }
 .beta-badge { display: block; width: max-content; margin: 7px 0 0 49px; padding: 3px 7px; border: 1px solid #f0b49f; border-radius: 999px; background: #fff1ea; color: #c94b2c; font-family: Arial, sans-serif; font-size: 8px; font-weight: 800; letter-spacing: 1.4px; line-height: 1.2; }
 .brand-mark {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--orange);
-  color: #fff9ed;
-  width: 39px;
-  height: 43px;
-  border-radius: 12px;
-  font-size: 40px;
-  font-weight: 700;
-  line-height: 1;
-  transform: rotate(-7deg);
-}
-.brand-mark span {
-  position: absolute;
-  font-size: 17px;
-  top: 1px;
-  right: 1px;
-  color: #ffd790;
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 11px;
+  object-fit: cover;
 }
 .brand small {
   display: block;
@@ -2243,7 +2229,7 @@ select {
     gap: 8px;
   }
   .brand-mark {
-    width: 35px;
+    width: 38px;
     height: 38px;
   }
   .brand small {

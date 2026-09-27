@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
@@ -122,9 +123,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <aside className="sidebar">
         <div className="brand-block">
           <Link href="/" onClick={openPwaHomepage} className="brand">
-            <span className="brand-mark">
-              a<span>✳</span>
-            </span>
+            <Image
+              src="/app-icon.svg"
+              alt=""
+              width={40}
+              height={40}
+              className="brand-mark"
+              priority
+            />
             <span>
               ambatu<span className="orange-text">app</span>
               <small>{t('shell.tagline')}</small>

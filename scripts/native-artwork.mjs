@@ -2,13 +2,21 @@ import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 const root = resolve(import.meta.dirname, '..');
-const icon = await readFile(resolve(root, 'src/app/icon.svg'));
-const foreground = Buffer.from(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108"><path d="M32 75 49 33h10l17 42H63l-3-9H46l-3 9Zm18-19h7l-3.5-12Z" fill="#fff9e9"/></svg>',
-);
+const iconSvg = await readFile(resolve(root, 'public/app-icon.svg'), 'utf8');
+const icon = Buffer.from(iconSvg);
+const foreground = await readFile(resolve(root, 'public/app-icon-foreground.svg'));
+const iconContent = iconSvg.match(/^<svg[^>]*>([\s\S]*)<\/svg>\s*$/)?.[1];
+if (!iconContent) throw new Error('Could not read the app icon SVG contents.');
+await writeFile(resolve(root, 'src/app/icon.svg'), iconSvg);
 const splash = Buffer.from(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732"><rect width="2732" height="2732" fill="#f8f7f2"/><g transform="translate(1246 1246) scale(3.75)"><rect width="64" height="64" rx="18" fill="#f6542f"/><path d="M17 45 29 17h7l12 28h-9l-2-6H27l-2 6Zm13-13h5l-2.5-8Z" fill="#fff9e9"/></g></svg>',
+  `<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732"><rect width="2732" height="2732" fill="#f8f7f2"/><svg x="1126" y="1126" width="480" height="480" viewBox="0 0 96 96">${iconContent}</svg></svg>`,
 );
+for (const [name, size] of [
+  ['app-icon-180.png', 180],
+  ['app-icon-192.png', 192],
+  ['app-icon-512.png', 512],
+])
+  await sharp(icon).resize(size, size).png().toFile(resolve(root, 'public', name));
 for (const [density, size] of [
   ['mdpi', 48],
   ['hdpi', 72],
@@ -48,4 +56,4 @@ for (const name of ['splash-2732x2732.png', 'splash-2732x2732-1.png', 'splash-27
   await sharp(splash)
     .png()
     .toFile(resolve(root, `ios/App/App/Assets.xcassets/Splash.imageset/${name}`));
-console.log('Updated Android and iOS icons and launch artwork.');
+console.log('Updated web, Android and iOS icons and launch artwork.');
