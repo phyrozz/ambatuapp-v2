@@ -4553,6 +4553,21 @@ html[data-theme='dark'] .ambatu-video__volume-range::-moz-range-thumb {
 .characters-page .character-grid {
   gap: 22px 18px;
 }
+.characters-page .character-load-more-sentinel {
+  grid-column: 1 / -1;
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+}
+.characters-page .character-load-more-sentinel > div[role='alert'] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.characters-page .character-load-more-sentinel > div[role='alert'] p {
+  margin: 0;
+  color: var(--muted);
+}
 .character-card {
   display: block;
   min-width: 0;
