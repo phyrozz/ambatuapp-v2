@@ -17,6 +17,11 @@ type AppContext = Saved & {
   ready: boolean;
   sounds: Sound[];
   soundCatalogStatus: 'loading' | 'ready' | 'error';
+  soundCatalogHasMore: boolean;
+  soundCatalogLoadingMore: boolean;
+  soundCatalogMoreError: boolean;
+  loadMoreSounds: () => Promise<void>;
+  ensureSoundLoaded: (id: string) => void;
   refreshSoundCatalog: () => void;
   playing: string[];
   loadingSounds: string[];
@@ -30,12 +35,24 @@ type AppContext = Saved & {
   setGameCharacter: (id: GameCharacterId) => void;
 };
 const Context = createContext<AppContext | null>(null);
+type SoundCatalogState = {
+  status: 'loading' | 'ready' | 'error';
+  sounds: Sound[];
+  nextCursor: string | null;
+  loadingMore: boolean;
+  moreError: boolean;
+};
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const [saved, setSaved] = useState(defaults);
   const [ready, setReady] = useState(false);
-  const [soundCatalog, setSoundCatalog] = useState<{ status: 'loading' | 'ready' | 'error'; sounds: Sound[] }>({ status: 'loading', sounds: [] });
+  const [soundCatalog, setSoundCatalog] = useState<SoundCatalogState>({ status: 'loading', sounds: [], nextCursor: null, loadingMore: false, moreError: false });
   const [soundCatalogAttempt, setSoundCatalogAttempt] = useState(0);
+  const soundCatalogCursor = useRef<string | null>(null);
+  const soundCatalogGeneration = useRef(0);
+  const soundCatalogLoadingGeneration = useRef<number | null>(null);
+  const soundLookups = useRef(new Set<string>());
   const [playing, setPlaying] = useState<string[]>([]);
   const [loadingSounds, setLoadingSounds] = useState<string[]>([]);
   const [error, setError] = useState('');
@@ -75,34 +92,70 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? `${window.location.origin}/api/public`;
     const controller = new AbortController();
-    void fetch(`${endpoint}/sounds`, { cache: 'no-store', signal: controller.signal })
-      .then(async (response) => {
-        const data = await response.json() as { sounds?: unknown; error?: string };
-        if (!response.ok || !Array.isArray(data.sounds)) throw new Error(data.error || 'Sound catalog unavailable.');
-        const items = data.sounds.flatMap((value, index): Sound[] => {
-          if (!value || typeof value !== 'object') return [];
-          const item = value as Record<string, unknown>;
-          if (typeof item.id !== 'string' || !item.id || typeof item.name !== 'string' || !item.name || typeof item.file !== 'string' || typeof item.category !== 'string' || !item.category) return [];
-          try {
-            const url = new URL(item.file);
-            if (url.protocol !== 'https:' && url.protocol !== 'http:') return [];
-          } catch { return []; }
-          return [{
-            id: item.id,
-            name: item.name,
-            file: item.file,
-            category: item.category,
-            color: typeof item.color === 'number' && Number.isInteger(item.color) ? Math.min(3, Math.max(0, item.color)) : index % 4,
-          }];
-        });
+    const generation = ++soundCatalogGeneration.current;
+    soundCatalogCursor.current = null;
+    soundCatalogLoadingGeneration.current = null;
+    void fetchSoundPage(endpoint, null, controller.signal)
+      .then((page) => {
+        if (generation !== soundCatalogGeneration.current) return;
+        soundCatalogCursor.current = page.nextCursor;
         if (controller.signal.aborted) return;
-        setSoundCatalog({ status: 'ready', sounds: items });
+        setSoundCatalog({ status: 'ready', sounds: page.sounds, nextCursor: page.nextCursor, loadingMore: false, moreError: false });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setSoundCatalog({ status: 'error', sounds: [] });
+        if (!controller.signal.aborted && generation === soundCatalogGeneration.current) {
+          setSoundCatalog({ status: 'error', sounds: [], nextCursor: null, loadingMore: false, moreError: false });
+        }
       });
     return () => controller.abort();
   }, [soundCatalogAttempt]);
+
+  const loadMoreSounds = useCallback(async () => {
+    const cursor = soundCatalogCursor.current;
+    const generation = soundCatalogGeneration.current;
+    if (!cursor || soundCatalogLoadingGeneration.current === generation) return;
+    soundCatalogLoadingGeneration.current = generation;
+    const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? `${window.location.origin}/api/public`;
+    setSoundCatalog((catalog) => ({ ...catalog, loadingMore: true, moreError: false }));
+    try {
+      const page = await fetchSoundPage(endpoint, cursor);
+      if (generation !== soundCatalogGeneration.current) return;
+      soundCatalogCursor.current = page.nextCursor;
+      setSoundCatalog((catalog) => {
+        const knownIds = new Set(catalog.sounds.map((sound) => sound.id));
+        return {
+          ...catalog,
+          sounds: [...catalog.sounds, ...page.sounds.filter((sound) => !knownIds.has(sound.id))],
+          nextCursor: page.nextCursor,
+          moreError: false,
+        };
+      });
+    } catch {
+      if (generation === soundCatalogGeneration.current) setSoundCatalog((catalog) => ({ ...catalog, moreError: true }));
+    } finally {
+      if (soundCatalogLoadingGeneration.current === generation) soundCatalogLoadingGeneration.current = null;
+      if (generation === soundCatalogGeneration.current) setSoundCatalog((catalog) => ({ ...catalog, loadingMore: false }));
+    }
+  }, []);
+
+  const ensureSoundLoaded = useCallback((id: string) => {
+    if (!id || soundLookups.current.has(id)) return;
+    soundLookups.current.add(id);
+    const generation = soundCatalogGeneration.current;
+    const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? `${window.location.origin}/api/public`;
+    const url = new URL(`${endpoint}/sounds/${encodeURIComponent(id)}`, window.location.origin);
+    void fetch(url, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const data = await response.json() as { sound?: unknown };
+        const sound = parseSound(data.sound, 0);
+        if (!sound || generation !== soundCatalogGeneration.current) return;
+        setSoundCatalog((catalog) => catalog.sounds.some((item) => item.id === sound.id)
+          ? catalog
+          : { ...catalog, sounds: [...catalog.sounds, sound] });
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (ready) {
@@ -143,6 +196,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void appListener?.then((l) => l.remove());
     };
   }, [stop]);
+  function recordSoundPlay(id: string) {
+    setSoundCatalog((catalog) => ({
+      ...catalog,
+      sounds: catalog.sounds.map((item) => item.id === id ? { ...item, playCount: item.playCount + 1 } : item),
+    }));
+
+    const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? `${window.location.origin}/api/public`;
+    void fetch(`${endpoint}/sounds/${encodeURIComponent(id)}/plays`, { method: 'POST', cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const result = await response.json() as { playCount?: unknown };
+        if (typeof result.playCount !== 'number' || !Number.isSafeInteger(result.playCount) || result.playCount < 0) return;
+        setSoundCatalog((catalog) => ({
+          ...catalog,
+          sounds: catalog.sounds.map((item) => item.id === id ? { ...item, playCount: Math.max(item.playCount, result.playCount as number) } : item),
+        }));
+      })
+      .catch(() => undefined);
+  }
   function play(sound: Sound) {
     setError('');
     const existing = players.current.get(sound.id);
@@ -175,10 +247,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     audio.volume = saved.volume;
     players.current.set(sound.id, audio);
     setLoadingSounds(ids => ids.includes(sound.id) ? ids : [...ids, sound.id]);
+    let counted = false;
     const start = () => {
       if (players.current.get(sound.id) !== audio) return;
       setLoadingSounds(ids => ids.filter(id => id !== sound.id));
       setPlaying(ids => ids.includes(sound.id) ? ids : [...ids, sound.id]);
+      if (counted) return;
+      counted = true;
+      recordSoundPlay(sound.id);
+      setSaved((s) => ({ ...s, plays: s.plays + 1 }));
     };
     const clear = () => {
       if (players.current.get(sound.id) === audio) {
@@ -199,7 +276,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then(() => {
         if (players.current.get(sound.id) !== audio) return;
         start();
-        setSaved((s) => ({ ...s, plays: s.plays + 1 }));
       })
       .catch(() => {
         if (players.current.get(sound.id) !== audio) return;
@@ -217,8 +293,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         loadingSounds,
         sounds: soundCatalog.sounds,
         soundCatalogStatus: soundCatalog.status,
+        soundCatalogHasMore: Boolean(soundCatalog.nextCursor),
+        soundCatalogLoadingMore: soundCatalog.loadingMore,
+        soundCatalogMoreError: soundCatalog.moreError,
+        loadMoreSounds,
+        ensureSoundLoaded,
         refreshSoundCatalog: () => {
-          setSoundCatalog({ status: 'loading', sounds: [] });
+          soundCatalogCursor.current = null;
+          soundCatalogGeneration.current += 1;
+          soundCatalogLoadingGeneration.current = null;
+          soundLookups.current.clear();
+          setSoundCatalog({ status: 'loading', sounds: [], nextCursor: null, loadingMore: false, moreError: false });
           setSoundCatalogAttempt((attempt) => attempt + 1);
         },
         current: soundCatalog.sounds.find((s) => s.id === playing.at(-1)),
@@ -252,4 +337,37 @@ export function useApp() {
   const value = useContext(Context);
   if (!value) throw new Error('AppProvider is required');
   return value;
+}
+
+async function fetchSoundPage(endpoint: string, cursor: string | null, signal?: AbortSignal) {
+  const url = new URL(`${endpoint}/sounds`, window.location.origin);
+  url.searchParams.set('limit', '12');
+  if (cursor) url.searchParams.set('cursor', cursor);
+  const response = await fetch(url, { cache: 'no-store', signal });
+  const data = await response.json() as { sounds?: unknown; nextCursor?: unknown; error?: string };
+  if (!response.ok || !Array.isArray(data.sounds)) throw new Error(data.error || 'Sound catalog unavailable.');
+  const sounds = data.sounds.flatMap((value, index): Sound[] => {
+    const sound = parseSound(value, index);
+    return sound ? [sound] : [];
+  });
+  return { sounds, nextCursor: typeof data.nextCursor === 'string' && data.nextCursor ? data.nextCursor : null };
+}
+
+function parseSound(value: unknown, index: number): Sound | null {
+  if (!value || typeof value !== 'object') return null;
+  const item = value as Record<string, unknown>;
+  if (typeof item.id !== 'string' || !item.id || typeof item.name !== 'string' || !item.name || typeof item.file !== 'string' || typeof item.category !== 'string' || !item.category) return null;
+  try {
+    const audioUrl = new URL(item.file);
+    if (audioUrl.protocol !== 'https:' && audioUrl.protocol !== 'http:') return null;
+  } catch { return null; }
+  return {
+    id: item.id,
+    name: item.name,
+    file: item.file,
+    category: item.category,
+    color: typeof item.color === 'number' && Number.isInteger(item.color) ? Math.min(3, Math.max(0, item.color)) : index % 4,
+    createdAt: typeof item.createdAt === 'string' ? item.createdAt : null,
+    playCount: typeof item.playCount === 'number' && Number.isSafeInteger(item.playCount) && item.playCount >= 0 ? item.playCount : 0,
+  };
 }

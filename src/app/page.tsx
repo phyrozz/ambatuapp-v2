@@ -115,7 +115,7 @@ export default function Home() {
         />
         {sounds.length > 0 && <div className="sound-grid">
           {sounds.slice(0, 4).map((sound, i) => (
-            <SoundCard key={sound.id} sound={sound} index={i} />
+            <SoundCard key={sound.id} sound={sound} index={i} showPlayCount />
           ))}
         </div>}
         <p className="section-footnote">

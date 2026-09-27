@@ -71,7 +71,7 @@ function GameArtwork({ id }: { id: string }) {
     </div>
   );
 }
-export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }) {
+export function SoundCard({ sound, index = 0, showPlayCount = false }: { sound: Sound; index?: number; showPlayCount?: boolean }) {
   const { play, playing, loadingSounds, favorites, toggleFavorite } = useApp();
   const { t } = useI18n();
   const active = playing.includes(sound.id);
@@ -108,9 +108,10 @@ export function SoundCard({ sound, index = 0 }: { sound: Sound; index?: number }
           ))}
         </span>
         <span className="sound-caption">
-          <span>
+          <span className="sound-card-copy">
             <b>{sound.name}</b>
             <small>{category}</small>
+            {showPlayCount && <small className="sound-play-count">{t(sound.playCount === 1 ? 'sounds.playCountSingular' : 'sounds.playCountPlural', { count: sound.playCount })}</small>}
           </span>
           <span className="round-play">
             {loading ? (

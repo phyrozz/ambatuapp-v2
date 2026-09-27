@@ -4,6 +4,8 @@ export type Sound = {
   file: string;
   category: string;
   color: number;
+  createdAt: string | null;
+  playCount: number;
 };
 
 export const games = [

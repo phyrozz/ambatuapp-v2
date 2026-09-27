@@ -17,7 +17,7 @@ type CharacterResult = {
 
 export function CharacterDetail({ id }: { id: string }) {
   const { t } = useI18n();
-  const { sounds } = useApp();
+  const { sounds, soundCatalogStatus, ensureSoundLoaded } = useApp();
   const [result, setResult] = useState<CharacterResult | null>(null);
 
   useEffect(() => {
@@ -33,6 +33,13 @@ export function CharacterDetail({ id }: { id: string }) {
   }, [id, t]);
 
   const current = result?.id === id ? result : null;
+  const character = current?.character ?? null;
+  useEffect(() => {
+    if (!character?.soundIds.length || soundCatalogStatus !== 'ready') return;
+    const loadedIds = new Set(sounds.map((sound) => sound.id));
+    character.soundIds.filter((soundId) => !loadedIds.has(soundId)).forEach(ensureSoundLoaded);
+  }, [character, ensureSoundLoaded, soundCatalogStatus, sounds]);
+
   if (!current) {
     return (
       <div className="page character-detail-page">
@@ -45,7 +52,7 @@ export function CharacterDetail({ id }: { id: string }) {
     );
   }
 
-  if (!current.character) {
+  if (!character) {
     return (
       <div className="page character-detail-page">
         <Link href="/characters/" className="back-link">
@@ -60,7 +67,6 @@ export function CharacterDetail({ id }: { id: string }) {
     );
   }
 
-  const character = current.character;
   const related = character.soundIds.length
     ? sounds.filter((sound) => character.soundIds.includes(sound.id)).slice(0, 4)
     : [];

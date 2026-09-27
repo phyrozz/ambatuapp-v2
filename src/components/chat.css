@@ -420,4 +420,4 @@ html[data-theme='dark'] .chat-camera-preview { background: #090909; }
   .chat-camera-preview > .ambatu-video { animation: none !important; }
 }
 .chat-inbox-pagination{min-height:22px;padding:8px;display:grid;place-items:center}
-.chat-sound-load-more-sentinel{height:1px}
+.chat-sound-load-more-sentinel{display:grid;place-items:center;min-height:42px}
