@@ -405,6 +405,7 @@
   "chat.connectionError": "Could not connect to chat. Refresh and try again.",
   "chat.historyError": "Could not load messages.",
   "chat.loadingOlder": "Loading earlier messages...",
+  "chat.jumpToLatest": "Return to latest message",
   "chat.searchError": "Could not search usernames.",
   "chat.createError": "Could not start this conversation.",
   "chat.sendError": "Could not send your message.",

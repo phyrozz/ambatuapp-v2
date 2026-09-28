@@ -1,5 +1,5 @@
 export type ChatConversation = { id: string; members: string[]; group: boolean; title: string; names: Record<string, string>; updatedAt: number; lastMessage?: string; muted?: boolean; unreadCount?: number };
-export type ChatMessage = { id: string; conversationId: string; senderId: string; kind: 'text' | 'image' | 'video' | 'gif' | 'sound'; text: string; url?: string; createdAt: number; messageKey?: string; reactions?: Record<string, string> };
+export type ChatMessage = { id: string; conversationId: string; senderId: string; kind: 'text' | 'image' | 'video' | 'gif' | 'sound'; text: string; url?: string; key?: string; createdAt: number; messageKey?: string; reactions?: Record<string, string>; mediaUrlExpiresAt?: number };
 export type ChatReaction = { conversationId: string; messageKey: string; reactions: Record<string, string> };
 
 export function withCurrentNames(item: ChatConversation, resolved: Record<string, string>): ChatConversation {

@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { Capacitor } from '@capacitor/core';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, AudioLines, Bell, BellOff, Camera, Flag, ImagePlus, MessageCircle, MoreHorizontal, Plus, Search, Send, UsersRound, Video, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, AudioLines, Bell, BellOff, Camera, Flag, ImagePlus, MessageCircle, MoreHorizontal, Plus, Search, Send, UsersRound, Video, X } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
@@ -16,6 +16,7 @@ import { CustomCheckbox } from './custom-checkbox';
 import { ChatGroupMembers } from './chat-group-members';
 import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
 import { ChatSocket, withCurrentNames, type ChatConversation, type ChatMessage } from '@/lib/chat';
+import { deleteCachedConversation, loadCachedConversations, loadCachedMessages, saveCachedConversations, saveCachedMessages } from '@/lib/chat-cache';
 import { initializePlayerProfile } from '@/lib/player-profile';
 import { enableChatPush, installPushNavigation, syncChatPush } from '@/lib/push-notifications';
 
@@ -39,6 +40,28 @@ function mergeConversations(existing: ChatConversation[], incoming: ChatConversa
   const merged = new Map(existing.map(item => [item.id, item]));
   incoming.forEach(item => merged.set(item.id, item));
   return [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function mergeMessages(existing: ChatMessage[], incoming: ChatMessage[]) {
+  const merged = new Map(existing.map(item => [item.id, item]));
+  incoming.forEach(item => merged.set(item.id, item));
+  return [...merged.values()].sort((a, b) => a.createdAt - b.createdAt || (a.messageKey ?? a.id).localeCompare(b.messageKey ?? b.id));
+}
+
+function formatChatMessageTime(timestamp: number, locale: 'en' | 'id') {
+  const date = new Date(timestamp);
+  const age = Date.now() - date.getTime();
+  const day = 24 * 60 * 60 * 1000;
+  if (age <= day) return date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  const units: { unit: Intl.RelativeTimeFormatUnit; milliseconds: number }[] = [
+    { unit: 'year', milliseconds: 365 * day },
+    { unit: 'month', milliseconds: 30 * day },
+    { unit: 'week', milliseconds: 7 * day },
+    { unit: 'day', milliseconds: day },
+  ];
+  const selected = units.find(item => age >= item.milliseconds) ?? units[3];
+  return new Intl.RelativeTimeFormat(locale, { numeric: 'always' }).format(-Math.floor(age / selected.milliseconds), selected.unit);
 }
 
 function loadAvatarImage(url: string) {
@@ -159,6 +182,14 @@ function ChatMessageText({ text }: { text: string }) {
   return <>{content}</>;
 }
 
+function ChatMessageImage({ src, alt, onLoad }: { src?: string; alt: string; onLoad?: () => void }) {
+  const [loaded, setLoaded] = useState(false);
+  return <span className="chat-message-image" data-loaded={loaded || undefined}>
+    <span className="chat-message-image-placeholder" aria-hidden="true" />
+    <img src={src} alt={alt} onLoad={() => { setLoaded(true); onLoad?.(); }} />
+  </span>;
+}
+
 function mentionQueryAt(value: string, cursor: number) {
   const beforeCursor = value.slice(0, cursor);
   const start = beforeCursor.lastIndexOf('@');
@@ -184,6 +215,7 @@ export function ChatPage() {
   const [conversationRetryBlocked, setConversationRetryBlocked] = useState(false);
   const [active, setActive] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [loadingHistoryFor, setLoadingHistoryFor] = useState('');
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -267,6 +299,10 @@ export function ChatPage() {
   const reactionHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactionHoldStart = useRef<{ x: number; y: number } | null>(null);
   const reactionHoldTriggered = useRef(false);
+
+  useEffect(() => {
+    setShowJumpToLatest(false);
+  }, [active]);
 
   useEffect(() => {
     if (!chatActionsOpen) return;
@@ -429,9 +465,11 @@ export function ChatPage() {
       setHasMoreConversations(Boolean(cursor));
       const removedActive = requestedActive && data.activeConversation === null && activeRef.current === requestedActive;
       if (removedActive || (!cursor && activeRef.current && !next.some(item => item.id === activeRef.current))) {
+        if (removedActive && userId) void deleteCachedConversation(userId, requestedActive).catch(() => {});
         activeGeneration.current++;
         activeRef.current = '';
         setActive('');
+        setHistoryCursor(null);
         setDraftMentions({}); setMentionQuery(null);
         setMessages([]);
         setMembersOpen(false);
@@ -444,7 +482,7 @@ export function ChatPage() {
     } catch {
       if (client === socket.current && requestVersion === conversationRefreshVersion.current) lastNamesFetch.current = 0;
     }
-  }, [hydrateConversationPage]);
+  }, [hydrateConversationPage, userId]);
 
   const loadMoreConversations = useCallback(async () => {
     const client = socket.current;
@@ -523,14 +561,42 @@ export function ChatPage() {
     conversationPageGeneration.current++;
     conversationPageLoading.current = false;
     conversationCursor.current = null;
+    activeGeneration.current++;
+    activeRef.current = '';
+    setActive('');
+    setMessages([]);
+    setLoadingHistoryFor('');
+    setHistoryCursor(null);
     setConversations([]);
     setPlayerAvatarUrls({});
     setInitialChatsLoaded(false);
     setLoadingMoreConversations(false);
     setHasMoreConversations(false);
     setConversationRetryBlocked(false);
+    if (!user?.id) return;
+    let cancelled = false;
+    void loadCachedConversations(user.id).then(cached => {
+      if (cancelled) return;
+      setConversations(items => mergeConversations(cached, items));
+      setInitialChatsLoaded(true);
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, [user?.id]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!userId || !conversations.length) return;
+    const timer = window.setTimeout(() => { void saveCachedConversations(userId, conversations).catch(() => {}); }, 120);
+    return () => window.clearTimeout(timer);
+  }, [conversations, userId]);
+
+  useEffect(() => {
+    if (!userId || !active) return;
+    const thread = messages.filter(message => message.conversationId === active);
+    if (!thread.length) return;
+    const timer = window.setTimeout(() => { void saveCachedMessages(userId, active, thread).catch(() => {}); }, 120);
+    return () => window.clearTimeout(timer);
+  }, [active, messages, userId]);
 
   useEffect(() => {
     if (!ready || !user || !wsUrl) return;
@@ -607,6 +673,7 @@ export function ChatPage() {
           pendingReadConversations.current.add(id);
           advanceConversationReadVersion(conversationReadVersions.current, id);
           activeRef.current = id;
+          setHistoryCursor(null);
           setDraftMentions({}); setMentionQuery(null);
           setActive(id);
           await refresh(client);
@@ -619,6 +686,7 @@ export function ChatPage() {
             pendingReadConversations.current.add(conversation);
             advanceConversationReadVersion(conversationReadVersions.current, conversation);
             activeRef.current = conversation;
+            setHistoryCursor(null);
             setDraftMentions({}); setMentionQuery(null);
             setActive(conversation);
             await refresh(client);
@@ -632,7 +700,20 @@ export function ChatPage() {
   }, [ready, user, getAccessToken, params, refresh, markConversationRead, reconnect, t]);
 
   useEffect(() => {
-    if (!active || !socket.current || status !== 'ready') return;
+    if (!active || !userId) return;
+    let cancelled = false;
+    void loadCachedMessages(userId, active).then(cached => {
+      if (cancelled || activeRef.current !== active || !cached.length) return;
+      setMessages(items => mergeMessages(cached, items.filter(item => item.conversationId === active)));
+      setHistoryCursor(cursor => cursor ?? cached[0]?.messageKey ?? null);
+      setLoadingHistoryFor(value => value === active ? '' : value);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [active, userId]);
+
+  useEffect(() => {
+    const client = socket.current;
+    if (!active || !client || status !== 'ready') return;
     activeRef.current = active;
     stickToBottom.current = true;
     restoreScroll.current = null;
@@ -644,29 +725,89 @@ export function ChatPage() {
     setMembersOpen(false);
     setHistoryCursor(null);
     let cancelled = false;
+    const generation = activeGeneration.current;
     const historyReadVersion = conversationReadVersions.current.get(active) ?? 0;
-    socket.current.request('history', { conversation: active }).then(data => {
-      const page = data.messages as ChatMessage[] ?? [];
-      const latest = page.at(-1);
-      if (!cancelled && activeRef.current === active) {
-        setMessages(items => [...page, ...items.filter(item => item.conversationId === active && !page.some(message => message.id === item.id))].sort((a, b) => a.createdAt - b.createdAt));
-        setHistoryCursor(typeof data.nextCursor === 'string' ? data.nextCursor : null);
+    const isCurrent = () => !cancelled && activeRef.current === active && activeGeneration.current === generation;
+    const applyMediaUrls = (value: unknown) => {
+      if (!value || typeof value !== 'object') return;
+      const urls = value as Record<string, unknown>;
+      setMessages(items => items.map(message => {
+        if (message.conversationId !== active) return message;
+        const url = message.messageKey ? urls[message.messageKey] : undefined;
+        return typeof url === 'string' ? { ...message, url, mediaUrlExpiresAt: Date.now() + 55 * 60 * 1000 } : message;
+      }));
+    };
+    const refreshRemainingMedia = async (messageKeys: string[]) => {
+      for (let start = 0; start < messageKeys.length; start += 100) {
+        if (client !== socket.current) return;
+        const data = await client.request('history', { conversation: active, refreshMedia: messageKeys.slice(start, start + 100) });
+        if (isCurrent()) applyMediaUrls(data.mediaUrls);
       }
+    };
+    const fetchHistory = async () => {
+      let cached: ChatMessage[] = [];
+      if (userId) cached = await loadCachedMessages(userId, active).catch(() => []);
+      if (isCurrent() && cached.length) {
+        setMessages(items => mergeMessages(cached, items.filter(item => item.conversationId === active)));
+        setHistoryCursor(cursor => cursor ?? cached[0]?.messageKey ?? null);
+        setLoadingHistoryFor(value => value === active ? '' : value);
+      }
+
+      const newestCached = cached.at(-1);
+      const mediaToRefresh = cached
+        .filter(message => message.key && (message.kind === 'image' || message.kind === 'video') && (!message.url || !message.mediaUrlExpiresAt || message.mediaUrlExpiresAt <= Date.now() + 5 * 60 * 1000))
+        .map(message => message.messageKey)
+        .filter((key): key is string => Boolean(key));
+      let latest = newestCached;
+
+      if (newestCached?.messageKey && /^MSG#\d{13}#[a-f0-9]{32}$/.test(newestCached.messageKey)) {
+        let after = newestCached.messageKey;
+        for (let pageCount = 0; pageCount < 10; pageCount += 1) {
+          const refreshMedia = pageCount === 0 ? mediaToRefresh.slice(0, 100) : [];
+          const data = await client.request('history', { conversation: active, after, ...(refreshMedia.length ? { refreshMedia } : {}) });
+          if (isCurrent()) applyMediaUrls(data.mediaUrls);
+          const page = data.messages as ChatMessage[] ?? [];
+          if (page.length) {
+            latest = page.at(-1) ?? latest;
+            after = latest?.messageKey ?? after;
+            if (isCurrent()) setMessages(items => mergeMessages(items.filter(item => item.conversationId === active), page));
+          }
+          const newerCursor = typeof data.newerCursor === 'string' ? data.newerCursor : null;
+          if (!newerCursor) break;
+          after = newerCursor;
+        }
+        await refreshRemainingMedia(mediaToRefresh.slice(100)).catch(() => {});
+      } else {
+        const data = await client.request('history', {
+          conversation: active,
+          ...(mediaToRefresh.length ? { refreshMedia: mediaToRefresh.slice(0, 100) } : {}),
+        });
+        const page = data.messages as ChatMessage[] ?? [];
+        latest = page.at(-1) ?? latest;
+        if (isCurrent()) {
+          setMessages(items => mergeMessages(items.filter(item => item.conversationId === active), page));
+          setHistoryCursor(typeof data.nextCursor === 'string' ? data.nextCursor : null);
+        }
+        if (isCurrent()) applyMediaUrls(data.mediaUrls);
+        await refreshRemainingMedia(mediaToRefresh.slice(100)).catch(() => {});
+      }
+
       // Finish the read acknowledgement even if the user backs out before history returns.
-      if (latest?.messageKey && socket.current) void markConversationRead(socket.current, active, latest.messageKey);
+      if (latest?.messageKey && client === socket.current) void markConversationRead(client, active, latest.messageKey);
       else if (pendingReadConversations.current.has(active) && conversationReadVersions.current.get(active) === historyReadVersion) {
         pendingReadConversations.current.delete(active);
-        if (socket.current) void refresh(socket.current).catch(() => {});
+        if (client === socket.current) void refresh(client).catch(() => {});
       }
-    }).catch(() => {
+    };
+    void fetchHistory().catch(() => {
       if (pendingReadConversations.current.has(active) && conversationReadVersions.current.get(active) === historyReadVersion) {
         pendingReadConversations.current.delete(active);
-        if (socket.current) void refresh(socket.current).catch(() => {});
+        if (client === socket.current) void refresh(client).catch(() => {});
       }
-      if (!cancelled && socket.current?.isOpen) setError(t('chat.historyError'));
-    }).finally(() => { if (!cancelled) setLoadingHistoryFor(''); });
+      if (isCurrent() && client.isOpen) setError(t('chat.historyError'));
+    }).finally(() => { if (isCurrent()) setLoadingHistoryFor(''); });
     return () => { cancelled = true; };
-  }, [active, status, reconnect, t, markConversationRead, refresh]);
+  }, [active, status, reconnect, userId, t, markConversationRead, refresh]);
   useLayoutEffect(() => {
     const pane = messagePane.current;
     if (!pane) return;
@@ -682,6 +823,7 @@ export function ChatPage() {
   }
   function queueScrollToBottom() {
     stickToBottom.current = true;
+    setShowJumpToLatest(false);
     requestAnimationFrame(() => requestAnimationFrame(scrollMessagesToBottom));
   }
 
@@ -791,7 +933,7 @@ export function ChatPage() {
       pendingReadConversations.current.add(id);
       advanceConversationReadVersion(conversationReadVersions.current, id);
       setDraftMentions({}); setMentionQuery(null);
-      setMessages([]); setLoadingHistoryFor(id); activeRef.current = id; setActive(id); setSelected([]); setQuery(''); setSearchLoading(false); setGroup(false); setGroupTitle('');
+      setMessages([]); setLoadingHistoryFor(id); activeRef.current = id; setHistoryCursor(null); setActive(id); setSelected([]); setQuery(''); setSearchLoading(false); setGroup(false); setGroupTitle('');
       await refresh(socket.current);
     } catch (reason) { setError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.createError')); } finally { setBusy(false); }
   }
@@ -803,6 +945,7 @@ export function ChatPage() {
       if (!adding && target.id === user.id) {
         if (activeRef.current === conversation) returnToInbox();
         setConversations(items => items.filter(item => item.id !== conversation));
+        void deleteCachedConversation(user.id, conversation).catch(() => {});
       } else {
         setConversations(items => items.map(item => item.id === conversation ? { ...item, members: result.members as string[], names: result.names as Record<string, string> } : item));
       }
@@ -841,7 +984,7 @@ export function ChatPage() {
       pendingReadConversations.current.add(id);
       advanceConversationReadVersion(conversationReadVersions.current, id);
       setDraftMentions({}); setMentionQuery(null);
-      setMessages([]); setLoadingHistoryFor(id); activeRef.current = id; setActive(id);
+      setMessages([]); setLoadingHistoryFor(id); activeRef.current = id; setHistoryCursor(null); setActive(id);
       await refresh(socket.current);
     } catch (reason) { setInviteError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.inviteAcceptError')); }
     finally { setInviteBusy(false); }
@@ -1042,6 +1185,7 @@ export function ChatPage() {
     setDraftMentions({}); setMentionQuery(null);
     setMessages([]); setLoadingHistoryFor(conversation);
     activeRef.current = conversation;
+    setHistoryCursor(null);
     setActive(conversation);
   }
   const returnToInbox = useCallback((fromBrowserBack = false) => {
@@ -1106,7 +1250,7 @@ export function ChatPage() {
           {hasMoreConversations && <div ref={inboxLoadMoreSentinel} className="chat-inbox-pagination">{loadingMoreConversations && <LoadingIndicator label={t('common.loading')} compact/>}</div>}
         </> : <p className="chat-empty-inbox">{t('chat.emptyInbox')}</p>}
       </div>
-    </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={() => returnToInbox()} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : (() => { const other = current.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <img src={playerAvatarUrls[other]} alt="" aria-hidden="true"/> : title(current).slice(0, 1).toUpperCase(); })()}</span><div className="chat-thread-title"><div className="chat-thread-title-row"><h2>{title(current)}</h2>{current.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</div><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><div className="chat-header-actions"><button type="button" className="chat-icon chat-header-action" onClick={() => void toggleMute()} aria-label={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')} title={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')}>{current.muted ? <BellOff size={18}/> : <Bell size={18}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-icon chat-header-action" onClick={() => { setMembersError(''); setMembersOpen(true); }} aria-label={t('chat.manageMembers')} title={t('chat.manageMembers')}><UsersRound size={18}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-icon chat-header-action" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')} title={t('chat.reportConversation')}><Flag size={18}/><span>{t('chat.actionReport')}</span></button></div><div className="chat-actions-mobile" ref={chatActionsMenu}><button type="button" className="chat-icon" aria-label={t('chat.moreActions')} ref={chatActionsTrigger} aria-expanded={chatActionsOpen} aria-controls="chat-actions-menu" onClick={() => setChatActionsOpen(open => !open)}><MoreHorizontal size={19}/></button><div className="chat-actions-menu" id="chat-actions-menu" role="group" aria-label={t('chat.moreActions')} aria-hidden={!chatActionsOpen} data-open={chatActionsOpen}><button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); void toggleMute(); }}>{current.muted ? <BellOff size={17}/> : <Bell size={17}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setMembersError(''); setMembersOpen(true); }}><UsersRound size={17}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setReportOpen(true); }}><Flag size={17}/><span>{t('chat.actionReport')}</span></button></div></div></header><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; stickToBottom.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map(message => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${(message.kind === 'image' || message.kind === 'gif' || message.kind === 'video') ? 'media-bubble' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={message.id} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (message.messageKey && !isMessageControl(event.target)) { event.preventDefault(); setRevealedReactionMessageKey(message.messageKey); if (reactionToolbarMessageKey !== message.messageKey) toggleReactionToolbar(message.messageKey); } }}>{current.group && <small>{playerAvatarUrls[message.senderId] ? <img className="chat-message-avatar" src={playerAvatarUrls[message.senderId]} alt="" aria-hidden="true"/> : <span className="chat-message-avatar fallback" aria-hidden="true">{(current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)).slice(0, 1).toUpperCase()}</span>}{current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)}</small>}{message.kind === 'image' || message.kind === 'gif' ? <img src={message.kind === 'gif' ? message.text : message.url} alt={t(message.kind === 'gif' ? 'chat.gif' : 'chat.image')} onLoad={() => { if (stickToBottom.current) scrollMessagesToBottom(); }}/> : message.kind === 'video' ? message.url && <MediaPlayer src={message.url} variant="chat" onLoadedMetadata={() => { if (stickToBottom.current) scrollMessagesToBottom(); }} /> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <p><ChatMessageText text={message.text}/></p>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{new Date(message.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><div className="chat-attachment" ref={attachmentMenu}><button ref={attachmentTrigger} type="button" className="chat-icon chat-attachment-trigger" onClick={() => setAttachmentsOpen(open => !open)} aria-label={t('chat.attach')} aria-expanded={attachmentsOpen} aria-controls="chat-attachment-menu"><ImagePlus size={19}/></button><div className="chat-attachment-menu" id="chat-attachment-menu" role="menu" aria-label={t('chat.attach')} aria-hidden={!attachmentsOpen} data-open={attachmentsOpen}><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); photoInput.current?.click(); }}><Camera size={17}/><span>{t('chat.takePhoto')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { void openVideoRecorder(); }}><Video size={17}/><span>{t('chat.recordVideo')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); mediaInput.current?.click(); }}><ImagePlus size={17}/><span>{t('chat.chooseMedia')}</span></button></div><input ref={photoInput} className="chat-file-input" type="file" accept="image/*" capture="environment" onChange={event => { void upload(event.target.files?.[0], true); event.target.value = ''; }}/><input ref={mediaInput} className="chat-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></div><button type="button" className="chat-icon chat-sound-toggle" onClick={() => { setAttachmentsOpen(false); setSoundPickerOpen(!soundPickerOpen); }} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><div className="chat-message-field"><input ref={messageInput} value={draft} maxLength={2000} onChange={event => updateDraft(event.target.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)} onClick={event => updateDraft(draft, event.currentTarget.selectionStart ?? draft.length)} onKeyDown={event => { if (mentionOptions.length && event.key === 'Enter') { event.preventDefault(); insertMention(mentionOptions[0].id, mentionOptions[0].name); } else if (mentionOptions.length && event.key === 'ArrowDown') { event.preventDefault(); event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.chat-mention-menu button')?.focus(); } }} role="combobox" aria-autocomplete="list" aria-expanded={mentionOptions.length > 0} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')} aria-controls={mentionOptions.length ? 'chat-mention-list' : undefined}/>{mentionOptions.length > 0 && <div className="chat-mention-menu" id="chat-mention-list" role="listbox">{mentionOptions.map(player => <button key={player.id} type="button" role="option" aria-selected={false} aria-label={t('chat.mentionUser', { name: player.name })} onPointerDown={event => event.preventDefault()} onClick={() => insertMention(player.id, player.name)}><span className="chat-mention-avatar">{player.name.slice(0, 1).toUpperCase()}</span><span>{player.name}</span></button>)}</div>}</div><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form><ChatSoundPicker busy={busy} open={soundPickerOpen} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>{cameraOpen && createPortal(<div className="chat-modal-backdrop chat-camera-backdrop" role="presentation"><section className="chat-modal chat-camera-modal" role="dialog" aria-modal="true" aria-labelledby="chat-camera-title" onClick={event => event.stopPropagation()}><button type="button" className="chat-icon chat-camera-close" onClick={closeVideoRecorder} aria-label={t('chat.closeCamera')}><X size={18}/></button><Video size={24}/><h2 id="chat-camera-title">{t('chat.cameraTitle')}</h2><p>{t('chat.cameraInstructions')}</p>{cameraError && <p className="form-error" role="alert">{cameraError}</p>}<div className="chat-camera-preview">{recordedVideoUrl ? <MediaPlayer src={recordedVideoUrl} variant="chat" /> : <video ref={cameraVideo} autoPlay muted playsInline/>}</div><p className="chat-camera-timer" data-recording={recording} aria-live="polite">{t('chat.recordingTimer', { time: `0:${String(recordingSeconds).padStart(2, '0')}` })}</p><div className="chat-camera-actions">{recording ? <button type="button" className="button dark" onClick={stopVideoRecording}>{t('chat.stopRecording')}</button> : recordedVideo ? <><button type="button" className="button secondary" onClick={startVideoRecording}>{t('chat.recordAgain')}</button><button type="button" className="button dark" disabled={busy} onClick={sendRecordedVideo}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{t('chat.sendVideo')}</button></> : <button type="button" className="button dark" disabled={!cameraStream} onClick={startVideoRecording}>{t('chat.startRecording')}</button>}</div></section></div>, document.body)}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
+    </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={() => returnToInbox()} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : (() => { const other = current.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <img src={playerAvatarUrls[other]} alt="" aria-hidden="true"/> : title(current).slice(0, 1).toUpperCase(); })()}</span><div className="chat-thread-title"><div className="chat-thread-title-row"><h2>{title(current)}</h2>{current.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</div><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><div className="chat-header-actions"><button type="button" className="chat-icon chat-header-action" onClick={() => void toggleMute()} aria-label={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')} title={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')}>{current.muted ? <BellOff size={18}/> : <Bell size={18}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-icon chat-header-action" onClick={() => { setMembersError(''); setMembersOpen(true); }} aria-label={t('chat.manageMembers')} title={t('chat.manageMembers')}><UsersRound size={18}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-icon chat-header-action" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')} title={t('chat.reportConversation')}><Flag size={18}/><span>{t('chat.actionReport')}</span></button></div><div className="chat-actions-mobile" ref={chatActionsMenu}><button type="button" className="chat-icon" aria-label={t('chat.moreActions')} ref={chatActionsTrigger} aria-expanded={chatActionsOpen} aria-controls="chat-actions-menu" onClick={() => setChatActionsOpen(open => !open)}><MoreHorizontal size={19}/></button><div className="chat-actions-menu" id="chat-actions-menu" role="group" aria-label={t('chat.moreActions')} aria-hidden={!chatActionsOpen} data-open={chatActionsOpen}><button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); void toggleMute(); }}>{current.muted ? <BellOff size={17}/> : <Bell size={17}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setMembersError(''); setMembersOpen(true); }}><UsersRound size={17}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setReportOpen(true); }}><Flag size={17}/><span>{t('chat.actionReport')}</span></button></div></div></header><div className="chat-message-scroll-area"><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; const isNearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; stickToBottom.current = isNearBottom; setShowJumpToLatest(!isNearBottom); if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map(message => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${(message.kind === 'image' || message.kind === 'gif' || message.kind === 'video') ? 'media-bubble' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={message.id} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (message.messageKey && !isMessageControl(event.target)) { event.preventDefault(); setRevealedReactionMessageKey(message.messageKey); if (reactionToolbarMessageKey !== message.messageKey) toggleReactionToolbar(message.messageKey); } }}>{current.group && <small>{playerAvatarUrls[message.senderId] ? <img className="chat-message-avatar" src={playerAvatarUrls[message.senderId]} alt="" aria-hidden="true"/> : <span className="chat-message-avatar fallback" aria-hidden="true">{(current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)).slice(0, 1).toUpperCase()}</span>}{current.names?.[message.senderId] ?? (message.senderId === user.id ? user.name : message.senderId)}</small>}{message.kind === 'image' || message.kind === 'gif' ? <ChatMessageImage src={message.kind === 'gif' ? message.text : message.url} alt={t(message.kind === 'gif' ? 'chat.gif' : 'chat.image')} key={message.kind === 'gif' ? message.text : message.url} onLoad={() => { if (stickToBottom.current) scrollMessagesToBottom(); }}/> : message.kind === 'video' ? message.url && <MediaPlayer src={message.url} variant="chat" onLoadedMetadata={() => { if (stickToBottom.current) scrollMessagesToBottom(); }} /> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <p><ChatMessageText text={message.text}/></p>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{formatChatMessageTime(message.createdAt, locale)}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div>{showJumpToLatest && <button type="button" className="chat-jump-latest" onClick={queueScrollToBottom} aria-label={t('chat.jumpToLatest')}><ArrowDown size={20}/></button>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><div className="chat-attachment" ref={attachmentMenu}><button ref={attachmentTrigger} type="button" className="chat-icon chat-attachment-trigger" onClick={() => setAttachmentsOpen(open => !open)} aria-label={t('chat.attach')} aria-expanded={attachmentsOpen} aria-controls="chat-attachment-menu"><ImagePlus size={19}/></button><div className="chat-attachment-menu" id="chat-attachment-menu" role="menu" aria-label={t('chat.attach')} aria-hidden={!attachmentsOpen} data-open={attachmentsOpen}><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); photoInput.current?.click(); }}><Camera size={17}/><span>{t('chat.takePhoto')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { void openVideoRecorder(); }}><Video size={17}/><span>{t('chat.recordVideo')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); mediaInput.current?.click(); }}><ImagePlus size={17}/><span>{t('chat.chooseMedia')}</span></button></div><input ref={photoInput} className="chat-file-input" type="file" accept="image/*" capture="environment" onChange={event => { void upload(event.target.files?.[0], true); event.target.value = ''; }}/><input ref={mediaInput} className="chat-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></div><button type="button" className="chat-icon chat-sound-toggle" onClick={() => { setAttachmentsOpen(false); setSoundPickerOpen(!soundPickerOpen); }} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><div className="chat-message-field"><input ref={messageInput} value={draft} maxLength={2000} onChange={event => updateDraft(event.target.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)} onClick={event => updateDraft(draft, event.currentTarget.selectionStart ?? draft.length)} onKeyDown={event => { if (mentionOptions.length && event.key === 'Enter') { event.preventDefault(); insertMention(mentionOptions[0].id, mentionOptions[0].name); } else if (mentionOptions.length && event.key === 'ArrowDown') { event.preventDefault(); event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.chat-mention-menu button')?.focus(); } }} role="combobox" aria-autocomplete="list" aria-expanded={mentionOptions.length > 0} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')} aria-controls={mentionOptions.length ? 'chat-mention-list' : undefined}/>{mentionOptions.length > 0 && <div className="chat-mention-menu" id="chat-mention-list" role="listbox">{mentionOptions.map(player => <button key={player.id} type="button" role="option" aria-selected={false} aria-label={t('chat.mentionUser', { name: player.name })} onPointerDown={event => event.preventDefault()} onClick={() => insertMention(player.id, player.name)}><span className="chat-mention-avatar">{player.name.slice(0, 1).toUpperCase()}</span><span>{player.name}</span></button>)}</div>}</div><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form><ChatSoundPicker busy={busy} open={soundPickerOpen} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>{cameraOpen && createPortal(<div className="chat-modal-backdrop chat-camera-backdrop" role="presentation"><section className="chat-modal chat-camera-modal" role="dialog" aria-modal="true" aria-labelledby="chat-camera-title" onClick={event => event.stopPropagation()}><button type="button" className="chat-icon chat-camera-close" onClick={closeVideoRecorder} aria-label={t('chat.closeCamera')}><X size={18}/></button><Video size={24}/><h2 id="chat-camera-title">{t('chat.cameraTitle')}</h2><p>{t('chat.cameraInstructions')}</p>{cameraError && <p className="form-error" role="alert">{cameraError}</p>}<div className="chat-camera-preview">{recordedVideoUrl ? <MediaPlayer src={recordedVideoUrl} variant="chat" /> : <video ref={cameraVideo} autoPlay muted playsInline/>}</div><p className="chat-camera-timer" data-recording={recording} aria-live="polite">{t('chat.recordingTimer', { time: `0:${String(recordingSeconds).padStart(2, '0')}` })}</p><div className="chat-camera-actions">{recording ? <button type="button" className="button dark" onClick={stopVideoRecording}>{t('chat.stopRecording')}</button> : recordedVideo ? <><button type="button" className="button secondary" onClick={startVideoRecording}>{t('chat.recordAgain')}</button><button type="button" className="button dark" disabled={busy} onClick={sendRecordedVideo}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{t('chat.sendVideo')}</button></> : <button type="button" className="button dark" disabled={!cameraStream} onClick={startVideoRecording}>{t('chat.startRecording')}</button>}</div></section></div>, document.body)}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
     {membersOpen && current?.group && <ChatGroupMembers conversation={current} avatarUrls={playerAvatarUrls} userId={user.id} busy={membersBusy} sharing={sharing} actionError={membersError} getIdToken={getIdToken} onAdd={player => { void updateGroupMember(current.id, player, true); }} onRemove={id => { void updateGroupMember(current.id, { id, username: current.names?.[id] ?? id }, false); }} onShare={() => { void shareGroup(current.id); }} onClose={() => setMembersOpen(false)} />}
     {shareUrl && <ChatShareDialog url={shareUrl} group onClose={() => setShareUrl('')}/>}
     {(inviteLoading || inviteDetails || inviteError) && <div className="chat-modal-backdrop" role="presentation"><section className="chat-modal chat-invite-modal" role="dialog" aria-modal="true" aria-label={t('chat.inviteTitle')}><button type="button" className="chat-icon" onClick={dismissInvite} aria-label={t('chat.dismiss')}><X size={18}/></button><UsersRound size={27}/><h2>{t('chat.inviteTitle')}</h2>{inviteLoading ? <LoadingIndicator label={t('common.loading')}/> : inviteDetails ? <><h3>{inviteDetails.title}</h3><p>{t('chat.inviteMembers', { count: inviteDetails.memberCount })}</p>{inviteError && <p className="form-error" role="alert">{inviteError}</p>}<div className="chat-invite-actions"><button type="button" className="button secondary" onClick={dismissInvite}>{t('chat.declineInvite')}</button><button type="button" className="button dark" disabled={inviteBusy} onClick={() => void acceptInvite()}>{inviteBusy && <LoadingIndicator label={t('common.loading')} compact/>}{t(inviteDetails.alreadyMember ? 'chat.openGroup' : 'chat.acceptInvite')}</button></div></> : <><p className="form-error" role="alert">{inviteError}</p><button type="button" className="button secondary" onClick={dismissInvite}>{t('chat.dismiss')}</button></>}</section></div>}

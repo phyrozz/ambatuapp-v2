@@ -405,6 +405,7 @@
   "chat.connectionError": "Tidak bisa menghubung ke obrolan. Segarkan dan coba lagi.",
   "chat.historyError": "Tidak bisa memuat pesan.",
   "chat.loadingOlder": "Memuat pesan sebelumnya...",
+  "chat.jumpToLatest": "Return to latest message",
   "chat.searchError": "Tidak bisa menelusuri nama pengguna.",
   "chat.createError": "Tidak bisa memulai percakapan.",
   "chat.sendError": "Tidak bisa mengirim pesan.",
