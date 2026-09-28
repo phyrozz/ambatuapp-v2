@@ -6,19 +6,34 @@ import { AdBanner } from './ad-banner';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
-import { AppSelect } from './app-select';
+import { SortPicker } from './sort-picker';
 
 type CommunityVideo = { id: string; title: string; description: string; uploader: string; uploaderId?: string; uploaderAvatarUrl?: string | null; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; createdAt?: string | null };
-type SortOrder = 'upvotes' | 'newest';
+type SortOrder = 'upvotes' | 'newest' | 'relevance';
+const SORT_STORAGE_KEY = 'ambatuapp-watch-sort';
+const isSortOrder = (value: string | null): value is SortOrder => value === 'upvotes' || value === 'newest' || value === 'relevance';
 const api = () => `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/videos`;
+const RELEVANCE_BOOST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const RELEVANCE_BOOST_POINTS = 5;
 const createdAt = (video: CommunityVideo) => {
   const timestamp = Date.parse(video.createdAt ?? '');
   return Number.isFinite(timestamp) ? timestamp : 0;
 };
-const orderVideos = (items: CommunityVideo[], sort: SortOrder) => [...items].sort((a, b) =>
-  (sort === 'newest' ? createdAt(b) - createdAt(a) : b.upvotes - a.upvotes || createdAt(b) - createdAt(a))
-  || a.id.localeCompare(b.id),
-);
+const relevanceScore = (video: CommunityVideo, now: number) => {
+  const freshness = Math.max(0, Math.min(1, 1 - Math.max(0, now - createdAt(video)) / RELEVANCE_BOOST_WINDOW_MS));
+  return video.upvotes + video.commentCount * .5 + freshness * RELEVANCE_BOOST_POINTS;
+};
+const orderVideos = (items: CommunityVideo[], sort: SortOrder) => {
+  const now = Date.now();
+  return [...items].sort((a, b) =>
+    (sort === 'newest'
+      ? createdAt(b) - createdAt(a)
+      : sort === 'relevance'
+        ? relevanceScore(b, now) - relevanceScore(a, now) || b.upvotes - a.upvotes || createdAt(b) - createdAt(a)
+        : b.upvotes - a.upvotes || createdAt(b) - createdAt(a))
+    || a.id.localeCompare(b.id),
+  );
+};
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
   return new Promise<void>((resolve, reject) => {
@@ -138,23 +153,41 @@ async function waitForCompression(token: string, sourceKey: string, videoKey: st
 export function CommunityWatch() {
   const { t } = useI18n(), { user, getIdToken } = useAuth();
   const [uploadAgreementBefore, uploadAgreementAfter] = t('watch.uploadAgreement').split('{terms}');
-  const [videos, setVideos] = useState<CommunityVideo[]>([]), [loading, setLoading] = useState(true), [loadingMore, setLoadingMore] = useState(false), [cursor, setCursor] = useState<number | null | undefined>(undefined), [error, setError] = useState('');
-  const [sort, setSort] = useState<SortOrder>('upvotes');
+  const [videos, setVideos] = useState<CommunityVideo[]>([]), [loading, setLoading] = useState(true), [loadingMore, setLoadingMore] = useState(false), [cursor, setCursor] = useState<string | number | null | undefined>(undefined), [error, setError] = useState('');
+  const [sort, setSort] = useState<SortOrder>('relevance'), [sortReady, setSortReady] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [title, setTitle] = useState(''), [description, setDescription] = useState(''), [file, setFile] = useState<File | null>(null), [uploading, setUploading] = useState(false), [uploadError, setUploadError] = useState('');
   const sentinel = useRef<HTMLDivElement>(null);
   const listRequestId = useRef(0);
 
-  const loadPage = useCallback(async (next?: number) => {
+  useEffect(() => {
+    try {
+      const savedSort = localStorage.getItem(SORT_STORAGE_KEY);
+      if (isSortOrder(savedSort)) setSort(savedSort);
+    } catch {}
+    setSortReady(true);
+  }, []);
+  useEffect(() => {
+    if (!sortReady) return;
+    try { localStorage.setItem(SORT_STORAGE_KEY, sort); }
+    catch {}
+  }, [sort, sortReady]);
+
+  const loadPage = useCallback(async (next?: string | number) => {
     const requestId = listRequestId.current;
     const params = new URLSearchParams({ limit: '8', sort });
     if (next !== undefined) params.set('cursor', String(next));
     const response = await fetch(`${api()}?${params}`, { cache: 'no-store' });
     const data = await response.json(); if (!response.ok) throw new Error(data.error);
     if (requestId !== listRequestId.current) return;
-    setVideos(items => next !== undefined ? [...items, ...(data.videos ?? [])] : data.videos ?? []); setCursor(data.nextCursor ?? null);
+    setVideos(items => {
+      if (next === undefined) return data.videos ?? [];
+      const existing = new Set(items.map(item => item.id));
+      return [...items, ...(data.videos ?? []).filter((item: CommunityVideo) => !existing.has(item.id))];
+    }); setCursor(data.nextCursor ?? null);
   }, [sort]);
   useEffect(() => {
+    if (!sortReady) return;
     const requestId = ++listRequestId.current;
     const controller = new AbortController();
     fetch(`${api()}?limit=8&sort=${sort}`, { cache: 'no-store', signal: controller.signal }).then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; })
@@ -162,7 +195,7 @@ export function CommunityWatch() {
       .catch(reason => { if (!controller.signal.aborted && requestId === listRequestId.current && reason.name !== 'AbortError') setError(reason instanceof Error ? reason.message : t('watch.communityError')); })
       .finally(() => { if (!controller.signal.aborted && requestId === listRequestId.current) setLoading(false); });
     return () => controller.abort();
-  }, [sort, t]);
+  }, [sort, sortReady, t]);
   useEffect(() => {
     const node = sentinel.current; if (!node || !cursor || loadingMore) return;
     const requestId = listRequestId.current;
@@ -171,7 +204,7 @@ export function CommunityWatch() {
   }, [cursor, loadPage, loadingMore]);
 
   function changeSort(value: string) {
-    if (value !== 'upvotes' && value !== 'newest') return;
+    if (value !== 'upvotes' && value !== 'newest' && value !== 'relevance') return;
     if (value === sort) return;
     listRequestId.current += 1;
     setSort(value);
@@ -210,7 +243,7 @@ export function CommunityWatch() {
       </div>
       {user ? <button className="button dark compact" onClick={() => setUploadOpen(true)}><Upload size={16}/>{t('watch.upload')}</button> : <span className="watch-signin-note">{t('watch.signInUpload')}</span>}
     </div>
-    <div className="community-watch-toolbar"><span>{t('common.sortBy')}</span><AppSelect value={sort} onChange={changeSort} ariaLabel={t('common.sortBy')} options={[{ value: 'upvotes', label: t('common.sortPopularity') }, { value: 'newest', label: t('common.sortNewest') }]} /></div>
+    <div className="community-watch-toolbar"><SortPicker value={sort} onChange={changeSort} disabled={!videos.length} options={[{ value: 'upvotes', label: t('common.sortPopularity') }, { value: 'newest', label: t('common.sortNewest') }, { value: 'relevance', label: t('common.sortRelevance') }]} /></div>
     {uploadOpen && <form className="watch-upload panel" onSubmit={publish}>
       <button type="button" className="icon-button" aria-label={t('watch.closeVideo')} onClick={() => setUploadOpen(false)}><X size={17}/></button>
       <h3>{t('watch.uploadTitle')}</h3>

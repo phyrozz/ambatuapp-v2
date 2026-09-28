@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { Search, Shuffle, SlidersHorizontal, Square, X } from 'lucide-react';
+import { Search, Shuffle, Square } from 'lucide-react';
 import type { Sound } from '@/lib/catalog';
 import { LoadingIndicator } from './loading-indicator';
 import { useApp } from './app-provider';
 import { SoundCard, EmptyState } from './cards';
 import { useI18n } from './i18n-provider';
+import { SortPicker } from './sort-picker';
 
 type SoundSort = 'mostPlayed' | 'dateAdded' | 'alphabetically';
 
@@ -13,9 +14,6 @@ export function SoundLibrary({ favoritesOnly = false }: { favoritesOnly?: boolea
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('__all__');
   const [sort, setSort] = useState<SoundSort>('mostPlayed');
-  const [sortOpen, setSortOpen] = useState(false);
-  const sortButton = useRef<HTMLButtonElement>(null);
-  const sortDialog = useRef<HTMLElement>(null);
   const loadMoreSentinel = useRef<HTMLDivElement>(null);
   const { favorites, play, stop, playing, sounds, soundCatalogStatus, soundCatalogHasMore, soundCatalogLoadingMore, soundCatalogMoreError, loadMoreSounds, refreshSoundCatalog } = useApp();
   const { t } = useI18n();
@@ -45,41 +43,6 @@ export function SoundLibrary({ favoritesOnly = false }: { favoritesOnly?: boolea
     return () => observer.disconnect();
   }, [loadMoreSounds, soundCatalogHasMore, soundCatalogLoadingMore, soundCatalogMoreError, soundCatalogStatus]);
 
-  useEffect(() => {
-    if (!sortOpen) return;
-    const close = () => {
-      setSortOpen(false);
-      sortButton.current?.focus();
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        close();
-        return;
-      }
-      if (event.key !== 'Tab' || !sortDialog.current) return;
-      const focusable = [...sortDialog.current.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)')];
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    sortDialog.current?.querySelector<HTMLInputElement>('input:checked')?.focus();
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [sortOpen]);
-
-  function closeSortDialog() {
-    setSortOpen(false);
-    sortButton.current?.focus();
-  }
-
   return (
     <>
       <div className="library-toolbar">
@@ -93,19 +56,7 @@ export function SoundLibrary({ favoritesOnly = false }: { favoritesOnly?: boolea
           />
         </label>
         <div className="toolbar-actions">
-          {!favoritesOnly && <button
-            ref={sortButton}
-            type="button"
-            className="button secondary compact sound-sort-trigger"
-            disabled={!filtered.length}
-            onClick={() => setSortOpen(true)}
-            aria-label={t('sounds.sortButton')}
-            aria-haspopup="dialog"
-            aria-expanded={sortOpen}
-          >
-            <SlidersHorizontal size={16} />
-            {t(sortKeys[sort])}
-          </button>}
+          {!favoritesOnly && <SortPicker value={sort} onChange={setSort} options={Object.entries(sortKeys).map(([value, key]) => ({ value: value as SoundSort, label: t(key) }))} disabled={!filtered.length} buttonLabel={t('sounds.sortButton')} />}
           <button
             className="button secondary compact"
             disabled={!filtered.length}
@@ -120,18 +71,6 @@ export function SoundLibrary({ favoritesOnly = false }: { favoritesOnly?: boolea
           </button>
         </div>
       </div>
-      {sortOpen && <div className="sound-sort-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeSortDialog(); }}>
-        <section className="sound-sort-dialog" ref={sortDialog} role="dialog" aria-modal="true" aria-labelledby="sound-sort-title">
-          <header><h2 id="sound-sort-title">{t('sounds.sortDialogTitle')}</h2><button type="button" className="sound-sort-close" onClick={closeSortDialog} aria-label={t('sounds.closeSortDialog')}><X size={18}/></button></header>
-          <fieldset>
-            <legend className="sr-only">{t('sounds.sortDialogTitle')}</legend>
-            {(['mostPlayed', 'dateAdded', 'alphabetically'] as const).map((value) => <label key={value} className="sound-sort-option">
-              <input autoFocus={sort === value} type="radio" name="sound-sort" value={value} checked={sort === value} onChange={() => { setSort(value); closeSortDialog(); }} />
-              <span>{t(sortKeys[value])}</span>
-            </label>)}
-          </fieldset>
-        </section>
-      </div>}
       <div className="filter-row">
         {[{ id: '__all__', label: t('sounds.all') }, ...categories.map((name) => ({ id: name, label: name === 'Classics' ? t('sounds.classics') : name === 'Remixes' ? t('sounds.remixes') : name === 'The crew' ? t('sounds.crew') : name }))].map(({ id, label }) => (
           <button

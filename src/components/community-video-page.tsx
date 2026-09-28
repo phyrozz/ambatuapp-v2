@@ -40,6 +40,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    window.scrollTo(0, 0);
     const controller = new AbortController();
     const key = `ambatu-video-vote:${id}`;
     setVideo(null); setComments([]); setError(''); setCommentsError(''); setCommentsActionError(''); setCommentsLoading(true); setVideoReady(false); setDescriptionExpanded(false); setReplyingTo(null); setReplyText('');

@@ -6,6 +6,7 @@ import { ArrowBigDown, ArrowBigUp, ArrowRight, BookOpen, Languages, MessageCircl
 import { LoadingIndicator } from './loading-indicator';
 import { useI18n } from './i18n-provider';
 import { AppSelect, languageFlag } from './app-select';
+import { SortPicker } from './sort-picker';
 import { EmptyState } from './cards';
 
 type Lore = { id: string; title: string; text: string; tags: string[]; imageUrls: string[]; upvotes: number; downvotes: number; commentCount: number };
@@ -18,7 +19,7 @@ export function LoreFeed() {
   const [lores, setLores] = useState<Lore[]>([]), [facets, setFacets] = useState<Facets>({ tags: [], languages: [] });
   const [query, setQuery] = useState(''), [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]), [language, setLanguage] = useState('');
-  const [sort, setSort] = useState<'upvotes' | 'newest'>('upvotes');
+  const [sort, setSort] = useState<'upvotes' | 'newest'>('newest');
   const [loading, setLoading] = useState(true), [error, setError] = useState('');
   const [cursor, setCursor] = useState<string | null>(null), [totalCount, setTotalCount] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false), [loadMoreError, setLoadMoreError] = useState(false);
@@ -102,7 +103,7 @@ export function LoreFeed() {
   return <section className="lore-browser"><div className="lore-filters">
     <label className="lore-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('lore.searchPlaceholder')} />{query && <button onClick={() => setQuery('')} aria-label={t('lore.clearSearch')}><X size={15} /></button>}</label>
     <div className="lore-language-filter"><Languages size={17} /><AppSelect value={language} onChange={setLanguage} ariaLabel={t('lore.allLanguages')} options={[{ value: '', label: t('lore.allLanguages'), icon: 'world' }, { value: 'original', label: t('lore.originalEdition'), icon: 'book' }, ...facets.languages.map((item) => ({ value: item.locale, label: item.label, icon: languageFlag(item.locale) }))]} /></div>
-    <div className="lore-sort-filter"><span>{t('common.sortBy')}</span><AppSelect value={sort} onChange={(value) => { if (value === 'upvotes' || value === 'newest') setSort(value); }} ariaLabel={t('common.sortBy')} options={[{ value: 'upvotes', label: t('common.sortPopularity') }, { value: 'newest', label: t('common.sortNewest') }]} /></div>
+    <div className="lore-sort-filter"><SortPicker value={sort} onChange={(value) => { if (value === 'upvotes' || value === 'newest') setSort(value); }} disabled={!lores.length} options={[{ value: 'upvotes', label: t('common.sortPopularity') }, { value: 'newest', label: t('common.sortNewest') }]} /></div>
     {facets.tags.length > 0 && <div className="lore-tag-filter"><span><SlidersHorizontal size={15} />{t('lore.filterTags')}</span><div>{facets.tags.map((tag) => <button className={selectedTags.includes(tag) ? 'active' : ''} onClick={() => toggleTag(tag)} key={tag}>{tag}</button>)}</div></div>}
     <div className="lore-results-meta"><span>{loading ? t('lore.searching') : t(totalCount === 1 ? 'lore.storyCount' : 'lore.storiesCount', { count: totalCount })}</span>{filtered && <button onClick={clear}><X size={14} />{t('lore.clearFilters')}</button>}</div>
   </div>{loading ? <div className="module-loading"><LoadingIndicator label={t('lore.searchingArchive')} /></div> : error ? <EmptyState title={t('lore.archiveUnavailable')} description={error} icon={<BookOpen size={32} />} className="lore-empty-state" /> : !lores.length && !cursor ? <EmptyState title={t('lore.none')} description={t('lore.noneHint')} icon={<BookOpen size={32} />} className="lore-empty-state" /> : <div className="lore-feed">{lores.map((lore) => <LoreCard lore={lore} key={lore.id} />)}{cursor && <div ref={sentinelRef} className="lore-load-more-sentinel">{loadingMore && <LoadingIndicator label={t('common.loading')} compact />}{loadMoreError && <div role="alert"><p>{t('lore.loadError')}</p><button className="button secondary compact" type="button" onClick={() => void loadMore()}>{t('common.retry')}</button></div>}</div>}</div>}</section>;
