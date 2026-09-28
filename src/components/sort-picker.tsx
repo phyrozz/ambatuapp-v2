@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useI18n } from './i18n-provider';
 
@@ -21,15 +22,46 @@ export function SortPicker<T extends string>({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
   const titleId = useId();
   const selected = options.find((option) => option.value === value);
 
   const close = useCallback(() => {
-    setOpen(false);
-    window.requestAnimationFrame(() => buttonRef.current?.focus());
+    if (!open || closing) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setOpen(false);
+      window.requestAnimationFrame(() => buttonRef.current?.focus());
+      return;
+    }
+    setClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+      closeTimerRef.current = null;
+      window.requestAnimationFrame(() => buttonRef.current?.focus());
+    }, 160);
+  }, [closing, open]);
+
+  const openPicker = useCallback(() => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
+    setClosing(false);
+    setOpen(true);
   }, []);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -63,7 +95,7 @@ export function SortPicker<T extends string>({
       type="button"
       className="button secondary compact sort-picker-trigger"
       disabled={disabled || !options.length}
-      onClick={() => setOpen(true)}
+      onClick={openPicker}
       aria-label={buttonLabel ?? t('common.sortBy')}
       aria-haspopup="dialog"
       aria-expanded={open}
@@ -71,7 +103,7 @@ export function SortPicker<T extends string>({
       <SlidersHorizontal size={16} />
       {selected?.label}
     </button>
-    {open && <div className="sort-picker-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
+    {open && createPortal(<div className="sort-picker-backdrop" data-state={closing ? 'closing' : 'open'} role="presentation" onClick={(event) => { if (event.target === event.currentTarget) close(); }}>
       <section className="sort-picker-dialog" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header><h2 id={titleId}>{t('common.sortBy')}</h2><button type="button" className="sort-picker-close" onClick={close} aria-label={t('common.closeSortOptions')}><X size={18} /></button></header>
         <fieldset>
@@ -82,6 +114,6 @@ export function SortPicker<T extends string>({
           </label>)}
         </fieldset>
       </section>
-    </div>}
+    </div>, document.body)}
   </>;
 }
