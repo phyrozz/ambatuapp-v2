@@ -533,7 +533,7 @@
   "privacy.providersTitle": "Services that process data",
   "privacy.providersBody": "Google and Amazon Cognito handle sign-in. Amazon Web Services and Google Firebase/Firestore store or process app content. If you enable message notifications, Firebase Cloud Messaging processes a device token. These providers help deliver the features described in this policy.",
   "privacy.adsTitle": "Advertising",
-  "privacy.adsBody": "When website ads are enabled, ExoClick may process browser or device information and use cookies or similar technologies on pages that show ads. We display web ads only while you are signed out. We do not use or share Google sign-in data for advertising.",
+  "privacy.adsBody": "When website ads are enabled, ExoClick may process browser or device information and use cookies or similar technologies on pages that show ads. We display web ads whether or not you are signed in. We do not use or share Google sign-in data for advertising.",
   "privacy.retentionTitle": "Retention and deletion",
   "privacy.retentionBody": "To request access, correction, or deletion of your account and content, email us below. We may verify your identity before acting. Account and community records remain until removed or no longer needed; some information may be kept for legal or safety reasons.",
   "privacy.choicesTitle": "Your choices",

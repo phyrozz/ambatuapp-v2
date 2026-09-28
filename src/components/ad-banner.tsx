@@ -15,8 +15,8 @@ const EXOCLICK_ZONE_ID = process.env.NEXT_PUBLIC_EXOCLICK_ZONE_ID;
 const EXOCLICK_SCRIPT_URL = process.env.NEXT_PUBLIC_EXOCLICK_SCRIPT_URL;
 export function AdBanner({ disabled = false }: { disabled?: boolean }) {
   const native = Capacitor.isNativePlatform();
-  const { ready, user } = useAuth();
-  const showWebAd = !native && ready && !user && !disabled && Boolean(EXOCLICK_ZONE_ID && EXOCLICK_SCRIPT_URL);
+  const { ready } = useAuth();
+  const showWebAd = !native && ready && !disabled && Boolean(EXOCLICK_ZONE_ID && EXOCLICK_SCRIPT_URL);
 
   useEffect(() => {
     if (native) void AdMob.removeBanner().catch(() => undefined);
