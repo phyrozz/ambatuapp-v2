@@ -5,6 +5,7 @@ import { I18nProvider } from '@/components/i18n-provider';
 import { Shell } from '@/components/shell';
 import { BirthdayGreeting } from '@/components/birthday-greeting';
 import { PushPermissionPrompt } from '@/components/push-permission-prompt';
+import { FriendRequestProvider } from '@/components/friend-request-provider';
 import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'AmbatuApp', template: '%s · AmbatuApp' },
@@ -25,7 +26,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('ambatuapp-theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){}})()` }} />
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var pwa=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;var homeLink=new URLSearchParams(location.search).get('home')==='1';if(pwa&&location.pathname==='/'&&!homeLink)location.replace('/chat/')}catch(e){}})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var pwa=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;var homeLink=new URLSearchParams(location.search).get('home')==='1';if(pwa&&location.pathname==='/'&&!homeLink)location.replace('/scroll/')}catch(e){}})()` }} />
         <meta
           name="6a97888e-site-verification"
           content="aad370aac4185df449de5028f75c18fd"
@@ -34,11 +35,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <I18nProvider>
           <AuthProvider>
-            <AppProvider>
+            <FriendRequestProvider><AppProvider>
               <Shell>{children}</Shell>
               <PushPermissionPrompt />
               <BirthdayGreeting />
-            </AppProvider>
+            </AppProvider></FriendRequestProvider>
           </AuthProvider>
         </I18nProvider>
       </body>

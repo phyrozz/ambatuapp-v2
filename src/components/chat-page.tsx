@@ -1,11 +1,12 @@
 'use client';
 import './chat.css';
+import Link from 'next/link';
 
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeft, AudioLines, Bell, BellOff, Camera, Flag, ImagePlus, MessageCircle, MoreHorizontal, Plus, Search, Send, UsersRound, Video, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUpRight, AudioLines, Bell, BellOff, Camera, Flag, ImagePlus, MessageCircle, MoreHorizontal, Plus, Search, Send, UsersRound, Video, X } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
@@ -19,6 +20,7 @@ import { ChatSocket, withCurrentNames, type ChatConversation, type ChatMessage }
 import { deleteCachedConversation, loadCachedConversations, loadCachedMessages, saveCachedConversations, saveCachedMessages } from '@/lib/chat-cache';
 import { initializePlayerProfile } from '@/lib/player-profile';
 import { enableChatPush, installPushNavigation, syncChatPush } from '@/lib/push-notifications';
+import { useFriendRequests } from './friend-request-provider';
 
 type Player = { id: string; username: string; avatarUrl?: string | null };
 type InviteDetails = { conversation: string; title: string; memberCount: number; alreadyMember: boolean };
@@ -221,6 +223,7 @@ function mentionQueryAt(value: string, cursor: number) {
 
 export function ChatPage() {
   const { t, locale } = useI18n();
+  const { incomingCount } = useFriendRequests();
   const { ready, user, getAccessToken, getIdToken, signInWithGoogle } = useAuth();
   const userId = user?.id;
   const params = useSearchParams();
@@ -322,6 +325,8 @@ export function ChatPage() {
   const reactionHoldTriggered = useRef(false);
 
   useEffect(() => {
+    // The jump control belongs to the previous conversation's scroll state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowJumpToLatest(false);
   }, [active]);
 
@@ -1252,7 +1257,8 @@ export function ChatPage() {
   return <div className="page chat-page">
     {error && <p className="chat-notice" role="status">{error}<button onClick={() => setError('')} aria-label={t('chat.dismiss')}><X size={15}/></button></p>}
     {status === 'unavailable' && <p className="chat-notice" role="status">{t('chat.connectionError')}</p>}
-    <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}><aside className="chat-inbox"><div className="chat-inbox-header"><h2>{t('chat.inbox')}</h2><button type="button" className="chat-icon" onClick={() => void enableNotifications()} disabled={pushBusy || pushEnabled || status !== 'ready'} aria-label={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')} title={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')}><Bell size={17}/></button></div>
+    <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}><aside className="chat-inbox"><div className="chat-inbox-header"><div className="chat-inbox-brand"><span className="chat-inbox-brand-icon" aria-hidden="true"><MessageCircle size={21}/></span><div><span className="eyebrow">{t('nav.chat')}</span><h2>{t('chat.inbox')}</h2></div></div><button type="button" className="chat-icon" onClick={() => void enableNotifications()} disabled={pushBusy || pushEnabled || status !== 'ready'} aria-label={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')} title={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')}><Bell size={17}/></button></div>
+      <Link className="chat-friends-link" href="/friends/"><span className="chat-friends-icon"><UsersRound size={19}/></span><span><strong>{t('friends.title')}</strong><small>{incomingCount ? t('friends.requestCount', { count: incomingCount }) : t('friends.description')}</small></span>{incomingCount > 0 && <span className="chat-friend-count" aria-label={t('friends.requestCount', { count: incomingCount })}>{incomingCount > 99 ? '99+' : incomingCount}</span>}<ArrowUpRight size={18} aria-hidden="true"/></Link>
       <div className="chat-search"><Search size={17}/><input value={query} onChange={event => { setQuery(event.target.value); setMatches([]); setSearchLoading(event.target.value.trim().length >= 2); }} placeholder={t('chat.searchUsername')} aria-label={t('chat.searchUsername')}/></div>
       {searchLoading && <div className="chat-search-loading"><LoadingIndicator label={t('common.loading')} /></div>}
       {matches.length > 0 && <div className="chat-results">{matches.map(player => <button key={player.id} onClick={() => { setSelected(items => items.some(item => item.id === player.id) ? items : [...items, player]); setQuery(''); setMatches([]); setSearchLoading(false); }}>{player.avatarUrl ? <img className="chat-result-avatar" src={player.avatarUrl} alt=""/> : <span className="chat-result-avatar">{player.username.slice(0, 1).toUpperCase()}</span>}<span>{player.username}</span><Plus size={15}/></button>)}</div>}

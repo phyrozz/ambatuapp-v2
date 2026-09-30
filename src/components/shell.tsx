@@ -19,14 +19,21 @@ import {
   Sparkles,
   UserRound,
   MessageCircle,
+  Smartphone,
+  LayoutGrid,
 } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useI18n } from './i18n-provider';
 import { AdBanner } from './ad-banner';
 import { AppSelect, languageFlag } from './app-select';
 import { ThemeToggle } from './theme-toggle';
+import { useAuth } from './auth-provider';
+import { useFriendRequests } from './friend-request-provider';
+import { installPushNavigation } from '@/lib/push-notifications';
 const nav = [
   { href: '/', key: 'nav.discover', Icon: House },
+  { href: '/scroll/', key: 'nav.scroll', Icon: Smartphone },
+  { href: '/explore/', key: 'nav.explore', Icon: LayoutGrid },
   { href: '/watch/', key: 'nav.watch', shortKey: 'nav.watchShort', Icon: Play },
   { href: '/lores/', key: 'nav.lore', Icon: BookOpen },
   { href: '/chat/', key: 'nav.chat', Icon: MessageCircle },
@@ -34,8 +41,16 @@ const nav = [
   { href: '/characters/', key: 'nav.characters', Icon: UsersRound },
   { href: '/soundboard/', key: 'nav.soundboard', Icon: AudioLines },
 ];
+const mobileNav = [
+  { href: '/chat/', key: 'nav.chat', Icon: MessageCircle },
+  { href: '/lores/', key: 'nav.lore', Icon: BookOpen },
+  { href: '/scroll/', key: 'nav.scroll', Icon: Smartphone },
+  { href: '/games/', key: 'nav.gamesShort', Icon: Gamepad2 },
+  { href: '/explore/', key: 'nav.explore', Icon: LayoutGrid },
+];
 function isStandalonePwa() {
   return typeof window !== 'undefined' && (
+    Capacitor.isNativePlatform() ||
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true
   );
@@ -47,12 +62,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [topbarScrolled, setTopbarScrolled] = useState(false);
   const { current, playing, stop, volume, setVolume, error } = useApp();
   const { locale, locales, localeNames, setLocale, t } = useI18n();
+  const { user } = useAuth();
+  const { incomingCount } = useFriendRequests();
   const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || path === '/chat/' || ['/privacy', '/privacy/', '/terms', '/terms/'].includes(path) || Boolean(current);
   useEffect(() => {
     if (path === '/' && isStandalonePwa() && new URLSearchParams(window.location.search).get('home') !== '1') {
-      router.replace('/chat/');
+      router.replace('/scroll/');
     }
   }, [path, router]);
+  useEffect(() => { installPushNavigation(() => null, locale, user?.id ?? null, url => router.push(url)); }, [locale, user?.id, router]);
   const openPwaHomepage = (event: ReactMouseEvent<HTMLAnchorElement>) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     if (!isStandalonePwa()) return;
@@ -145,11 +163,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               onClick={href === '/' ? openPwaHomepage : undefined}
-              className={`nav-item ${href === '/chat/' ? 'chat-featured' : ''} ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
+              className={`nav-item ${href !== '/chat/' && (path === href || (href !== '/' && path.startsWith(href))) ? 'active' : ''}`}
             >
               <Icon size={20} />
               <span>{t(key)}</span>
               {href === '/games/' && <small>4</small>}
+              {href === '/explore/' && incomingCount > 0 && <small className="friend-request-count" aria-label={t('friends.requestCount', { count: incomingCount })}>{incomingCount > 99 ? '99+' : incomingCount}</small>}
             </Link>
           ))}
         </nav>
@@ -176,7 +195,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </span>
         </div>
       </aside>
-      <div className={`workspace ${path === '/chat/' ? 'chat-workspace' : ''}`}>
+      <div className={`workspace ${path === '/chat/' ? 'chat-workspace' : ''} ${path === '/scroll/' ? 'scroll-workspace' : ''}`}>
         <header className={`topbar ${topbarHidden ? 'topbar-hidden' : ''} ${topbarScrolled ? 'topbar-scrolled' : ''}`}>
           <span className="topbar-note">
             <span className="status-dot" /> {t('shell.chaos')}
@@ -207,7 +226,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <main id="main" tabIndex={-1}>
           {children}
         </main>
-        <AdBanner disabled={adDisabled || path.startsWith('/watch/')} />
+        <AdBanner disabled={adDisabled || path.startsWith('/watch/') || path.startsWith('/scroll/')} />
         <footer className="footer">
           <span>
             ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
@@ -220,15 +239,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </footer>
       </div>
       <nav className="mobile-nav" aria-label={t('shell.mobileNavigation')}>
-        {nav.map(({ href, key, shortKey, Icon }) => (
+        {mobileNav.map(({ href, key, Icon }) => (
           <Link
             href={href}
             onClick={href === '/' ? openPwaHomepage : undefined}
             key={href}
-            className={`${href === '/chat/' ? 'chat-featured' : ''} ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
+            className={`${href === '/scroll/' ? 'chat-featured' : ''} ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
           >
             <Icon size={21} />
-            <span>{t(shortKey ?? key)}</span>
+            <span>{t(key)}</span>
+            {href === '/explore/' && incomingCount > 0 && <span className="mobile-friend-count" aria-label={t('friends.requestCount', { count: incomingCount })}>{incomingCount > 99 ? '99+' : incomingCount}</span>}
           </Link>
         ))}
       </nav>

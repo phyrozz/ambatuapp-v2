@@ -1,12 +1,12 @@
 'use client';
 
 import { Bell, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
-import { enableWebPushFromPrompt } from '@/lib/push-notifications';
+import { enablePushFromPrompt } from '@/lib/push-notifications';
 import './push-permission-prompt.css';
 
 export function PushPermissionPrompt() {
@@ -19,17 +19,17 @@ export function PushPermissionPrompt() {
 
   /* eslint-disable react-hooks/set-state-in-effect -- sync prompt visibility with browser permission and session storage. */
   useEffect(() => {
-    if (!ready || !user || Capacitor.isNativePlatform() || (path !== '/chat' && path !== '/chat/' && path !== '/profile' && path !== '/profile/')) {
+    if (!ready || !user || !['/chat', '/chat/', '/profile', '/profile/', '/friends', '/friends/', '/explore', '/explore/'].includes(path)) {
       setVisible(false);
       return;
     }
-    if (!('Notification' in window) || Notification.permission === 'denied') {
+    if (!Capacitor.isNativePlatform() && (!('Notification' in window) || Notification.permission === 'denied')) {
       setVisible(false);
       return;
     }
     const userKey = `ambatuapp-push-enabled:${user.id}`;
     const dismissedKey = `ambatuapp-push-prompt-dismissed:${user.id}`;
-    if (Notification.permission === 'granted' && localStorage.getItem(userKey) === '1') {
+    if (localStorage.getItem(userKey) === '1') {
       setVisible(false);
       return;
     }
@@ -52,7 +52,7 @@ export function PushPermissionPrompt() {
     setBusy(true);
     setError('');
     try {
-      await enableWebPushFromPrompt(locale, user.id, getAccessToken);
+      await enablePushFromPrompt(locale, user.id, getAccessToken);
       sessionStorage.setItem(`ambatuapp-push-prompt-dismissed:${user.id}`, '1');
       setVisible(false);
     } catch (reason) {
@@ -67,11 +67,11 @@ export function PushPermissionPrompt() {
     <aside className="push-permission-prompt" aria-labelledby="push-permission-title">
       <button type="button" className="push-permission-close" onClick={dismiss} aria-label={t('chat.dismiss')}><X size={17}/></button>
       <span className="push-permission-icon"><Bell size={19}/></span>
-      <h2 id="push-permission-title">{t('chat.enableNotifications')}</h2>
-      <p>{t('push.promptDescription')}</p>
+      <h2 id="push-permission-title">{t('push.enableSocialNotifications')}</h2>
+      <p>{t('push.socialPromptDescription')}</p>
       {error && <p className="push-permission-error" role="alert">{error}</p>}
       <div className="push-permission-actions">
-        <button type="button" className="button dark compact" disabled={busy} onClick={() => void enable()}>{t('chat.enableNotifications')}</button>
+        <button type="button" className="button dark compact" disabled={busy} onClick={() => void enable()}>{t('push.enableSocialNotifications')}</button>
         <button type="button" className="push-permission-later" disabled={busy} onClick={dismiss}>{t('push.notNow')}</button>
       </div>
     </aside>

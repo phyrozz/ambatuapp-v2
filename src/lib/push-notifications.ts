@@ -14,10 +14,15 @@ let navigationInstalled = false;
 let activeLocale = 'en';
 let activeUserId: string | null = null;
 let activeNavigate: (url: string) => void = () => undefined;
+let activeGetSocket: () => ChatSocket | null = () => null;
 
 function goToConversation(conversationId: string | undefined, navigate: (url: string) => void) {
   if (!conversationId || typeof window === 'undefined') return;
   navigate(`/chat/?conversation=${encodeURIComponent(conversationId)}`);
+}
+function goToPush(data: Record<string, unknown> | undefined, navigate: (url: string) => void) {
+  if (data?.url === '/friends/' || data?.type === 'friendRequest') { navigate('/friends/'); return; }
+  goToConversation(typeof data?.conversationId === 'string' ? data.conversationId : undefined, navigate);
 }
 
 export async function enableChatPush(client: ChatSocket, locale: string, userId: string) {
@@ -75,6 +80,20 @@ export async function enableWebPushFromPrompt(locale: string, userId: string, ge
   }
 }
 
+export async function enablePushFromPrompt(locale: string, userId: string, getAccessToken: () => Promise<string | null>) {
+  if (!Capacitor.isNativePlatform()) return enableWebPushFromPrompt(locale, userId, getAccessToken);
+  const { FirebaseMessaging } = await import('@capacitor-firebase/messaging');
+  const permission = await FirebaseMessaging.requestPermissions();
+  if (permission.receive !== 'granted') throw new Error('permission-denied');
+  const accessToken = await getAccessToken();
+  if (!accessToken || !chatWsUrl) throw new Error('not-configured');
+  const client = new ChatSocket();
+  try {
+    await client.connect(chatWsUrl, accessToken);
+    await enableChatPush(client, locale, userId);
+  } finally { client.close(); }
+}
+
 export async function syncChatPush(client: ChatSocket, locale: string, userId: string) {
   if (localStorage.getItem(`ambatuapp-push-enabled:${userId}`) !== '1') return;
   try {
@@ -104,16 +123,17 @@ export function installPushNavigation(getSocket: () => ChatSocket | null, locale
   activeLocale = locale;
   activeUserId = userId;
   activeNavigate = navigate;
+  activeGetSocket = getSocket;
   if (navigationInstalled) return;
   navigationInstalled = true;
   if (Capacitor.isNativePlatform()) {
     void import('@capacitor-firebase/messaging').then(({ FirebaseMessaging }) => {
       void FirebaseMessaging.addListener('notificationActionPerformed', event => {
         const data = event.notification.data as Record<string, unknown> | undefined;
-        goToConversation(String(data?.conversationId ?? ''), activeNavigate);
+        goToPush(data, activeNavigate);
       });
       void FirebaseMessaging.addListener('tokenReceived', event => {
-        const client = getSocket();
+        const client = activeGetSocket();
         if (activeUserId && localStorage.getItem(`ambatuapp-push-enabled:${activeUserId}`) === '1' && client?.isOpen) {
           void client.request('registerPush', { token: event.token, platform: Capacitor.getPlatform() === 'ios' ? 'ios' : 'android', locale: activeLocale });
         }
@@ -134,11 +154,13 @@ export function installPushNavigation(getSocket: () => ChatSocket | null, locale
       messagingSdk.onMessage(messaging, payload => {
         if (Notification.permission !== 'granted' || !payload.notification) return;
         const conversationId = String(payload.data?.conversationId ?? '');
+        const friendRequest = payload.data?.type === 'friendRequest';
+        if (friendRequest) window.dispatchEvent(new Event('ambatu:friends-changed'));
         void registration.showNotification(payload.notification.title ?? '', {
           body: payload.notification.body,
           icon: '/app-icon.svg',
-          tag: conversationId ? `chat-${conversationId}` : undefined,
-          data: { conversationId },
+          tag: friendRequest ? 'friend-request' : conversationId ? `chat-${conversationId}` : undefined,
+          data: { conversationId, url: friendRequest ? '/friends/' : undefined },
         });
       });
     }).catch(() => undefined);
@@ -146,6 +168,6 @@ export function installPushNavigation(getSocket: () => ChatSocket | null, locale
     void navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => undefined);
   }
   navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data?.type === 'chat-notification-click') goToConversation(event.data.conversationId, activeNavigate);
+    if (event.data?.type === 'chat-notification-click') goToPush(event.data, activeNavigate);
   });
 }
