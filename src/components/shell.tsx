@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
@@ -46,7 +47,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [topbarScrolled, setTopbarScrolled] = useState(false);
   const { current, playing, stop, volume, setVolume, error } = useApp();
   const { locale, locales, localeNames, setLocale, t } = useI18n();
-  const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || path === '/chat/' || Boolean(current);
+  const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || path === '/chat/' || ['/privacy', '/privacy/', '/terms', '/terms/'].includes(path) || Boolean(current);
   useEffect(() => {
     if (path === '/' && isStandalonePwa() && new URLSearchParams(window.location.search).get('home') !== '1') {
       router.replace('/chat/');
@@ -122,9 +123,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <aside className="sidebar">
         <div className="brand-block">
           <Link href="/" onClick={openPwaHomepage} className="brand">
-            <span className="brand-mark">
-              a<span>✳</span>
-            </span>
+            <Image
+              src="/app-icon.svg"
+              alt=""
+              width={40}
+              height={40}
+              className="brand-mark"
+              priority
+            />
             <span>
               ambatu<span className="orange-text">app</span>
               <small>{t('shell.tagline')}</small>
@@ -206,6 +212,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span>
             ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
           </span>
+          <nav className="footer-legal" aria-label={t('legal.footerNavigation')}>
+            <Link href="/privacy/">{t('legal.privacyLink')}</Link>
+            <Link href="/terms/">{t('legal.termsLink')}</Link>
+          </nav>
           <span>{t('shell.community')}</span>
         </footer>
       </div>

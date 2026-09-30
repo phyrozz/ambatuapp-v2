@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Capacitor } from '@capacitor/core';
 import { Check, Copy, Share2, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -30,7 +31,7 @@ export function ChatShareDialog({ url, group, onClose }: { url: string; group?: 
       else await copy();
     } catch { /* The native share sheet was dismissed. */ }
   }
-  return <div className="chat-modal-backdrop" role="presentation" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+  const dialog = <div className="chat-modal-backdrop chat-share-backdrop" role="presentation" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="chat-modal chat-share-dialog" role="dialog" aria-modal="true" aria-label={t(group ? 'chat.shareGroup' : 'profile.shareProfile')}>
       <button type="button" className="chat-icon" onClick={onClose} aria-label={t('chat.dismiss')}><X size={18}/></button>
       <h2>{t(group ? 'chat.shareGroup' : 'profile.shareProfile')}</h2>
@@ -42,4 +43,5 @@ export function ChatShareDialog({ url, group, onClose }: { url: string; group?: 
       <div className="chat-share-actions"><button type="button" className="button secondary" onClick={() => void copy()}>{copied ? <Check size={17}/> : <Copy size={17}/>}{t(copied ? 'chat.linkCopied' : 'chat.copyLink')}</button><button type="button" className="button dark" onClick={() => void share()}><Share2 size={17}/>{t('chat.share')}</button></div>
     </section>
   </div>;
+  return typeof document === 'undefined' ? null : createPortal(dialog, document.body);
 }

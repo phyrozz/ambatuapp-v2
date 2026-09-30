@@ -1,11 +1,12 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
-import { getCharactersPage, type Character } from '@/lib/characters';
+import { getCharactersPage, type Character, type CharacterSort } from '@/lib/characters';
 import { CharacterCard, EmptyState } from './cards';
 import { CharacterLoading } from './character-loading';
 import { LoadingIndicator } from './loading-indicator';
 import { useI18n } from './i18n-provider';
+import { SortPicker } from './sort-picker';
 
 const PAGE_SIZE = 12;
 
@@ -13,6 +14,7 @@ export function CharacterLibrary() {
   const { t } = useI18n();
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
+  const [sort, setSort] = useState<CharacterSort>('nameAsc');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ export function CharacterLibrary() {
     setLoadingMore(false);
     setError('');
     setLoadMoreError(false);
-    void getCharactersPage({ limit: PAGE_SIZE, query: debouncedQ, signal: controller.signal })
+    void getCharactersPage({ limit: PAGE_SIZE, query: debouncedQ, sort, signal: controller.signal })
       .then((page) => {
         if (controller.signal.aborted || generation !== generationRef.current) return;
         setCharacters(page.characters);
@@ -58,7 +60,7 @@ export function CharacterLibrary() {
       controller.abort();
       moreControllerRef.current?.abort();
     };
-  }, [debouncedQ, t]);
+  }, [debouncedQ, sort, t]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const loadMore = useCallback(async () => {
@@ -70,7 +72,7 @@ export function CharacterLibrary() {
     setLoadingMore(true);
     setLoadMoreError(false);
     try {
-      const page = await getCharactersPage({ limit: PAGE_SIZE, cursor, query: debouncedQ, signal: controller.signal });
+      const page = await getCharactersPage({ limit: PAGE_SIZE, cursor, query: debouncedQ, sort, signal: controller.signal });
       if (generation !== generationRef.current) return;
       setCharacters((current) => {
         const knownIds = new Set(current.map((character) => character.id));
@@ -86,7 +88,7 @@ export function CharacterLibrary() {
         setLoadingMore(false);
       }
     }
-  }, [cursor, debouncedQ, loading, loadingMore]);
+  }, [cursor, debouncedQ, loading, loadingMore, sort]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -100,15 +102,18 @@ export function CharacterLibrary() {
 
   return (
     <>
-      <label className="search-box character-search">
-        <Search size={18} />
-        <input
-          placeholder={t('characters.searchPlaceholder')}
-          aria-label={t('characters.searchLabel')}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </label>
+      <div className="character-toolbar">
+        <label className="search-box character-search">
+          <Search size={18} />
+          <input
+            placeholder={t('characters.searchPlaceholder')}
+            aria-label={t('characters.searchLabel')}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </label>
+        <SortPicker value={sort} onChange={setSort} disabled={!characters.length} options={[{ value: 'nameAsc', label: t('characters.sortNameAscending') }, { value: 'nameDesc', label: t('characters.sortNameDescending') }]} />
+      </div>
       {loading ? (
         <CharacterLoading label={t('characters.loading')} variant="grid" />
       ) : error ? (

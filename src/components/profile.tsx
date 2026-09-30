@@ -9,8 +9,26 @@ import { useI18n } from './i18n-provider';
 import { getProfileAvatars, initializePlayerProfile, PlayerProfileError, saveProfileAvatar, savePlayerProfile, submitCustomProfileAvatar, type ProfileAvatar } from '@/lib/player-profile';
 import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
 import { AvatarCropDialog } from './avatar-crop-dialog';
+import { LoadingIndicator } from './loading-indicator';
 
 function today() { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+
+function preloadAvatarImage(src: string): Promise<void> {
+  const image = new window.Image();
+  if (typeof image.decode === 'function') {
+    image.src = src;
+    return image.decode();
+  }
+  return new Promise((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error('Avatar image failed to load.'));
+    image.src = src;
+    if (image.complete) {
+      if (image.naturalWidth > 0) resolve();
+      else reject(new Error('Avatar image failed to load.'));
+    }
+  });
+}
 
 export function ProfilePanel() {
   const { t } = useI18n();
@@ -20,23 +38,51 @@ export function ProfilePanel() {
   const [username, setUsername] = useState(''), [birthDate, setBirthDate] = useState(''), [saving, setSaving] = useState(false), [profileError, setProfileError] = useState(''), [profileStatus, setProfileStatus] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null), [avatarId, setAvatarId] = useState<string | null>(null), [avatarRemoved, setAvatarRemoved] = useState(false);
   const [avatars, setAvatars] = useState<ProfileAvatar[]>([]), [avatarSaving, setAvatarSaving] = useState(false), [avatarError, setAvatarError] = useState(''), [avatarStatus, setAvatarStatus] = useState('');
+  const [profileLoadState, setProfileLoadState] = useState<{ userId: string; status: 'loading' | 'ready' | 'error' } | null>(null);
+  const [profileLoadAttempt, setProfileLoadAttempt] = useState(0);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [shareUrl, setShareUrl] = useState('');
+  const profileLoadStatus = user && profileLoadState?.userId === user.id ? profileLoadState.status : 'loading';
+  const profileLoading = !ready || (configured && signedIn && profileLoadStatus === 'loading');
+  const profileLoadFailed = configured && signedIn && profileLoadStatus === 'error';
 
   useEffect(() => {
-    if (!user) return;
+    if (!ready || !configured || !user) return;
     let active = true;
-    void getIdToken().then(async (token) => {
-      if (!token) return;
-      const [profile, presetAvatars] = await Promise.all([initializePlayerProfile(token), getProfileAvatars(token)]);
-      if (!active) return;
-      setUsername(profile.username); setBirthDate(profile.birthDate ?? '');
-      setAvatarUrl(profile.avatarUrl ?? null); setAvatarId(profile.avatarId ?? null); setAvatarRemoved(Boolean(profile.avatarRemoved));
-      setAvatars(presetAvatars);
-    }).catch(() => { if (active) setProfileError(t('profile.editLoadError')); });
+    const userId = user.id;
+    void (async () => {
+      try {
+        const token = await getIdToken();
+        if (!token) throw new Error('No session');
+        const [profile, presetAvatars] = await Promise.all([initializePlayerProfile(token), getProfileAvatars(token)]);
+        const imageUrls = [...new Set([
+          ...(profile.avatarUrl ? [profile.avatarUrl] : []),
+          ...presetAvatars.flatMap((avatar) => avatar.imageUrl ? [avatar.imageUrl] : []),
+        ])];
+        await Promise.all(imageUrls.map(preloadAvatarImage));
+        if (!active) return;
+        setUsername(profile.username); setBirthDate(profile.birthDate ?? '');
+        setAvatarUrl(profile.avatarUrl ?? null); setAvatarId(profile.avatarId ?? null); setAvatarRemoved(Boolean(profile.avatarRemoved));
+        setAvatars(presetAvatars);
+        setProfileLoadState({ userId, status: 'ready' });
+      } catch {
+        if (active) setProfileLoadState({ userId, status: 'error' });
+      }
+    })();
     return () => { active = false; };
-  }, [getIdToken, t, user]);
+  }, [configured, getIdToken, profileLoadAttempt, ready, user?.id]);
+
+  function retryProfileLoad() {
+    if (!user) return;
+    setProfileLoadState({ userId: user.id, status: 'loading' });
+    setProfileLoadAttempt((attempt) => attempt + 1);
+  }
+
+  async function leaveProfile() {
+    setProfileLoadState(null);
+    await signOut();
+  }
 
   async function chooseAvatar(nextAvatarId: string | null) {
     setAvatarSaving(true); setAvatarError(''); setAvatarStatus('');
@@ -66,6 +112,7 @@ export function ProfilePanel() {
       const token = await getIdToken();
       if (!token) throw new Error('No session');
       const uploadedAvatarUrl = await submitCustomProfileAvatar(token, image);
+      if (uploadedAvatarUrl) await preloadAvatarImage(uploadedAvatarUrl);
       setAvatarUrl(uploadedAvatarUrl); setAvatarId(null); setAvatarRemoved(false); setCropFile(null); setAvatarStatus(t('profile.avatarUploaded'));
     } catch { setAvatarError(t('profile.avatarSaveError')); }
     finally { setAvatarSaving(false); }
@@ -81,6 +128,9 @@ export function ProfilePanel() {
     } catch (error) { setProfileError(error instanceof PlayerProfileError && error.code === 'username_taken' ? t('profile.usernameTaken') : error instanceof Error ? error.message : t('profile.connectionError')); }
     finally { setSaving(false); }
   }
+
+  if (profileLoading) return <div className="module-loading profile-loading" aria-busy="true"><LoadingIndicator label={t('profile.loading')} /></div>;
+  if (profileLoadFailed) return <div className="module-loading profile-load-error" role="alert"><p>{t('profile.editLoadError')}</p><button className="button secondary compact" type="button" onClick={retryProfileLoad}>{t('common.retry')}</button></div>;
 
   return (
     <div className="account-grid">
@@ -132,7 +182,7 @@ export function ProfilePanel() {
                 <button className="button profile-save-button" type="submit" disabled={saving}><Save size={17}/>{saving ? t('profile.savingProfile') : t('profile.saveProfile')}</button>
                 <div className="profile-secondary-actions">
                   <button type="button" className="button profile-share-button" onClick={() => { if (user) setShareUrl(publicChatUrl({ user: user.id, name: user.name })); }}><Share2 size={17}/>{t('profile.shareProfile')}</button>
-                  <button type="button" className="button profile-signout-button" onClick={signOut}><LogOut size={17}/>{t('profile.signOut')}</button>
+                  <button type="button" className="button profile-signout-button" onClick={leaveProfile}><LogOut size={17}/>{t('profile.signOut')}</button>
                 </div>
               </div>
             </form>

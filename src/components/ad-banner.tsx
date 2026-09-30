@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { AdMob } from '@capacitor-community/admob';
+import { useAuth } from './auth-provider';
 
 declare global {
   interface Window {
@@ -14,15 +15,15 @@ const EXOCLICK_ZONE_ID = process.env.NEXT_PUBLIC_EXOCLICK_ZONE_ID;
 const EXOCLICK_SCRIPT_URL = process.env.NEXT_PUBLIC_EXOCLICK_SCRIPT_URL;
 export function AdBanner({ disabled = false }: { disabled?: boolean }) {
   const native = Capacitor.isNativePlatform();
-  const exoClickRequested = useRef(false);
+  const { ready } = useAuth();
+  const showWebAd = !native && ready && !disabled && Boolean(EXOCLICK_ZONE_ID && EXOCLICK_SCRIPT_URL);
 
   useEffect(() => {
     if (native) void AdMob.removeBanner().catch(() => undefined);
   }, [native]);
 
   useEffect(() => {
-    if (native || disabled || !EXOCLICK_ZONE_ID || !EXOCLICK_SCRIPT_URL || exoClickRequested.current) return;
-    exoClickRequested.current = true;
+    if (!showWebAd || !EXOCLICK_SCRIPT_URL) return;
     if (!document.getElementById('exoclick-ad-provider')) {
       const script = document.createElement('script');
       script.id = 'exoclick-ad-provider';
@@ -32,13 +33,9 @@ export function AdBanner({ disabled = false }: { disabled?: boolean }) {
       document.head.appendChild(script);
     }
     (window.AdProvider = window.AdProvider || []).push({ serve: {} });
-  }, [disabled, native]);
+  }, [showWebAd]);
 
-  if (disabled) return null;
-
-  if (native) return null;
-
-  if (!EXOCLICK_ZONE_ID || !EXOCLICK_SCRIPT_URL) return null;
+  if (!showWebAd) return null;
 
   return (
     <aside className="web-ad" aria-label="Advertisement">

@@ -13,6 +13,8 @@ export type CharacterPage = {
   nextCursor: string | null;
 };
 
+export type CharacterSort = 'nameAsc' | 'nameDesc';
+
 function strings(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
@@ -47,16 +49,18 @@ export async function getCharactersPage({
   limit = 12,
   cursor,
   query,
+  sort = 'nameAsc',
   signal,
 }: {
   limit?: number;
   cursor?: string | null;
   query?: string;
+  sort?: CharacterSort;
   signal?: AbortSignal;
 } = {}): Promise<CharacterPage> {
   const baseUrl = process.env.NEXT_PUBLIC_CHARACTER_API_URL;
   if (!baseUrl) throw new Error('Character API is not configured.');
-  const params = new URLSearchParams({ limit: String(limit) });
+  const params = new URLSearchParams({ limit: String(limit), sort });
   if (cursor) params.set('cursor', cursor);
   if (query?.trim()) params.set('q', query.trim());
   const response = await fetch(`${baseUrl.replace(/\/$/, '')}/characters?${params}`, { cache: 'no-store', signal });
