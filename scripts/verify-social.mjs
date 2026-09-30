@@ -29,7 +29,7 @@ await page.route('**/*', async route => {
   if (url.pathname.endsWith('/scroll')) {
     assert.match(route.request().headers().authorization, /^Bearer /);
     requests++;
-    return route.fulfill({ json: { videos: [{ id: `clip-${requests}`, title: `Clip ${requests}`, description: 'Fixture clip', videoUrl: 'https://fixtures.invalid/clip.mp4', thumbnailUrl: '', upvotes: 0, downvotes: 0, commentCount: comments.length, userVote: 0 }], nextCursor: requests < 3 ? `cursor-${requests}` : null } });
+    return route.fulfill({ json: { videos: [{ id: `clip-${requests}`, title: `Clip ${requests}`, description: 'Fixture clip', uploader: 'Uploader', uploaderId: 'clip-uploader', uploaderAvatarUrl: null, videoUrl: 'https://fixtures.invalid/clip.mp4', thumbnailUrl: '', upvotes: 0, downvotes: 0, commentCount: comments.length, userVote: 0 }], nextCursor: requests < 3 ? `cursor-${requests}` : null } });
   }
   if (/\/scroll\/[^/]+\/vote$/.test(url.pathname)) {
     assert.match(route.request().headers().authorization, /^Bearer /);
