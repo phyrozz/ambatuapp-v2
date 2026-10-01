@@ -6,7 +6,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { Capacitor } from '@capacitor/core';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeft, ArrowUpRight, AudioLines, Bell, BellOff, Camera, Flag, ImagePlus, MessageCircle, MoreHorizontal, Plus, Search, Send, UsersRound, Video, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUpRight, AudioLines, Bell, BellOff, Camera, Flag, ImagePlus, LogIn, MessageCircle, MoreHorizontal, Plus, Search, Send, UsersRound, Video, X } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
@@ -1252,7 +1252,26 @@ export function ChatPage() {
     };
   }, [returnToInbox]);
   if (!ready) return <div className="page chat-gate"><LoadingIndicator label={t('common.loading')} /></div>;
-  if (!user) return <div className="page chat-gate"><MessageCircle size={36}/><h1>{t('chat.title')}</h1><p>{params.get('invite') ? t('chat.inviteSignIn') : t('chat.signInHint')}</p><button className="button dark" onClick={() => void signInWithGoogle(`/chat/${params.toString() ? `?${params.toString()}` : ''}`)}>{t('profile.googleSignIn')}</button></div>;
+  if (!user) return <div className="page chat-gate chat-signin-page">
+    <div className="chat-signin-card">
+      <div className="chat-signin-art" aria-hidden="true">
+        <span className="chat-signin-orbit chat-signin-orbit-one" />
+        <span className="chat-signin-orbit chat-signin-orbit-two" />
+        <span className="chat-signin-bubble chat-signin-bubble-left"><i /><i /></span>
+        <span className="chat-signin-bubble chat-signin-bubble-right"><i /><i /></span>
+        <span className="chat-signin-center-icon"><MessageCircle size={35} /></span>
+        <span className="chat-signin-avatar"><UsersRound size={19} /></span>
+        <span className="chat-signin-spark chat-signin-spark-one" />
+        <span className="chat-signin-spark chat-signin-spark-two" />
+      </div>
+      <div className="chat-signin-copy">
+        <span className="chat-signin-kicker">{t('nav.chat')}</span>
+        <h1>{t('chat.title')}</h1>
+        <p>{params.get('invite') ? t('chat.inviteSignIn') : t('chat.signInHint')}</p>
+        <button className="button dark" onClick={() => void signInWithGoogle(`/chat/${params.toString() ? `?${params.toString()}` : ''}`)}><LogIn size={18} />{t('profile.googleSignIn')}</button>
+      </div>
+    </div>
+  </div>;
   if (!wsUrl) return <div className="page chat-gate"><h1>{t('chat.title')}</h1><p>{t('chat.notConfigured')}</p></div>;
   return <div className="page chat-page">
     {error && <p className="chat-notice" role="status">{error}<button onClick={() => setError('')} aria-label={t('chat.dismiss')}><X size={15}/></button></p>}
