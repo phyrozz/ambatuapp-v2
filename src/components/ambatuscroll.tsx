@@ -1,22 +1,25 @@
 'use client';
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
-import { ArrowBigDown, ArrowBigUp, ChevronDown, ChevronUp, MessageCircle, Pause, Play, Volume2, VolumeX } from 'lucide-react';
+import { ArrowBigDown, ArrowBigUp, ChevronDown, ChevronUp, MessageCircle, Pause, Play, Send, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { ScrollComments } from './scroll-comments';
 import { memberApi } from '@/lib/member-api';
 import { LoadingIndicator } from './loading-indicator';
+import { FriendShareDialog } from './friend-share-dialog';
+import { publicAppUrl } from '@/lib/share-links';
 
 type Clip = { id: string; title: string; description: string; uploader: string; uploaderId: string | null; uploaderAvatarUrl: string | null; videoUrl: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote: number };
 type VoteResult = { value: number; upvotes: number; downvotes: number };
 
-function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, onVote }: { clip: Clip; root: HTMLDivElement | null; muted: boolean; dialogOpen: boolean; toggleMute: () => void; openComments: () => void; onVote: (value: 1 | -1) => Promise<void> }) {
+function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, onShare, onVote }: { clip: Clip; root: HTMLDivElement | null; muted: boolean; dialogOpen: boolean; toggleMute: () => void; openComments: () => void; onShare: () => void; onVote: (value: 1 | -1) => Promise<void> }) {
   const { t } = useI18n();
   const { user } = useAuth();
   const article = useRef<HTMLElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const deliberatePause = useRef(false);
+  const [deliberatelyPaused, setDeliberatelyPaused] = useState(false);
   const lastTouch = useRef<{ time: number; x: number; y: number } | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [near, setNear] = useState(false);
@@ -84,10 +87,11 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
     const player = video.current;
     if (!player) return;
     deliberatePause.current = !player.paused;
+    setDeliberatelyPaused(deliberatePause.current);
     if (deliberatePause.current) player.pause(); else void player.play().catch(() => {});
   };
   return <article ref={article} className={`scroll-clip ${active ? 'is-active' : ''}`} aria-label={clip.title} onPointerDown={event => { if (event.pointerType === 'touch') touchStart.current = { x: event.clientX, y: event.clientY }; }} onPointerUp={handleTouch} onDoubleClick={event => { if (clip.userVote !== 1 && !(event.target as Element).closest('button,a')) void vote(1); }}>
-    <video ref={video} src={near ? clip.videoUrl : undefined} poster={clip.thumbnailUrl || undefined} playsInline autoPlay={active && !dialogOpen && !deliberatePause.current} loop muted={muted} preload="metadata" aria-label={clip.title} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onTimeUpdate={event => { const player = event.currentTarget; if (player.duration) setProgress(player.currentTime / player.duration); }} onError={() => setFailed(true)} onCanPlay={() => { setMediaReady(true); if (active && !dialogOpen && !deliberatePause.current && !document.hidden) void video.current?.play().catch(() => {}); }} />
+    <video ref={video} src={near ? clip.videoUrl : undefined} poster={clip.thumbnailUrl || undefined} playsInline autoPlay={active && !dialogOpen && !deliberatelyPaused} loop muted={muted} preload="metadata" aria-label={clip.title} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onTimeUpdate={event => { const player = event.currentTarget; if (player.duration) setProgress(player.currentTime / player.duration); }} onError={() => setFailed(true)} onCanPlay={() => { setMediaReady(true); if (active && !dialogOpen && !deliberatePause.current && !document.hidden) void video.current?.play().catch(() => {}); }} />
     <div className={`scroll-caption${descriptionExpanded ? ' is-expanded' : ''}`}>
       <h2><Link href={`/watch/${encodeURIComponent(clip.id)}/`}>{clip.title}</Link></h2>
       {clip.description && <>
@@ -105,6 +109,7 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
       <button type="button" className={`scroll-action ${clip.userVote === 1 ? 'selected' : ''}`} aria-label={`${t('lore.upvote')}: ${clip.upvotes}`} aria-pressed={clip.userVote === 1} disabled={voteBusy} onClick={() => void vote(1)}><ArrowBigUp size={27}/><span>{clip.upvotes}</span></button>
       <button type="button" className={`scroll-action ${clip.userVote === -1 ? 'selected' : ''}`} aria-label={`${t('lore.downvote')}: ${clip.downvotes}`} aria-pressed={clip.userVote === -1} disabled={voteBusy} onClick={() => void vote(-1)}><ArrowBigDown size={27}/><span>{clip.downvotes}</span></button>
       <button type="button" className="scroll-action" aria-label={`${t('lore.comments')}: ${clip.commentCount}`} onClick={openComments}><MessageCircle size={26}/><span>{clip.commentCount}</span></button>
+      <button type="button" className="scroll-action" aria-label={t('friends.shareClip')} onClick={onShare}><Send size={25}/></button>
     </div>
     <button type="button" className="scroll-play" onClick={togglePlay} aria-label={t(paused ? 'scroll.play' : 'scroll.pause')}>{paused ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}</button>
     <button type="button" className="scroll-mute" onClick={toggleMute} aria-label={t(muted ? 'scroll.unmute' : 'scroll.mute')}>{muted ? <VolumeX size={20}/> : <Volume2 size={20}/>}</button>
@@ -123,6 +128,7 @@ export function Ambatuscroll() {
   const [ended, setEnded] = useState(false);
   const [muted, setMuted] = useState(false);
   const [commentClipId, setCommentClipId] = useState<string | null>(null);
+  const [shareClip, setShareClip] = useState<Clip | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const load = useRef<() => void>(() => {});
@@ -180,10 +186,11 @@ export function Ambatuscroll() {
   const currentClip = clips.find(clip => clip.id === commentClipId);
   return <section className="ambatuscroll"><AmbatuscrollHeader />
     <div className="scroll-feed" ref={setFeed} tabIndex={0} aria-label={t('nav.scroll')}>
-      {clips.map(clip => <ScrollClip key={clip.id} clip={clip} root={root} muted={muted} dialogOpen={commentClipId === clip.id} toggleMute={() => setMuted(value => !value)} openComments={() => setCommentClipId(clip.id)} onVote={value => vote(clip.id, value)} />)}
+      {clips.map(clip => <ScrollClip key={clip.id} clip={clip} root={root} muted={muted} dialogOpen={!!shareClip || !!commentClipId} toggleMute={() => setMuted(value => !value)} openComments={() => setCommentClipId(clip.id)} onShare={() => setShareClip(clip)} onVote={value => vote(clip.id, value)} />)}
       <div ref={sentinel} className={`scroll-status${ended ? ' scroll-status-end' : ''}${ended && !clips.length ? ' scroll-status-empty' : ''}`}>{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}{ended && <p>{t(clips.length ? 'scroll.end' : 'scroll.empty')}</p>}</div>
     </div>
     {currentClip && <ScrollComments clipId={currentClip.id} title={currentClip.title} count={currentClip.commentCount} onClose={() => setCommentClipId(null)} onCountChange={() => setClips(previous => previous.map(clip => clip.id === currentClip.id ? { ...clip, commentCount: clip.commentCount + 1 } : clip))} />}
+    {shareClip && <FriendShareDialog kind="clip" title={shareClip.title} message={t('friends.clipMessage', { title: shareClip.title.slice(0, 300), url: publicAppUrl(`/watch/${encodeURIComponent(shareClip.id)}/`) })} onClose={() => setShareClip(null)}/>}
   </section>;
 }
 

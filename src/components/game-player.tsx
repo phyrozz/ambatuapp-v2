@@ -11,6 +11,7 @@ import {
   Play,
   RotateCcw,
   Trophy,
+  UsersRound,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -35,6 +36,8 @@ import {
   isGameCharacterId,
 } from '@/lib/game-characters';
 import { useAuth } from './auth-provider';
+import { FriendShareDialog } from './friend-share-dialog';
+import { publicAppUrl } from '@/lib/share-links';
 type Status = 'ready' | 'playing' | 'paused' | 'over' | 'won';
 export function GamePlayer({ id }: { id: GameId }) {
   const { t } = useI18n();
@@ -44,6 +47,7 @@ export function GamePlayer({ id }: { id: GameId }) {
   const [muted, setMuted] = useState(false);
   const [leaderboardVersion, setLeaderboardVersion] = useState(0);
   const [gamePlaying, setGamePlaying] = useState(false);
+  const [invitation, setInvitation] = useState('');
   const audio = useRef<HTMLAudioElement | null>(null);
   const audioFile = useRef<string | null>(null);
   const characterAudio = useRef<HTMLAudioElement | null>(null);
@@ -119,6 +123,7 @@ export function GamePlayer({ id }: { id: GameId }) {
           <h1>{game.name}</h1>
         </div>
         <div className="game-header-actions">
+          <button type="button" className="button secondary game-friend-invite" disabled={gamePlaying} onClick={() => setInvitation(t('friends.gameMessage', { name: game.name, url: publicAppUrl(`/games/${game.id}/`) }))}><UsersRound size={17}/>{t('friends.inviteGame')}</button>
           <span className="best-pill">
             <Trophy size={16} />
             {t('games.best', { score: scores[id] || 0 })}
@@ -156,6 +161,7 @@ export function GamePlayer({ id }: { id: GameId }) {
         <ArcadeGame kind={id} onScore={onScore} sound={sound} character={character} characterSound={characterSound} onPlayingChange={setGamePlaying} />
       )}
       <Leaderboard gameId={id} refreshKey={leaderboardVersion} />
+      {invitation && <FriendShareDialog kind="game" title={game.name} message={invitation} onClose={() => setInvitation('')}/>}
     </div>
   );
 }

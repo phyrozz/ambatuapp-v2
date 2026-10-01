@@ -163,7 +163,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               onClick={href === '/' ? openPwaHomepage : undefined}
-              className={`nav-item ${href !== '/chat/' && (path === href || (href !== '/' && path.startsWith(href))) ? 'active' : ''}`}
+              className={`nav-item ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
+              aria-current={path === href || (href !== '/' && path.startsWith(href)) ? 'page' : undefined}
             >
               <Icon size={20} />
               <span>{t(key)}</span>
