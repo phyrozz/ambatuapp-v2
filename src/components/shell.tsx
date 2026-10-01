@@ -57,6 +57,7 @@ function isStandalonePwa() {
 }
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  const routePath = path === '/' ? '/' : `${path.replace(/\/+$/, '')}/`;
   const router = useRouter();
   const [topbarHidden, setTopbarHidden] = useState(false);
   const [topbarScrolled, setTopbarScrolled] = useState(false);
@@ -64,7 +65,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { locale, locales, localeNames, setLocale, t } = useI18n();
   const { user } = useAuth();
   const { incomingCount } = useFriendRequests();
-  const adDisabled = path.startsWith('/games/') || path === '/soundboard/' || path === '/chat/' || ['/privacy', '/privacy/', '/terms', '/terms/'].includes(path) || Boolean(current);
+  const adDisabled = routePath.startsWith('/games/') || routePath === '/soundboard/' || routePath === '/chat/' || ['/privacy/', '/terms/'].includes(routePath) || Boolean(current);
   useEffect(() => {
     if (path === '/' && isStandalonePwa() && new URLSearchParams(window.location.search).get('home') !== '1') {
       router.replace('/scroll/');
@@ -163,8 +164,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               onClick={href === '/' ? openPwaHomepage : undefined}
-              className={`nav-item ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
-              aria-current={path === href || (href !== '/' && path.startsWith(href)) ? 'page' : undefined}
+              className={`nav-item ${routePath === href || (href !== '/' && routePath.startsWith(href)) ? 'active' : ''}`}
+              aria-current={routePath === href || (href !== '/' && routePath.startsWith(href)) ? 'page' : undefined}
             >
               <Icon size={20} />
               <span>{t(key)}</span>
@@ -178,7 +179,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Heart size={20} />
           {t('nav.favorites')}
         </Link> */}
-        <Link className={`nav-item ${path === '/profile/' ? 'active' : ''}`} href="/profile/">
+        <Link className={`nav-item ${routePath === '/profile/' ? 'active' : ''}`} href="/profile/">
           <UserRound size={20} />
           {t('nav.profile')}
         </Link>
@@ -196,7 +197,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </span>
         </div>
       </aside>
-      <div className={`workspace ${path === '/chat/' ? 'chat-workspace' : ''} ${path === '/scroll/' ? 'scroll-workspace' : ''}`}>
+      <div className={`workspace ${routePath === '/chat/' ? 'chat-workspace' : ''} ${routePath === '/scroll/' ? 'scroll-workspace' : ''}`}>
         <header className={`topbar ${topbarHidden ? 'topbar-hidden' : ''} ${topbarScrolled ? 'topbar-scrolled' : ''}`}>
           <span className="topbar-note">
             <span className="status-dot" /> {t('shell.chaos')}
@@ -216,7 +217,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {/* <Link href="/favorites/" className="icon-button" aria-label={t('nav.favorites')}>
               <Heart size={19} />
             </Link> */}
-            <Link href="/profile/" className={`profile-button ${path.startsWith('/profile/') ? 'active' : ''}`} aria-label={t('nav.profile')}>
+            <Link href="/profile/" className={`profile-button ${routePath.startsWith('/profile/') ? 'active' : ''}`} aria-label={t('nav.profile')}>
               <UserRound size={18} aria-hidden="true" />
               <span className="profile-desktop-label">{t('shell.yourCorner')}</span>
               <span className="profile-mobile-label">{t('nav.profile')}</span>
@@ -227,7 +228,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <main id="main" tabIndex={-1}>
           {children}
         </main>
-        <AdBanner disabled={adDisabled || path.startsWith('/watch/') || path.startsWith('/scroll/')} />
+        <AdBanner disabled={adDisabled || routePath.startsWith('/watch/') || routePath.startsWith('/scroll/')} />
         <footer className="footer">
           <span>
             ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
@@ -245,7 +246,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             href={href}
             onClick={href === '/' ? openPwaHomepage : undefined}
             key={href}
-            className={`${href === '/scroll/' ? 'chat-featured' : ''} ${path === href || (href !== '/' && path.startsWith(href)) ? 'active' : ''}`}
+            className={`${href === '/scroll/' ? 'chat-featured' : ''} ${routePath === href || (href !== '/' && routePath.startsWith(href)) ? 'active' : ''}`}
           >
             <Icon size={21} />
             <span>{t(key)}</span>

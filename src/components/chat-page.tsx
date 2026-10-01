@@ -6,7 +6,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { Capacitor } from '@capacitor/core';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeft, ArrowUpRight, AudioLines, Bell, BellOff, Camera, Flag, ImagePlus, LogIn, MessageCircle, MoreHorizontal, Plus, Search, Send, UsersRound, Video, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUpRight, AudioLines, Bell, BellOff, Camera, Flag, ImagePlus, LogIn, MessageCircle, MoreHorizontal, Play, Plus, Search, Send, UsersRound, Video, X } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
@@ -187,7 +187,47 @@ function advanceConversationReadVersion(versions: Map<string, number>, conversat
   return next;
 }
 
-function ChatMessageText({ text }: { text: unknown }) {
+function sharedVideoIdFromUrl(rawUrl: string) {
+  if (typeof window === 'undefined') return null;
+  try {
+    const url = new URL(rawUrl.startsWith('www.') ? `https://${rawUrl}` : rawUrl);
+    const trustedOrigins = new Set(['https://www.ambatu.fun', 'https://ambatu.fun', window.location.origin]);
+    const configuredShareOrigin = process.env.NEXT_PUBLIC_SHARE_BASE_URL;
+    if (configuredShareOrigin) trustedOrigins.add(new URL(configuredShareOrigin).origin);
+    const localHosts = ['localhost', '127.0.0.1', '[::1]'];
+    const isLocalDevelopmentLink = localHosts.includes(url.hostname) && localHosts.includes(window.location.hostname);
+    if ((!trustedOrigins.has(url.origin) && !isLocalDevelopmentLink) || !['https:', 'http:'].includes(url.protocol)) return null;
+    return url.pathname.match(/^\/watch\/([\w-]{1,128})\/?$/)?.[1] ?? null;
+  } catch { return null; }
+}
+
+function sharedVideoIdFromText(text: unknown) {
+  if (typeof text !== 'string') return null;
+  for (const match of text.matchAll(/(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi)) {
+    const url = match[0].replace(/[.,!?;:)\]}]+$/, '');
+    const id = sharedVideoIdFromUrl(url);
+    if (id) return id;
+  }
+  return null;
+}
+
+function isMobileVideoExperience() {
+  if (typeof window === 'undefined') return false;
+  const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+  return Capacitor.isNativePlatform() || window.matchMedia('(max-width: 760px)').matches ||
+    window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(display-mode: standalone)').matches ||
+    navigatorWithStandalone.standalone === true || /iPad|iPhone|iPod|Android|Tablet/i.test(navigator.userAgent) ||
+    (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+}
+
+function sharedVideoHref(id: string, conversation: string) {
+  if (!isMobileVideoExperience()) return `/watch/${encodeURIComponent(id)}/`;
+  const query = new URLSearchParams({ clip: id });
+  if (conversation) query.set('conversation', conversation);
+  return `/scroll/?${query.toString()}`;
+}
+
+function ChatMessageText({ text, conversation }: { text: unknown; conversation: string }) {
   const safeText = typeof text === 'string' ? text : '';
   const urlPattern = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
   const content: ReactNode[] = [];
@@ -198,12 +238,63 @@ function ChatMessageText({ text }: { text: unknown }) {
     const start = match.index ?? 0;
     if (start > cursor) content.push(safeText.slice(cursor, start));
     if (!url) { content.push(rawUrl); cursor = start + rawUrl.length; continue; }
-    content.push(<a key={start} href={url.startsWith('www.') ? `https://${url}` : url} target="_blank" rel="noopener noreferrer">{url}</a>);
+    const clipId = sharedVideoIdFromUrl(url);
+    content.push(clipId
+      ? <Link key={start} href={sharedVideoHref(clipId, conversation)} prefetch={false}>{url}</Link>
+      : <a key={start} href={url.startsWith('www.') ? `https://${url}` : url} target="_blank" rel="noopener noreferrer">{url}</a>);
     if (url.length < rawUrl.length) content.push(rawUrl.slice(url.length));
     cursor = start + rawUrl.length;
   }
   if (cursor < safeText.length) content.push(safeText.slice(cursor));
   return <>{content}</>;
+}
+
+type SharedVideoPreview = { id: string; title: string; uploader: string; thumbnailUrl: string };
+const sharedVideoPreviewCache = new Map<string, { clip: SharedVideoPreview; expiresAt: number }>();
+const sharedVideoPreviewRequests = new Map<string, Promise<SharedVideoPreview>>();
+
+function loadSharedVideoPreview(id: string) {
+  const cached = sharedVideoPreviewCache.get(id);
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.clip);
+  const pending = sharedVideoPreviewRequests.get(id);
+  if (pending) return pending;
+  const videosApi = `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/videos`;
+  if (!videosApi.startsWith('http')) return Promise.reject(new Error('VIDEO_PREVIEW_UNAVAILABLE'));
+  const request = fetch(`${videosApi}/${encodeURIComponent(id)}`, { cache: 'no-store' })
+    .then(async response => {
+      const data = await response.json();
+      if (!response.ok) throw new Error('VIDEO_PREVIEW_UNAVAILABLE');
+      return data as SharedVideoPreview;
+    })
+    .then(clip => {
+      sharedVideoPreviewCache.set(id, { clip, expiresAt: Date.now() + 50 * 60 * 1000 });
+      if (sharedVideoPreviewCache.size > 48) sharedVideoPreviewCache.delete(sharedVideoPreviewCache.keys().next().value!);
+      return clip;
+    })
+    .finally(() => sharedVideoPreviewRequests.delete(id));
+  sharedVideoPreviewRequests.set(id, request);
+  return request;
+}
+
+function ChatSharedVideoPreview({ clipId, conversation }: { clipId: string; conversation: string }) {
+  const { t } = useI18n();
+  const [clip, setClip] = useState<SharedVideoPreview | null>(null);
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
+  useEffect(() => {
+    let current = true;
+    void loadSharedVideoPreview(clipId).then(result => {
+      if (current) setClip(result);
+    }).catch(() => { if (current) setClip(null); });
+    return () => { current = false; };
+  }, [clipId]);
+  return <Link className="chat-shared-video-preview" href={sharedVideoHref(clip?.id ?? clipId, conversation)} prefetch={false}>
+    <span className="chat-shared-video-thumbnail">
+      {clip?.thumbnailUrl && !thumbnailFailed ? <img src={clip.thumbnailUrl} alt="" onError={() => setThumbnailFailed(true)} /> : <span className="chat-shared-video-placeholder" aria-hidden="true"><Play size={26} fill="currentColor" /></span>}
+      <span className="chat-shared-video-play" aria-hidden="true"><Play size={17} fill="currentColor" /></span>
+    </span>
+    <span className="chat-shared-video-title">{clip?.title ?? t('nav.watch')}</span>
+    <span className="chat-shared-video-source">{t('nav.watch')}{clip?.uploader ? ` · ${clip.uploader}` : ''}</span>
+  </Link>;
 }
 
 function ChatMessageImage({ src, alt, onLoad }: { src?: string; alt: string; onLoad?: () => void }) {
@@ -1304,7 +1395,7 @@ export function ChatPage() {
   const senderName = getChatMessageSenderName(message.senderId, current.names, user.id, user.name, t('lore.anonymous'));
   const senderAvatarUrl = typeof message.senderId === 'string' ? playerAvatarUrls[message.senderId] : undefined;
   return <small>{senderAvatarUrl ? <img className="chat-message-avatar" src={senderAvatarUrl} alt="" aria-hidden="true"/> : <span className="chat-message-avatar fallback" aria-hidden="true">{senderName.slice(0, 1).toUpperCase()}</span>}{senderName}</small>;
-})()}{message.kind === 'image' || message.kind === 'gif' ? <ChatMessageImage src={message.kind === 'gif' ? message.text : message.url} alt={t(message.kind === 'gif' ? 'chat.gif' : 'chat.image')} key={message.kind === 'gif' ? message.text : message.url} onLoad={() => { if (stickToBottom.current) scrollMessagesToBottom(); }}/> : message.kind === 'video' ? message.url && <MediaPlayer src={message.url} variant="chat" onLoadedMetadata={() => { if (stickToBottom.current) scrollMessagesToBottom(); }} /> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <p><ChatMessageText text={message.text}/></p>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{formatChatMessageTime(message.createdAt, locale)}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div>{showJumpToLatest && <button type="button" className="chat-jump-latest" onClick={queueScrollToBottom} aria-label={t('chat.jumpToLatest')}><ArrowDown size={20}/></button>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><div className="chat-attachment" ref={attachmentMenu}><button ref={attachmentTrigger} type="button" className="chat-icon chat-attachment-trigger" onClick={() => setAttachmentsOpen(open => !open)} aria-label={t('chat.attach')} aria-expanded={attachmentsOpen} aria-controls="chat-attachment-menu"><ImagePlus size={19}/></button><div className="chat-attachment-menu" id="chat-attachment-menu" role="menu" aria-label={t('chat.attach')} aria-hidden={!attachmentsOpen} data-open={attachmentsOpen}><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); photoInput.current?.click(); }}><Camera size={17}/><span>{t('chat.takePhoto')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { void openVideoRecorder(); }}><Video size={17}/><span>{t('chat.recordVideo')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); mediaInput.current?.click(); }}><ImagePlus size={17}/><span>{t('chat.chooseMedia')}</span></button></div><input ref={photoInput} className="chat-file-input" type="file" accept="image/*" capture="environment" onChange={event => { void upload(event.target.files?.[0], true); event.target.value = ''; }}/><input ref={mediaInput} className="chat-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></div><button type="button" className="chat-icon chat-sound-toggle" onClick={() => { setAttachmentsOpen(false); setSoundPickerOpen(!soundPickerOpen); }} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><div className="chat-message-field"><input ref={messageInput} value={draft} maxLength={2000} onChange={event => updateDraft(event.target.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)} onClick={event => updateDraft(draft, event.currentTarget.selectionStart ?? draft.length)} onKeyDown={event => { if (mentionOptions.length && event.key === 'Enter') { event.preventDefault(); insertMention(mentionOptions[0].id, mentionOptions[0].name); } else if (mentionOptions.length && event.key === 'ArrowDown') { event.preventDefault(); event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.chat-mention-menu button')?.focus(); } }} role="combobox" aria-autocomplete="list" aria-expanded={mentionOptions.length > 0} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')} aria-controls={mentionOptions.length ? 'chat-mention-list' : undefined}/>{mentionOptions.length > 0 && <div className="chat-mention-menu" id="chat-mention-list" role="listbox">{mentionOptions.map(player => <button key={player.id} type="button" role="option" aria-selected={false} aria-label={t('chat.mentionUser', { name: player.name })} onPointerDown={event => event.preventDefault()} onClick={() => insertMention(player.id, player.name)}><span className="chat-mention-avatar">{player.name.slice(0, 1).toUpperCase()}</span><span>{player.name}</span></button>)}</div>}</div><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form><ChatSoundPicker busy={busy} open={soundPickerOpen} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>{cameraOpen && createPortal(<div className="chat-modal-backdrop chat-camera-backdrop" role="presentation"><section className="chat-modal chat-camera-modal" role="dialog" aria-modal="true" aria-labelledby="chat-camera-title" onClick={event => event.stopPropagation()}><button type="button" className="chat-icon chat-camera-close" onClick={closeVideoRecorder} aria-label={t('chat.closeCamera')}><X size={18}/></button><Video size={24}/><h2 id="chat-camera-title">{t('chat.cameraTitle')}</h2><p>{t('chat.cameraInstructions')}</p>{cameraError && <p className="form-error" role="alert">{cameraError}</p>}<div className="chat-camera-preview">{recordedVideoUrl ? <MediaPlayer src={recordedVideoUrl} variant="chat" /> : <video ref={cameraVideo} autoPlay muted playsInline/>}</div><p className="chat-camera-timer" data-recording={recording} aria-live="polite">{t('chat.recordingTimer', { time: `0:${String(recordingSeconds).padStart(2, '0')}` })}</p><div className="chat-camera-actions">{recording ? <button type="button" className="button dark" onClick={stopVideoRecording}>{t('chat.stopRecording')}</button> : recordedVideo ? <><button type="button" className="button secondary" onClick={startVideoRecording}>{t('chat.recordAgain')}</button><button type="button" className="button dark" disabled={busy} onClick={sendRecordedVideo}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{t('chat.sendVideo')}</button></> : <button type="button" className="button dark" disabled={!cameraStream} onClick={startVideoRecording}>{t('chat.startRecording')}</button>}</div></section></div>, document.body)}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
+})()}{message.kind === 'image' || message.kind === 'gif' ? <ChatMessageImage src={message.kind === 'gif' ? message.text : message.url} alt={t(message.kind === 'gif' ? 'chat.gif' : 'chat.image')} key={message.kind === 'gif' ? message.text : message.url} onLoad={() => { if (stickToBottom.current) scrollMessagesToBottom(); }}/> : message.kind === 'video' ? message.url && <MediaPlayer src={message.url} variant="chat" onLoadedMetadata={() => { if (stickToBottom.current) scrollMessagesToBottom(); }} /> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <><p><ChatMessageText text={message.text} conversation={active}/></p>{sharedVideoIdFromText(message.text) && <ChatSharedVideoPreview clipId={sharedVideoIdFromText(message.text)!} conversation={active}/>}</>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{formatChatMessageTime(message.createdAt, locale)}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div>{showJumpToLatest && <button type="button" className="chat-jump-latest" onClick={queueScrollToBottom} aria-label={t('chat.jumpToLatest')}><ArrowDown size={20}/></button>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><div className="chat-attachment" ref={attachmentMenu}><button ref={attachmentTrigger} type="button" className="chat-icon chat-attachment-trigger" onClick={() => setAttachmentsOpen(open => !open)} aria-label={t('chat.attach')} aria-expanded={attachmentsOpen} aria-controls="chat-attachment-menu"><ImagePlus size={19}/></button><div className="chat-attachment-menu" id="chat-attachment-menu" role="menu" aria-label={t('chat.attach')} aria-hidden={!attachmentsOpen} data-open={attachmentsOpen}><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); photoInput.current?.click(); }}><Camera size={17}/><span>{t('chat.takePhoto')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { void openVideoRecorder(); }}><Video size={17}/><span>{t('chat.recordVideo')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); mediaInput.current?.click(); }}><ImagePlus size={17}/><span>{t('chat.chooseMedia')}</span></button></div><input ref={photoInput} className="chat-file-input" type="file" accept="image/*" capture="environment" onChange={event => { void upload(event.target.files?.[0], true); event.target.value = ''; }}/><input ref={mediaInput} className="chat-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></div><button type="button" className="chat-icon chat-sound-toggle" onClick={() => { setAttachmentsOpen(false); setSoundPickerOpen(!soundPickerOpen); }} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><div className="chat-message-field"><input ref={messageInput} value={draft} maxLength={2000} onChange={event => updateDraft(event.target.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)} onClick={event => updateDraft(draft, event.currentTarget.selectionStart ?? draft.length)} onKeyDown={event => { if (mentionOptions.length && event.key === 'Enter') { event.preventDefault(); insertMention(mentionOptions[0].id, mentionOptions[0].name); } else if (mentionOptions.length && event.key === 'ArrowDown') { event.preventDefault(); event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.chat-mention-menu button')?.focus(); } }} role="combobox" aria-autocomplete="list" aria-expanded={mentionOptions.length > 0} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')} aria-controls={mentionOptions.length ? 'chat-mention-list' : undefined}/>{mentionOptions.length > 0 && <div className="chat-mention-menu" id="chat-mention-list" role="listbox">{mentionOptions.map(player => <button key={player.id} type="button" role="option" aria-selected={false} aria-label={t('chat.mentionUser', { name: player.name })} onPointerDown={event => event.preventDefault()} onClick={() => insertMention(player.id, player.name)}><span className="chat-mention-avatar">{player.name.slice(0, 1).toUpperCase()}</span><span>{player.name}</span></button>)}</div>}</div><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form><ChatSoundPicker busy={busy} open={soundPickerOpen} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>{cameraOpen && createPortal(<div className="chat-modal-backdrop chat-camera-backdrop" role="presentation"><section className="chat-modal chat-camera-modal" role="dialog" aria-modal="true" aria-labelledby="chat-camera-title" onClick={event => event.stopPropagation()}><button type="button" className="chat-icon chat-camera-close" onClick={closeVideoRecorder} aria-label={t('chat.closeCamera')}><X size={18}/></button><Video size={24}/><h2 id="chat-camera-title">{t('chat.cameraTitle')}</h2><p>{t('chat.cameraInstructions')}</p>{cameraError && <p className="form-error" role="alert">{cameraError}</p>}<div className="chat-camera-preview">{recordedVideoUrl ? <MediaPlayer src={recordedVideoUrl} variant="chat" /> : <video ref={cameraVideo} autoPlay muted playsInline/>}</div><p className="chat-camera-timer" data-recording={recording} aria-live="polite">{t('chat.recordingTimer', { time: `0:${String(recordingSeconds).padStart(2, '0')}` })}</p><div className="chat-camera-actions">{recording ? <button type="button" className="button dark" onClick={stopVideoRecording}>{t('chat.stopRecording')}</button> : recordedVideo ? <><button type="button" className="button secondary" onClick={startVideoRecording}>{t('chat.recordAgain')}</button><button type="button" className="button dark" disabled={busy} onClick={sendRecordedVideo}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{t('chat.sendVideo')}</button></> : <button type="button" className="button dark" disabled={!cameraStream} onClick={startVideoRecording}>{t('chat.startRecording')}</button>}</div></section></div>, document.body)}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
     {membersOpen && current?.group && <ChatGroupMembers conversation={current} avatarUrls={playerAvatarUrls} userId={user.id} busy={membersBusy} sharing={sharing} actionError={membersError} getIdToken={getIdToken} onAdd={player => { void updateGroupMember(current.id, player, true); }} onRemove={id => { void updateGroupMember(current.id, { id, username: current.names?.[id] ?? id }, false); }} onShare={() => { void shareGroup(current.id); }} onClose={() => setMembersOpen(false)} />}
     {shareUrl && <ChatShareDialog url={shareUrl} group onClose={() => setShareUrl('')}/>}
     {friendPickerOpen && <FriendPickerDialog group title={t('friends.newGroup')} confirmLabel={t('chat.createGroup')} errorKey="chat.createError" disabled={status !== 'ready' || busy} onClose={() => setFriendPickerOpen(false)} onConfirm={async (friends, title) => { await createConversation(friends, true, title, true); setFriendPickerOpen(false); }}/>}
