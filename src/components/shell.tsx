@@ -30,6 +30,7 @@ import { ThemeToggle } from './theme-toggle';
 import { useAuth } from './auth-provider';
 import { useFriendRequests } from './friend-request-provider';
 import { installPushNavigation } from '@/lib/push-notifications';
+import { isStandalonePwa, navigateLegalLinkInApp } from '@/lib/legal-navigation';
 const nav = [
   { href: '/', key: 'nav.discover', Icon: House },
   { href: '/scroll/', key: 'nav.scroll', Icon: Smartphone },
@@ -48,13 +49,6 @@ const mobileNav = [
   { href: '/games/', key: 'nav.gamesShort', Icon: Gamepad2 },
   { href: '/explore/', key: 'nav.explore', Icon: LayoutGrid },
 ];
-function isStandalonePwa() {
-  return typeof window !== 'undefined' && (
-    Capacitor.isNativePlatform() ||
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const routePath = path === '/' ? '/' : `${path.replace(/\/+$/, '')}/`;
@@ -77,6 +71,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
     if (!isStandalonePwa()) return;
     event.preventDefault();
     router.push('/?home=1');
+  };
+  const openPrivacyPolicy = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    navigateLegalLinkInApp(event, '/privacy/', href => router.push(href));
+  };
+  const openTerms = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    navigateLegalLinkInApp(event, '/terms/', href => router.push(href));
   };
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -234,8 +234,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
             ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
           </span>
           <nav className="footer-legal" aria-label={t('legal.footerNavigation')}>
-            <Link href="/privacy/">{t('legal.privacyLink')}</Link>
-            <Link href="/terms/">{t('legal.termsLink')}</Link>
+            <Link href="/privacy/" target="_blank" rel="noopener noreferrer" onClick={openPrivacyPolicy}>{t('legal.privacyLink')}</Link>
+            <Link href="/terms/" target="_blank" rel="noopener noreferrer" onClick={openTerms}>{t('legal.termsLink')}</Link>
           </nav>
           <span>{t('shell.community')}</span>
         </footer>

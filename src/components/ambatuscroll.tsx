@@ -2,13 +2,14 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Pause, Play, Send, Volume2, VolumeX } from 'lucide-react';
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Pause, Play, Send, Upload, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { ScrollComments } from './scroll-comments';
 import { memberApi } from '@/lib/member-api';
 import { LoadingIndicator } from './loading-indicator';
 import { FriendShareDialog } from './friend-share-dialog';
+import { VideoUploadDialog } from './video-upload-dialog';
 import { publicAppUrl } from '@/lib/share-links';
 
 type Clip = { id: string; title: string; description: string; uploader: string; uploaderId: string | null; uploaderAvatarUrl: string | null; videoUrl: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote: number };
@@ -134,6 +135,7 @@ export function Ambatuscroll() {
   const [muted, setMuted] = useState(false);
   const [commentClipId, setCommentClipId] = useState<string | null>(null);
   const [shareClip, setShareClip] = useState<Clip | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const load = useRef<() => void>(() => {});
@@ -196,17 +198,23 @@ export function Ambatuscroll() {
     }
   }, [clips, getIdToken]);
   const currentClip = clips.find(clip => clip.id === commentClipId);
-  return <section className={`ambatuscroll${singleClipId ? ' is-single' : ''}`}><AmbatuscrollHeader backHref={singleClipId ? returnHref : undefined} />
+  return <section className={`ambatuscroll${singleClipId ? ' is-single' : ''}`}><AmbatuscrollHeader backHref={singleClipId ? returnHref : undefined} onUpload={singleClipId ? undefined : () => setUploadOpen(true)} />
     <div className={`scroll-feed${singleClipId ? ' is-single' : ''}`} ref={setFeed} tabIndex={singleClipId ? undefined : 0} aria-label={t('nav.scroll')}>
-      {clips.map(clip => <ScrollClip key={clip.id} clip={clip} root={root} muted={muted} dialogOpen={!!shareClip || !!commentClipId} toggleMute={() => setMuted(value => !value)} openComments={() => setCommentClipId(clip.id)} onShare={() => setShareClip(clip)} onVote={value => vote(clip.id, value)} singleClip={!!singleClipId} />)}
+      {clips.map(clip => <ScrollClip key={clip.id} clip={clip} root={root} muted={muted} dialogOpen={!!shareClip || !!commentClipId || uploadOpen} toggleMute={() => setMuted(value => !value)} openComments={() => setCommentClipId(clip.id)} onShare={() => setShareClip(clip)} onVote={value => vote(clip.id, value)} singleClip={!!singleClipId} />)}
       {singleClipId ? (loading || error) && <div className="scroll-status scroll-single-status" aria-live="polite">{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}</div> : <div ref={sentinel} className={`scroll-status${ended ? ' scroll-status-end' : ''}${ended && !clips.length ? ' scroll-status-empty' : ''}`}>{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}{ended && <p>{t(clips.length ? 'scroll.end' : 'scroll.empty')}</p>}</div>}
     </div>
     {currentClip && <ScrollComments clipId={currentClip.id} title={currentClip.title} count={currentClip.commentCount} onClose={() => setCommentClipId(null)} onCountChange={() => setClips(previous => previous.map(clip => clip.id === currentClip.id ? { ...clip, commentCount: clip.commentCount + 1 } : clip))} />}
     {shareClip && <FriendShareDialog kind="clip" title={shareClip.title} message={t('friends.clipMessage', { title: shareClip.title.slice(0, 300), url: publicAppUrl(`/watch/${encodeURIComponent(shareClip.id)}/`) })} onClose={() => setShareClip(null)}/>}
+    {uploadOpen && <VideoUploadDialog onClose={() => setUploadOpen(false)} onPublished={video => {
+      const clip: Clip = video;
+      setClips(previous => [clip, ...previous.filter(item => item.id !== clip.id)]);
+      setError(false);
+      requestAnimationFrame(() => feedRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
+    }}/>}
   </section>;
 }
 
-export function AmbatuscrollHeader({ backHref }: { backHref?: string }) {
+export function AmbatuscrollHeader({ backHref, onUpload }: { backHref?: string; onUpload?: () => void }) {
   const { t } = useI18n();
-  return <header className="ambatuscroll-header">{backHref ? <Link className="scroll-chat-back" href={backHref}><ArrowLeft size={18}/>{t('chat.inbox')}</Link> : <div className="ambatuscroll-brand-group"><span className="ambatuscroll-brand">ambatu<span className="orange-text">app</span></span><h1>{t('nav.scroll')}<span className="orange-text">.</span></h1></div>}{backHref ? <span className="scroll-single-title">{t('nav.scroll')}</span> : <Link className="scroll-profile-button" href="/profile/">{t('nav.profile')}</Link>}</header>;
+  return <header className="ambatuscroll-header">{backHref ? <Link className="scroll-chat-back" href={backHref}><ArrowLeft size={18}/>{t('chat.inbox')}</Link> : <div className="ambatuscroll-brand-group"><span className="ambatuscroll-brand">ambatu<span className="orange-text">app</span></span><h1>{t('nav.scroll')}<span className="orange-text">.</span></h1></div>}{backHref ? <span className="scroll-single-title">{t('nav.scroll')}</span> : <div className="ambatuscroll-header-actions">{onUpload && <button type="button" className="scroll-upload-button" onClick={onUpload} aria-label={t('watch.upload')}><Upload size={16}/><span>{t('watch.upload')}</span></button>}<Link className="scroll-profile-button" href="/profile/">{t('nav.profile')}</Link></div>}</header>;
 }

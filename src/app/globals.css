@@ -5219,6 +5219,43 @@ body:has(.scroll-feed.is-single) .sidebar,body:has(.scroll-feed.is-single) .mobi
 @media(max-width:360px) { .explore-feature-copy>span:last-child { max-width:225px; } }
 @media(prefers-reduced-motion:reduce) { .explore-intro,.explore-feature,.explore-card,.ambatuscroll-header,.scroll-feed { animation:none!important; } .explore-feature,.explore-feature-art,.explore-feature-arrow,.explore-card,.explore-card-icon,.explore-card-arrow,.scroll-caption,.scroll-caption a,.scroll-mute,.scroll-progress span,.scroll-chat-back { transition:none!important; } .scroll-chat-back:hover { transform:none!important; } }
 
+.ambatuscroll-header-actions { display:flex; align-items:center; gap:8px; }
+.scroll-upload-button { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:40px; padding:8px 12px; border:1px solid var(--orange); border-radius:999px; background:var(--orange); color:#fff; font-size:12px; font-weight:800; white-space:nowrap; cursor:pointer; transition:transform .18s ease,background-color .18s ease,box-shadow .18s ease; }
+.scroll-upload-button:hover { transform:translateY(-1px); background:#df4828; box-shadow:0 5px 14px #9f391f30; }
+.scroll-upload-button:focus-visible,.video-upload-close:focus-visible { outline:3px solid #f2ab91; outline-offset:3px; }
+.scroll-upload-button:disabled { opacity:.55; cursor:wait; }
+.video-upload-backdrop { position:fixed; z-index:1200; inset:0; display:grid; place-items:center; padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left)); background:#11120fd1; backdrop-filter:blur(6px); overscroll-behavior:contain; animation:video-upload-backdrop-in .16s ease both; }
+.video-upload-dialog { box-sizing:border-box; width:min(560px,100%); max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 36px); margin:0; padding:0; display:flex; flex-direction:column; gap:0; overflow:hidden; border:1px solid var(--line); border-radius:18px; background:var(--surface,#fffdf8); color:var(--ink); box-shadow:0 28px 90px #0007; }
+.video-upload-dialog-header { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:18px 20px 14px; border-bottom:1px solid var(--line); }
+.video-upload-dialog-header .eyebrow { margin:0 0 3px; color:var(--orange); font-size:10px; font-weight:800; letter-spacing:1.1px; text-transform:uppercase; }
+.video-upload-dialog-header h2 { margin:0; padding-right:8px; font-size:22px; line-height:1.2; }
+.video-upload-close { display:grid; flex:0 0 44px; place-items:center; width:44px; height:44px; padding:0; border:1px solid var(--line); border-radius:12px; background:var(--paper,#f5f2e9); color:var(--ink); cursor:pointer; }
+.video-upload-close:disabled { opacity:.5; cursor:wait; }
+.video-upload-dialog-fields { min-height:0; display:grid; gap:15px; overflow-y:auto; overscroll-behavior:contain; padding:18px 20px; -webkit-overflow-scrolling:touch; }
+.video-upload-dialog label { color:var(--muted); font-size:12px; }
+.video-upload-dialog input:not([type="checkbox"]),.video-upload-dialog textarea { box-sizing:border-box; min-height:44px; font:inherit; font-size:14px; }
+.video-upload-dialog textarea { min-height:96px; }
+.video-upload-dialog .watch-file { min-height:62px; color:var(--ink); font-size:12px; }
+.video-upload-dialog .watch-file span { min-width:0; overflow:hidden; overflow-wrap:anywhere; text-overflow:ellipsis; }
+.video-upload-dialog .watch-file:focus-within { outline:3px solid color-mix(in srgb,var(--orange) 40%,transparent); outline-offset:2px; }
+.video-upload-dialog .watch-upload-agreement { padding:4px 2px; font-size:12px; }
+.video-upload-dialog .watch-upload-agreement input[type="checkbox"] { width:20px; height:20px; flex-basis:20px; margin-top:1px; }
+.video-upload-dialog-actions { flex:0 0 auto; display:flex; padding:13px 20px max(13px,env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--surface,#fffdf8); }
+.video-upload-dialog-actions .button { width:100%; min-height:48px; justify-content:center; gap:8px; }
+.video-upload-dialog-actions .button:disabled { opacity:.65; cursor:wait; }
+@keyframes video-upload-backdrop-in { from { opacity:0; } to { opacity:1; } }
+@media(max-width:600px) {
+  .ambatuscroll-header-actions { gap:6px; }
+  .scroll-upload-button { min-height:40px; gap:5px; padding:8px 10px; font-size:10px; }
+  .video-upload-backdrop { align-items:end; padding:env(safe-area-inset-top) 0 0; }
+  .video-upload-dialog { width:100%; max-height:calc(100dvh - env(safe-area-inset-top)); border-right:0; border-bottom:0; border-left:0; border-radius:20px 20px 0 0; box-shadow:0 -16px 55px #0005; }
+  .video-upload-dialog-header { padding:14px 17px 11px; }
+  .video-upload-dialog-fields { gap:13px; padding:15px 17px; }
+  .video-upload-dialog-actions { padding:11px 17px max(13px,env(safe-area-inset-bottom)); }
+}
+@media(max-width:360px) { .scroll-upload-button { width:40px; padding:0; } .scroll-upload-button span,.scroll-profile-button { display:none; } }
+@media(prefers-reduced-motion:reduce) { .scroll-upload-button,.video-upload-backdrop { transition:none!important; animation:none!important; } .scroll-upload-button:hover { transform:none; } }
+
 /* Friend request indicators stay visible without taking another mobile nav slot. */
 .friend-request-count,.explore-friend-count,.friends-heading-count,.chat-friend-count { display:inline-grid; place-items:center; min-width:21px; height:21px; padding:0 5px; border-radius:999px; background:var(--orange); color:white; font:700 11px Arial,sans-serif; line-height:1; box-shadow:0 0 0 2px var(--paper); }
 .nav-item .friend-request-count { margin-left:auto; background:var(--orange); color:white; }
