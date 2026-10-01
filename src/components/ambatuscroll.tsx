@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Pause, Play, Send, Upload, Volume2, VolumeX } from 'lucide-react';
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, CircleUserRound, MessageCircle, Pause, Play, Send, Upload, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { ScrollComments } from './scroll-comments';
@@ -216,5 +216,5 @@ export function Ambatuscroll() {
 
 export function AmbatuscrollHeader({ backHref, onUpload }: { backHref?: string; onUpload?: () => void }) {
   const { t } = useI18n();
-  return <header className="ambatuscroll-header">{backHref ? <Link className="scroll-chat-back" href={backHref}><ArrowLeft size={18}/>{t('chat.inbox')}</Link> : <div className="ambatuscroll-brand-group"><span className="ambatuscroll-brand">ambatu<span className="orange-text">app</span></span><h1>{t('nav.scroll')}<span className="orange-text">.</span></h1></div>}{backHref ? <span className="scroll-single-title">{t('nav.scroll')}</span> : <div className="ambatuscroll-header-actions">{onUpload && <button type="button" className="scroll-upload-button" onClick={onUpload} aria-label={t('watch.upload')}><Upload size={16}/><span>{t('watch.upload')}</span></button>}<Link className="scroll-profile-button" href="/profile/">{t('nav.profile')}</Link></div>}</header>;
+  return <header className="ambatuscroll-header">{backHref ? <Link className="scroll-chat-back" href={backHref}><ArrowLeft size={18}/>{t('chat.inbox')}</Link> : <div className="ambatuscroll-brand-group"><span className="ambatuscroll-brand">ambatu<span className="orange-text">app</span></span><h1>{t('nav.scroll')}<span className="orange-text">.</span></h1></div>}{backHref ? <span className="scroll-single-title">{t('nav.scroll')}</span> : <div className="ambatuscroll-header-actions">{onUpload && <button type="button" className="scroll-upload-button" onClick={onUpload} aria-label={t('watch.upload')}><span className="scroll-upload-icon"><Upload size={16} aria-hidden="true"/></span><span>{t('watch.upload')}</span></button>}<Link className="scroll-profile-button" href="/profile/" aria-label={t('nav.profile')} title={t('nav.profile')}><span className="scroll-profile-icon"><CircleUserRound size={16} aria-hidden="true"/></span></Link></div>}</header>;
 }
