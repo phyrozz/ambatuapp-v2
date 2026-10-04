@@ -7,9 +7,11 @@ import { useAuth } from './auth-provider';
 import { games } from '@/lib/catalog';
 import { useI18n } from './i18n-provider';
 import { getProfileAvatars, initializePlayerProfile, PlayerProfileError, saveProfileAvatar, savePlayerProfile, submitCustomProfileAvatar, type ProfileAvatar } from '@/lib/player-profile';
-import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
+import { ChatShareDialog } from './chat-share-dialog';
 import { AvatarCropDialog } from './avatar-crop-dialog';
 import { LoadingIndicator } from './loading-indicator';
+import { CreatorProfile } from './creator-profile';
+import { publicAppUrl } from '@/lib/share-links';
 
 function today() { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 
@@ -35,6 +37,7 @@ export function ProfilePanel() {
   const { favorites, scores, plays } = useApp();
   const { configured, ready, signInWithGoogle, signOut, setDisplayName, user, getIdToken } = useAuth();
   const signedIn = Boolean(user);
+  const userId = user?.id;
   const [username, setUsername] = useState(''), [birthDate, setBirthDate] = useState(''), [saving, setSaving] = useState(false), [profileError, setProfileError] = useState(''), [profileStatus, setProfileStatus] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null), [avatarId, setAvatarId] = useState<string | null>(null), [avatarRemoved, setAvatarRemoved] = useState(false);
   const [avatars, setAvatars] = useState<ProfileAvatar[]>([]), [avatarSaving, setAvatarSaving] = useState(false), [avatarError, setAvatarError] = useState(''), [avatarStatus, setAvatarStatus] = useState('');
@@ -43,14 +46,14 @@ export function ProfilePanel() {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [shareUrl, setShareUrl] = useState('');
+  const [bio, setBio] = useState('');
   const profileLoadStatus = user && profileLoadState?.userId === user.id ? profileLoadState.status : 'loading';
   const profileLoading = !ready || (configured && signedIn && profileLoadStatus === 'loading');
   const profileLoadFailed = configured && signedIn && profileLoadStatus === 'error';
 
   useEffect(() => {
-    if (!ready || !configured || !user) return;
+    if (!ready || !configured || !userId) return;
     let active = true;
-    const userId = user.id;
     void (async () => {
       try {
         const token = await getIdToken();
@@ -62,7 +65,7 @@ export function ProfilePanel() {
         ])];
         await Promise.all(imageUrls.map(preloadAvatarImage));
         if (!active) return;
-        setUsername(profile.username); setBirthDate(profile.birthDate ?? '');
+        setUsername(profile.username); setBirthDate(profile.birthDate ?? ''); setBio(profile.bio ?? '');
         setAvatarUrl(profile.avatarUrl ?? null); setAvatarId(profile.avatarId ?? null); setAvatarRemoved(Boolean(profile.avatarRemoved));
         setAvatars(presetAvatars);
         setProfileLoadState({ userId, status: 'ready' });
@@ -71,7 +74,7 @@ export function ProfilePanel() {
       }
     })();
     return () => { active = false; };
-  }, [configured, getIdToken, profileLoadAttempt, ready, user?.id]);
+  }, [configured, getIdToken, profileLoadAttempt, ready, userId]);
 
   function retryProfileLoad() {
     if (!user) return;
@@ -93,6 +96,7 @@ export function ProfilePanel() {
       const selected = avatars.find((avatar) => avatar.id === nextAvatarId);
       setAvatarId(nextAvatarId); setAvatarUrl(selected?.imageUrl ?? null); setAvatarRemoved(false);
       setAvatarStatus(t('profile.avatarSaved'));
+      window.dispatchEvent(new Event('ambatu:profile-changed'));
     } catch { setAvatarError(t('profile.avatarSaveError')); }
     finally { setAvatarSaving(false); }
   }
@@ -114,6 +118,7 @@ export function ProfilePanel() {
       const uploadedAvatarUrl = await submitCustomProfileAvatar(token, image);
       if (uploadedAvatarUrl) await preloadAvatarImage(uploadedAvatarUrl);
       setAvatarUrl(uploadedAvatarUrl); setAvatarId(null); setAvatarRemoved(false); setCropFile(null); setAvatarStatus(t('profile.avatarUploaded'));
+      window.dispatchEvent(new Event('ambatu:profile-changed'));
     } catch { setAvatarError(t('profile.avatarSaveError')); }
     finally { setAvatarSaving(false); }
   }
@@ -123,9 +128,11 @@ export function ProfilePanel() {
     try {
       const token = await getIdToken();
       if (!token) throw new Error(t('profile.connectionError'));
-      const profile = await savePlayerProfile(token, { username, birthDate: birthDate || null });
+      const profile = await savePlayerProfile(token, { username, birthDate: birthDate || null, bio });
       setUsername(profile.username); setDisplayName(profile.username); setBirthDate(profile.birthDate ?? ''); setProfileStatus(t('profile.savedProfile'));
-    } catch (error) { setProfileError(error instanceof PlayerProfileError && error.code === 'username_taken' ? t('profile.usernameTaken') : error instanceof Error ? error.message : t('profile.connectionError')); }
+      setBio(profile.bio ?? bio);
+      window.dispatchEvent(new Event('ambatu:profile-changed'));
+    } catch (error) { setProfileError(error instanceof PlayerProfileError && error.code === 'username_taken' ? t('profile.usernameTaken') : t('profile.connectionError')); }
     finally { setSaving(false); }
   }
 
@@ -133,6 +140,8 @@ export function ProfilePanel() {
   if (profileLoadFailed) return <div className="module-loading profile-load-error" role="alert"><p>{t('profile.editLoadError')}</p><button className="button secondary compact" type="button" onClick={retryProfileLoad}>{t('common.retry')}</button></div>;
 
   return (
+    <>
+    {user && <CreatorProfile key={user.id} id={user.id} embedded/>}
     <div className="account-grid">
       <section className="panel">
         <h2>{t('profile.corner')}</h2>
@@ -144,7 +153,7 @@ export function ProfilePanel() {
         <p className="eyebrow">{t('profile.personalBests')}</p>
         {games.map((game) => <div className="score-row" key={game.id}><span>{game.name}</span><b>{scores[game.id] || 0}</b></div>)}
       </section>
-      <section className="panel profile-account-panel">
+      <section className="panel profile-account-panel" id="my-profile-editor">
         <h2>{signedIn ? t('profile.signedIn') : t('profile.home')}</h2>
         {!configured ? (
           <><p>{t('profile.guest')}</p><div className="note-panel">{t('profile.notConnected')}</div></>
@@ -175,13 +184,14 @@ export function ProfilePanel() {
                 {avatarStatus && <p className="form-success" role="status">{avatarStatus}</p>}
               </section>
               <label>{t('profile.username')}<input value={username} onChange={(event) => setUsername(event.target.value)} minLength={2} maxLength={24} required autoComplete="nickname" /></label>
+              <label>{t('creator.bio')}<textarea className="creator-bio-input" value={bio} maxLength={280} onChange={event => setBio(event.target.value)} placeholder={t('creator.bioHint')}/></label>
               <label>{t('profile.birthDate')}<input type="date" value={birthDate} max={today()} onChange={(event) => setBirthDate(event.target.value)} /></label>
               {profileError && <p className="form-error" role="alert">{profileError}</p>}
               {profileStatus && <p className="form-success" role="status">{profileStatus}</p>}
               <div className="profile-action-bar">
                 <button className="button profile-save-button" type="submit" disabled={saving}><Save size={17}/>{saving ? t('profile.savingProfile') : t('profile.saveProfile')}</button>
                 <div className="profile-secondary-actions">
-                  <button type="button" className="button profile-share-button" onClick={() => { if (user) setShareUrl(publicChatUrl({ user: user.id, name: user.name })); }}><Share2 size={17}/>{t('profile.shareProfile')}</button>
+                  <button type="button" className="button profile-share-button" onClick={() => { if (user) setShareUrl(publicAppUrl('/scroll/profile/', { user:user.id })); }}><Share2 size={17}/>{t('profile.shareProfile')}</button>
                   <button type="button" className="button profile-signout-button" onClick={leaveProfile}><LogOut size={17}/>{t('profile.signOut')}</button>
                 </div>
               </div>
@@ -194,8 +204,9 @@ export function ProfilePanel() {
           </>
         )}
       </section>
-      {shareUrl && <ChatShareDialog url={shareUrl} onClose={() => setShareUrl('')}/>}
+      {shareUrl && <ChatShareDialog url={shareUrl} creator onClose={() => setShareUrl('')}/>}
       {cropFile && <AvatarCropDialog file={cropFile} title={t('profile.avatarCropTitle')} help={t('profile.avatarCropHelp')} zoomLabel={t('profile.avatarZoom')} cancelLabel={t('profile.avatarCancel')} useImageLabel={avatarSaving ? t('profile.avatarSaving') : t('profile.avatarUseImage')} busy={avatarSaving} onCancel={() => setCropFile(null)} onComplete={(image) => void submitCroppedAvatar(image)} />}
     </div>
+    </>
   );
 }

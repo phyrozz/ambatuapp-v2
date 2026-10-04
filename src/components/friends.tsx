@@ -119,6 +119,7 @@ export function Friends() {
       );
       setLinked((item) => (item?.id === friend.id ? updated : item));
       refresh();
+      window.dispatchEvent(new Event('ambatu:friends-changed'));
       return true;
     } catch {
       setActionError(true);

@@ -11,13 +11,14 @@ import { LoadingIndicator } from './loading-indicator';
 import { FriendShareDialog } from './friend-share-dialog';
 import { VideoUploadDialog } from './video-upload-dialog';
 import { publicAppUrl } from '@/lib/share-links';
+import { creatorHref } from '@/lib/creator-profile';
+import { CreatorSearch } from './creator-search';
 
 type Clip = { id: string; title: string; description: string; uploader: string; uploaderId: string | null; uploaderAvatarUrl: string | null; videoUrl: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote: number };
 type VoteResult = { value: number; upvotes: number; downvotes: number };
 
 function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, onShare, onVote, singleClip = false }: { clip: Clip; root: HTMLDivElement | null; muted: boolean; dialogOpen: boolean; toggleMute: () => void; openComments: () => void; onShare: () => void; onVote: (value: 1 | -1) => Promise<void>; singleClip?: boolean }) {
   const { t } = useI18n();
-  const { user } = useAuth();
   const article = useRef<HTMLElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const deliberatePause = useRef(false);
@@ -95,6 +96,7 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
   return <article ref={article} className={`scroll-clip ${active ? 'is-active' : ''}`} aria-label={clip.title} onPointerDown={event => { if (event.pointerType === 'touch') touchStart.current = { x: event.clientX, y: event.clientY }; }} onPointerUp={handleTouch} onDoubleClick={event => { if (clip.userVote !== 1 && !(event.target as Element).closest('button,a')) void vote(1); }}>
     <video ref={video} src={near ? clip.videoUrl : undefined} poster={clip.thumbnailUrl || undefined} playsInline autoPlay={active && !dialogOpen && !deliberatelyPaused} loop muted={muted} preload="metadata" aria-label={clip.title} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onTimeUpdate={event => { const player = event.currentTarget; if (player.duration) setProgress(player.currentTime / player.duration); }} onError={() => setFailed(true)} onCanPlay={() => { setMediaReady(true); if (active && !dialogOpen && !deliberatePause.current && !document.hidden) void video.current?.play().catch(() => {}); }} />
     <div className={`scroll-caption${descriptionExpanded ? ' is-expanded' : ''}`}>
+      {clip.uploaderId && <Link className="scroll-uploader-name" href={creatorHref(clip.uploaderId)} aria-label={t('creator.view', { name:clip.uploader })}>{clip.uploader}</Link>}
       <h2>{singleClip ? clip.title : <Link href={`/watch/${encodeURIComponent(clip.id)}/`}>{clip.title}</Link>}</h2>
       {clip.description && <>
         <p id={`scroll-description-${clip.id}`} className={`scroll-description${descriptionCanExpand && !descriptionExpanded ? ' is-collapsed' : ''}`}>{clip.description}</p>
@@ -105,8 +107,8 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
       {failed && <p role="alert">{t('scroll.playbackError')}</p>}{voteError && <p role="alert">{t('scroll.voteError')}</p>}
     </div>
     <div className="scroll-actions" aria-label={clip.title}>
-      {clip.uploaderId && clip.uploaderId !== user?.id
-        ? <Link className="scroll-uploader-avatar" href={`/chat/?user=${encodeURIComponent(clip.uploaderId)}&name=${encodeURIComponent(clip.uploader)}`} aria-label={t('chat.messageUser', { name: clip.uploader })} title={clip.uploader}>{uploaderAvatar}</Link>
+      {clip.uploaderId
+        ? <Link className="scroll-uploader-avatar" href={creatorHref(clip.uploaderId)} aria-label={t('creator.view', { name: clip.uploader })} title={clip.uploader}>{uploaderAvatar}</Link>
         : <span className="scroll-uploader-avatar" aria-hidden="true" title={clip.uploader}>{uploaderAvatar}</span>}
       <button type="button" className={`scroll-action ${clip.userVote === 1 ? 'selected' : ''}`} aria-label={`${t('lore.upvote')}: ${clip.upvotes}`} aria-pressed={clip.userVote === 1} disabled={voteBusy} onClick={() => void vote(1)}><ArrowBigUp size={27}/><span>{clip.upvotes}</span></button>
       <button type="button" className={`scroll-action ${clip.userVote === -1 ? 'selected' : ''}`} aria-label={`${t('lore.downvote')}: ${clip.downvotes}`} aria-pressed={clip.userVote === -1} disabled={voteBusy} onClick={() => void vote(-1)}><ArrowBigDown size={27}/><span>{clip.downvotes}</span></button>
@@ -126,7 +128,9 @@ export function Ambatuscroll() {
   const params = useSearchParams();
   const singleClipId = params.get('clip') ?? '';
   const returnConversation = params.get('conversation') ?? '';
-  const returnHref = returnConversation ? `/chat/?conversation=${encodeURIComponent(returnConversation)}` : '/chat/';
+  const returnCreator = params.get('creator') ?? '';
+  const validReturnCreator = /^[\w-]{1,128}$/.test(returnCreator) && returnCreator !== 'admin';
+  const returnHref = validReturnCreator ? creatorHref(returnCreator) : returnConversation ? `/chat/?conversation=${encodeURIComponent(returnConversation)}` : '/chat/';
   const [clips, setClips] = useState<Clip[]>([]);
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,6 +140,7 @@ export function Ambatuscroll() {
   const [commentClipId, setCommentClipId] = useState<string | null>(null);
   const [shareClip, setShareClip] = useState<Clip | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const load = useRef<() => void>(() => {});
@@ -198,14 +203,16 @@ export function Ambatuscroll() {
     }
   }, [clips, getIdToken]);
   const currentClip = clips.find(clip => clip.id === commentClipId);
-  return <section className={`ambatuscroll${singleClipId ? ' is-single' : ''}`}><AmbatuscrollHeader backHref={singleClipId ? returnHref : undefined} onUpload={singleClipId ? undefined : () => setUploadOpen(true)} />
+  return <section className={`ambatuscroll has-creator-search${singleClipId ? ' is-single' : ''}`}><AmbatuscrollHeader backHref={singleClipId ? returnHref : undefined} backLabel={validReturnCreator ? 'creator.backToProfile' : undefined} onUpload={singleClipId ? undefined : () => setUploadOpen(true)} />
+    {!singleClipId && <CreatorSearch onActiveChange={setSearchActive}/>}
     <div className={`scroll-feed${singleClipId ? ' is-single' : ''}`} ref={setFeed} tabIndex={singleClipId ? undefined : 0} aria-label={t('nav.scroll')}>
-      {clips.map(clip => <ScrollClip key={clip.id} clip={clip} root={root} muted={muted} dialogOpen={!!shareClip || !!commentClipId || uploadOpen} toggleMute={() => setMuted(value => !value)} openComments={() => setCommentClipId(clip.id)} onShare={() => setShareClip(clip)} onVote={value => vote(clip.id, value)} singleClip={!!singleClipId} />)}
+      {clips.map(clip => <ScrollClip key={clip.id} clip={clip} root={root} muted={muted} dialogOpen={!!shareClip || !!commentClipId || uploadOpen || searchActive} toggleMute={() => setMuted(value => !value)} openComments={() => setCommentClipId(clip.id)} onShare={() => setShareClip(clip)} onVote={value => vote(clip.id, value)} singleClip={!!singleClipId} />)}
       {singleClipId ? (loading || error) && <div className="scroll-status scroll-single-status" aria-live="polite">{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}</div> : <div ref={sentinel} className={`scroll-status${ended ? ' scroll-status-end' : ''}${ended && !clips.length ? ' scroll-status-empty' : ''}`}>{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}{ended && <p>{t(clips.length ? 'scroll.end' : 'scroll.empty')}</p>}</div>}
     </div>
     {currentClip && <ScrollComments clipId={currentClip.id} title={currentClip.title} count={currentClip.commentCount} onClose={() => setCommentClipId(null)} onCountChange={() => setClips(previous => previous.map(clip => clip.id === currentClip.id ? { ...clip, commentCount: clip.commentCount + 1 } : clip))} />}
     {shareClip && <FriendShareDialog kind="clip" title={shareClip.title} message={t('friends.clipMessage', { title: shareClip.title.slice(0, 300), url: publicAppUrl(`/watch/${encodeURIComponent(shareClip.id)}/`) })} onClose={() => setShareClip(null)}/>}
     {uploadOpen && <VideoUploadDialog onClose={() => setUploadOpen(false)} onPublished={video => {
+      window.dispatchEvent(new Event('ambatu:clips-changed'));
       const clip: Clip = video;
       setClips(previous => [clip, ...previous.filter(item => item.id !== clip.id)]);
       setError(false);
@@ -214,7 +221,7 @@ export function Ambatuscroll() {
   </section>;
 }
 
-export function AmbatuscrollHeader({ backHref, onUpload }: { backHref?: string; onUpload?: () => void }) {
+export function AmbatuscrollHeader({ backHref, backLabel = 'chat.inbox', onUpload }: { backHref?: string; backLabel?: string; onUpload?: () => void }) {
   const { t } = useI18n();
-  return <header className="ambatuscroll-header">{backHref ? <Link className="scroll-chat-back" href={backHref}><ArrowLeft size={18}/>{t('chat.inbox')}</Link> : <div className="ambatuscroll-brand-group"><span className="ambatuscroll-brand">ambatu<span className="orange-text">app</span></span><h1>{t('nav.scroll')}<span className="orange-text">.</span></h1></div>}{backHref ? <span className="scroll-single-title">{t('nav.scroll')}</span> : <div className="ambatuscroll-header-actions">{onUpload && <button type="button" className="scroll-upload-button" onClick={onUpload} aria-label={t('watch.upload')}><span className="scroll-upload-icon"><Upload size={16} aria-hidden="true"/></span><span>{t('watch.upload')}</span></button>}<Link className="scroll-profile-button" href="/profile/" aria-label={t('nav.profile')} title={t('nav.profile')}><span className="scroll-profile-icon"><CircleUserRound size={16} aria-hidden="true"/></span></Link></div>}</header>;
+  return <header className="ambatuscroll-header">{backHref ? <Link className="scroll-chat-back" href={backHref}><ArrowLeft size={18}/>{t(backLabel)}</Link> : <div className="ambatuscroll-brand-group"><span className="ambatuscroll-brand">ambatu<span className="orange-text">app</span></span><h1>{t('nav.scroll')}<span className="orange-text">.</span></h1></div>}{backHref ? <span className="scroll-single-title">{t('nav.scroll')}</span> : <div className="ambatuscroll-header-actions">{onUpload && <button type="button" className="scroll-upload-button" onClick={onUpload} aria-label={t('watch.upload')}><span className="scroll-upload-icon"><Upload size={16} aria-hidden="true"/></span><span>{t('watch.upload')}</span></button>}<Link className="scroll-profile-button" href="/profile/" aria-label={t('nav.profile')} title={t('nav.profile')}><span className="scroll-profile-icon"><CircleUserRound size={16} aria-hidden="true"/></span></Link></div>}</header>;
 }

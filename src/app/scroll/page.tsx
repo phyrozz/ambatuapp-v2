@@ -25,7 +25,7 @@ export default function ScrollPage() {
       <div className="scroll-signin-copy">
         <span className="scroll-signin-kicker">{t('nav.scroll')}</span>
         <h2>{t('social.signIn')}</h2>
-        <button className="button dark scroll-signin-button" disabled={!configured} onClick={() => { const params = new URLSearchParams(window.location.search); const clip = params.get('clip'); const conversation = params.get('conversation'); const returnTo = clip ? `/scroll/?${new URLSearchParams({ clip, ...(conversation ? { conversation } : {}) }).toString()}` : '/scroll/'; setSignInError(false); void signInWithGoogle(returnTo).catch(() => setSignInError(true)); }}><LogIn size={18} />{t('profile.googleSignIn')}</button>
+        <button className="button dark scroll-signin-button" disabled={!configured} onClick={() => { const params = new URLSearchParams(window.location.search); const clip = params.get('clip'); const conversation = params.get('conversation'); const creator = params.get('creator'); const returnTo = clip ? `/scroll/?${new URLSearchParams({ clip, ...(conversation ? { conversation } : {}), ...(creator && /^[\w-]{1,128}$/.test(creator) ? { creator } : {}) }).toString()}` : '/scroll/'; setSignInError(false); void signInWithGoogle(returnTo).catch(() => setSignInError(true)); }}><LogIn size={18} />{t('profile.googleSignIn')}</button>
         {(!configured || signInError) && <p className="scroll-signin-error" role="alert">{t('social.error')}</p>}
       </div>
     </div>

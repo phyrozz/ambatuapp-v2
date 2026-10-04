@@ -1,4 +1,4 @@
-export type PlayerProfile = { username: string; birthDate: string | null; avatarType?: 'preset' | 'custom' | null; avatarId?: string | null; avatarUrl?: string | null; avatarRemoved?: boolean };
+export type PlayerProfile = { username: string; birthDate: string | null; bio?: string; avatarType?: 'preset' | 'custom' | null; avatarId?: string | null; avatarUrl?: string | null; avatarRemoved?: boolean };
 export type ProfileAvatar = { id: string; name: string; imageUrl: string | null };
 
 export class PlayerProfileError extends Error {
@@ -33,7 +33,7 @@ export async function initializePlayerProfile(token: string, signal?: AbortSigna
   return data;
 }
 export function savePlayerProfile(token: string, profile: PlayerProfile) {
-  return request(token, { method: 'PUT', body: JSON.stringify({ username: profile.username, birthDate: profile.birthDate }) });
+  return request(token, { method: 'PUT', body: JSON.stringify({ username: profile.username, birthDate: profile.birthDate, bio: profile.bio }) });
 }
 
 export async function getProfileAvatars(token: string): Promise<ProfileAvatar[]> {
