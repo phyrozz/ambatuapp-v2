@@ -1,16 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Send } from 'lucide-react';
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Pencil, Send } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { AdBanner } from './ad-banner';
 import { LoadingIndicator } from './loading-indicator';
 import { MediaPlayer } from './media-player';
 import { CommentThreadList, type ThreadComment } from './comment-thread-list';
+import { VideoManageDialog } from './video-manage-dialog';
 
-type VideoData = { id: string; title: string; description: string; uploader: string; uploaderId?: string; uploaderAvatarUrl?: string | null; videoUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote?: number };
+type VideoData = { id: string; title: string; description: string; uploader: string; uploaderId?: string | null; uploaderAvatarUrl?: string | null; videoUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote?: number };
 type Comment = ThreadComment;
 type PendingAction =
   | { type: 'vote'; value: 1 | -1; id: string }
@@ -22,6 +24,7 @@ const pendingKey = 'ambatu-watch-pending-action';
 export function CommunityVideoPage({ id }: { id: string }) {
   const { t } = useI18n();
   const { user, getIdToken, signInWithGoogle } = useAuth();
+  const router = useRouter();
   const [video, setVideo] = useState<VideoData | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState('');
@@ -35,6 +38,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
   const [userVote, setUserVote] = useState(0);
   const [votePulse, setVotePulse] = useState<'up' | 'down' | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   const descriptionIsCollapsible = Boolean(video && (video.description.length > 240 || video.description.split(/\r?\n/).length > 5));
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -147,7 +151,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
       <div className="community-video-reader-copy">
         <div className="community-video-story">
           <p className="eyebrow"><span className="watch-accent-dot" />{t('watch.communityEyebrow')}</p>
-          <h1>{video.title}</h1>
+          <div className="community-video-title-row"><h1>{video.title}</h1>{video.uploaderId === user?.id && <button type="button" className="community-video-manage-button" onClick={() => setManageOpen(true)}><Pencil size={15}/>{t('watch.manageVideo')}</button>}</div>
           <span className="community-video-byline">{video.uploaderAvatarUrl && <img className="profile-avatar-inline" src={video.uploaderAvatarUrl} alt=""/>}{video.uploaderId && video.uploaderId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(video.uploaderId)}&name=${encodeURIComponent(video.uploader)}`} aria-label={t('chat.messageUser', { name: video.uploader })}>{t('watch.uploadedBy', { email: video.uploader })}</Link> : t('watch.uploadedBy', { email: video.uploader })}</span>
           {video.description && <>
             <p id={`community-video-description-${video.id}`} className={`community-video-description${descriptionIsCollapsible && !descriptionExpanded ? ' is-collapsed' : ''}`}>{video.description}</p>
@@ -179,5 +183,13 @@ export function CommunityVideoPage({ id }: { id: string }) {
         </section>
       </div>
     </article>}
+    {manageOpen && video && <VideoManageDialog video={video} onClose={() => setManageOpen(false)} onSaved={updated => {
+      setVideo(current => current ? { ...current, ...updated } : current);
+      setManageOpen(false);
+      window.dispatchEvent(new Event('ambatu:clips-changed'));
+    }} onDeleted={() => {
+      window.dispatchEvent(new Event('ambatu:clips-changed'));
+      router.replace('/watch/');
+    }} />}
   </div>;
 }

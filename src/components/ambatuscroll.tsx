@@ -1,8 +1,8 @@
 'use client';
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, CircleUserRound, MessageCircle, Pause, Play, Send, Upload, Volume2, VolumeX } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, CircleUserRound, MessageCircle, Pause, Pencil, Play, Send, Upload, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { ScrollComments } from './scroll-comments';
@@ -13,11 +13,12 @@ import { VideoUploadDialog } from './video-upload-dialog';
 import { publicAppUrl } from '@/lib/share-links';
 import { creatorHref } from '@/lib/creator-profile';
 import { CreatorSearch } from './creator-search';
+import { VideoManageDialog } from './video-manage-dialog';
 
 type Clip = { id: string; title: string; description: string; uploader: string; uploaderId: string | null; uploaderAvatarUrl: string | null; videoUrl: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote: number };
 type VoteResult = { value: number; upvotes: number; downvotes: number };
 
-function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, onShare, onVote, singleClip = false }: { clip: Clip; root: HTMLDivElement | null; muted: boolean; dialogOpen: boolean; toggleMute: () => void; openComments: () => void; onShare: () => void; onVote: (value: 1 | -1) => Promise<void>; singleClip?: boolean }) {
+function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, onShare, onVote, isOwner, onManage, singleClip = false }: { clip: Clip; root: HTMLDivElement | null; muted: boolean; dialogOpen: boolean; toggleMute: () => void; openComments: () => void; onShare: () => void; onVote: (value: 1 | -1) => Promise<void>; isOwner: boolean; onManage: () => void; singleClip?: boolean }) {
   const { t } = useI18n();
   const article = useRef<HTMLElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -104,6 +105,7 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
           {descriptionExpanded ? <>{t('watch.showLessDescription')}<ChevronUp size={15}/></> : <>{t('watch.showMoreDescription')}<ChevronDown size={15}/></>}
         </button>}
       </>}
+      {isOwner && <button type="button" className="scroll-owner-manage" onClick={onManage}><Pencil size={14}/>{t('watch.manageVideo')}</button>}
       {failed && <p role="alert">{t('scroll.playbackError')}</p>}{voteError && <p role="alert">{t('scroll.voteError')}</p>}
     </div>
     <div className="scroll-actions" aria-label={clip.title}>
@@ -124,8 +126,9 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
 
 export function Ambatuscroll() {
   const { t } = useI18n();
-  const { getIdToken } = useAuth();
+  const { getIdToken, user } = useAuth();
   const params = useSearchParams();
+  const router = useRouter();
   const singleClipId = params.get('clip') ?? '';
   const returnConversation = params.get('conversation') ?? '';
   const returnCreator = params.get('creator') ?? '';
@@ -140,6 +143,7 @@ export function Ambatuscroll() {
   const [commentClipId, setCommentClipId] = useState<string | null>(null);
   const [shareClip, setShareClip] = useState<Clip | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [managingClip, setManagingClip] = useState<Clip | null>(null);
   const [searchActive, setSearchActive] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const sentinel = useRef<HTMLDivElement>(null);
@@ -206,7 +210,7 @@ export function Ambatuscroll() {
   return <section className={`ambatuscroll has-creator-search${singleClipId ? ' is-single' : ''}`}><AmbatuscrollHeader backHref={singleClipId ? returnHref : undefined} backLabel={validReturnCreator ? 'creator.backToProfile' : undefined} onUpload={singleClipId ? undefined : () => setUploadOpen(true)} />
     {!singleClipId && <CreatorSearch onActiveChange={setSearchActive}/>}
     <div className={`scroll-feed${singleClipId ? ' is-single' : ''}`} ref={setFeed} tabIndex={singleClipId ? undefined : 0} aria-label={t('nav.scroll')}>
-      {clips.map(clip => <ScrollClip key={clip.id} clip={clip} root={root} muted={muted} dialogOpen={!!shareClip || !!commentClipId || uploadOpen || searchActive} toggleMute={() => setMuted(value => !value)} openComments={() => setCommentClipId(clip.id)} onShare={() => setShareClip(clip)} onVote={value => vote(clip.id, value)} singleClip={!!singleClipId} />)}
+      {clips.map(clip => <ScrollClip key={clip.id} clip={clip} root={root} muted={muted} dialogOpen={!!shareClip || !!commentClipId || !!managingClip || uploadOpen || searchActive} toggleMute={() => setMuted(value => !value)} openComments={() => setCommentClipId(clip.id)} onShare={() => setShareClip(clip)} onVote={value => vote(clip.id, value)} isOwner={clip.uploaderId === user?.id} onManage={() => setManagingClip(clip)} singleClip={!!singleClipId} />)}
       {singleClipId ? (loading || error) && <div className="scroll-status scroll-single-status" aria-live="polite">{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}</div> : <div ref={sentinel} className={`scroll-status${ended ? ' scroll-status-end' : ''}${ended && !clips.length ? ' scroll-status-empty' : ''}`}>{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}{ended && <p>{t(clips.length ? 'scroll.end' : 'scroll.empty')}</p>}</div>}
     </div>
     {currentClip && <ScrollComments clipId={currentClip.id} title={currentClip.title} count={currentClip.commentCount} onClose={() => setCommentClipId(null)} onCountChange={() => setClips(previous => previous.map(clip => clip.id === currentClip.id ? { ...clip, commentCount: clip.commentCount + 1 } : clip))} />}
@@ -218,6 +222,20 @@ export function Ambatuscroll() {
       setError(false);
       requestAnimationFrame(() => feedRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
     }}/>}
+    {managingClip && <VideoManageDialog video={managingClip} onClose={() => setManagingClip(null)} onSaved={updated => {
+      setClips(previous => previous.map(clip => clip.id === managingClip.id ? { ...clip, ...updated } : clip));
+      setShareClip(current => current?.id === managingClip.id ? { ...current, ...updated } : current);
+      setManagingClip(null);
+      window.dispatchEvent(new Event('ambatu:clips-changed'));
+    }} onDeleted={() => {
+      const deletedId = managingClip.id;
+      setClips(previous => previous.filter(clip => clip.id !== deletedId));
+      setShareClip(current => current?.id === deletedId ? null : current);
+      setCommentClipId(current => current === deletedId ? null : current);
+      setManagingClip(null);
+      window.dispatchEvent(new Event('ambatu:clips-changed'));
+      if (singleClipId) router.replace(validReturnCreator || returnConversation ? returnHref : '/scroll/');
+    }} />}
   </section>;
 }
 

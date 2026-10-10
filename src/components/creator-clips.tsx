@@ -7,9 +7,20 @@ import type { CreatorClip } from '@/lib/creator-profile';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
+import { VideoManageDialog } from './video-manage-dialog';
 import './creator-profile.css';
 
-function ClipCard({ clip, creatorId }: { clip: CreatorClip; creatorId: string }) {
+function ClipCard({
+  clip,
+  creatorId,
+  canManage,
+  onManage,
+}: {
+  clip: CreatorClip;
+  creatorId: string;
+  canManage: boolean;
+  onManage: () => void;
+}) {
   const { t, locale } = useI18n();
   const [failed, setFailed] = useState(false);
   const date = clip.createdAt
@@ -58,13 +69,19 @@ function ClipCard({ clip, creatorId }: { clip: CreatorClip; creatorId: string })
     <article className="creator-clip-card">
       {clip.playable ? (
         <Link
+          className="creator-clip-link"
           href={`/scroll/?clip=${encodeURIComponent(clip.id)}&creator=${encodeURIComponent(creatorId)}`}
           aria-label={t('creator.playClip', { title: clip.title })}
         >
           {contents}
         </Link>
       ) : (
-        <div>{contents}</div>
+        <div className="creator-clip-content">{contents}</div>
+      )}
+      {canManage && (
+        <button className="button secondary compact creator-clip-manage" type="button" onClick={onManage}>
+          {t('watch.manageVideo')}
+        </button>
       )}
     </article>
   );
@@ -72,8 +89,9 @@ function ClipCard({ clip, creatorId }: { clip: CreatorClip; creatorId: string })
 
 export function CreatorClips({ id, own }: { id: string; own: boolean }) {
   const { t } = useI18n();
-  const { getIdToken } = useAuth();
+  const { getIdToken, user } = useAuth();
   const [clips, setClips] = useState<CreatorClip[]>([]);
+  const [managingClip, setManagingClip] = useState<CreatorClip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [ended, setEnded] = useState(false);
@@ -153,7 +171,13 @@ export function CreatorClips({ id, own }: { id: string; own: boolean }) {
       </header>
       <div className="creator-clips-grid" aria-busy={loading}>
         {clips.map((clip) => (
-          <ClipCard key={clip.id} clip={clip} creatorId={id} />
+          <ClipCard
+            key={clip.id}
+            clip={clip}
+            creatorId={id}
+            canManage={own && user?.id === id}
+            onManage={() => setManagingClip(clip)}
+          />
         ))}
       </div>
       {ended && !clips.length && !loading && !error && (
@@ -173,6 +197,24 @@ export function CreatorClips({ id, own }: { id: string; own: boolean }) {
         </div>
       )}
       <div ref={setSentinel} className="creator-sentinel" />
+      {managingClip && (
+        <VideoManageDialog
+          video={managingClip}
+          onClose={() => setManagingClip(null)}
+          onSaved={(updated) => {
+            setClips((previous) => previous.map((clip) =>
+              clip.id === managingClip.id ? { ...clip, ...updated } : clip,
+            ));
+            setManagingClip(null);
+            window.dispatchEvent(new Event('ambatu:clips-changed'));
+          }}
+          onDeleted={() => {
+            setClips((previous) => previous.filter((clip) => clip.id !== managingClip.id));
+            setManagingClip(null);
+            window.dispatchEvent(new Event('ambatu:clips-changed'));
+          }}
+        />
+      )}
     </section>
   );
 }
