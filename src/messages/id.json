@@ -697,5 +697,10 @@
   "creator.playClip": "Putar {title}",
   "creator.draft": "Draf",
   "creator.unavailableClip": "Belum tersedia untuk berputar",
-  "creator.shareHint": "Bagikan profilmu sehingga orang-orang bisa menemukan klip-klip dan mengikuti kamu."
+  "creator.shareHint": "Bagikan profilmu sehingga orang-orang bisa menemukan klip-klip dan mengikuti kamu.",
+  "profile.tabVideos": "Videos",
+  "profile.tabEdit": "Edit profile",
+  "profile.tabActivity": "Activity",
+  "profile.accountHeading": "Account",
+  "profile.videoLibraryHint": "Manage your uploaded videos and clips."
 }

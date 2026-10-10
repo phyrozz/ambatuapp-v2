@@ -697,5 +697,10 @@
   "creator.playClip": "Play {title}",
   "creator.draft": "Draft",
   "creator.unavailableClip": "Not available to play yet",
-  "creator.shareHint": "Share your profile so people can find your clips and follow you."
+  "creator.shareHint": "Share your profile so people can find your clips and follow you.",
+  "profile.tabVideos": "Videos",
+  "profile.tabEdit": "Edit profile",
+  "profile.tabActivity": "Activity",
+  "profile.accountHeading": "Account",
+  "profile.videoLibraryHint": "Manage your uploaded videos and clips."
 }

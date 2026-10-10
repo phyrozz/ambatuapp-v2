@@ -79,7 +79,11 @@ function ClipCard({
         <div className="creator-clip-content">{contents}</div>
       )}
       {canManage && (
-        <button className="button secondary compact creator-clip-manage" type="button" onClick={onManage}>
+        <button
+          className="button secondary compact creator-clip-manage"
+          type="button"
+          onClick={onManage}
+        >
           {t('watch.manageVideo')}
         </button>
       )}
@@ -87,7 +91,19 @@ function ClipCard({
   );
 }
 
-export function CreatorClips({ id, own }: { id: string; own: boolean }) {
+export function CreatorClips({
+  id,
+  own,
+  contained = false,
+  active = true,
+  onUpload,
+}: {
+  id: string;
+  own: boolean;
+  contained?: boolean;
+  active?: boolean;
+  onUpload?: () => void;
+}) {
   const { t } = useI18n();
   const { getIdToken, user } = useAuth();
   const [clips, setClips] = useState<CreatorClip[]>([]);
@@ -97,6 +113,7 @@ export function CreatorClips({ id, own }: { id: string; own: boolean }) {
   const [ended, setEnded] = useState(false);
   const [version, setVersion] = useState(0);
   const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
+  const [scrollRoot, setScrollRoot] = useState<HTMLDivElement | null>(null);
   const load = useRef<() => void>(() => {});
   useEffect(() => {
     const refresh = () => setVersion((value) => value + 1);
@@ -146,16 +163,16 @@ export function CreatorClips({ id, own }: { id: string; own: boolean }) {
     return () => controller.abort();
   }, [id, own, getIdToken, version]);
   useEffect(() => {
-    if (!sentinel || loading || error || ended) return;
+    if (!active || !sentinel || loading || error || ended || (contained && !scrollRoot)) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) load.current();
       },
-      { rootMargin: '300px' },
+      { root: contained ? scrollRoot : null, rootMargin: '300px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [sentinel, clips, loading, error, ended]);
+  }, [sentinel, clips, loading, error, ended, contained, scrollRoot, active]);
   return (
     <section className="creator-clips-section" aria-labelledby={`creator-clips-${id}`}>
       <header>
@@ -163,48 +180,67 @@ export function CreatorClips({ id, own }: { id: string; own: boolean }) {
           <p className="eyebrow">{t('nav.scroll')}</p>
           <h2 id={`creator-clips-${id}`}>{t(own ? 'creator.myClips' : 'creator.uploadedClips')}</h2>
         </div>
-        {own && (
-          <Link className="button secondary compact" href="/scroll/">
-            {t('watch.upload')}
-          </Link>
-        )}
+        {own &&
+          (onUpload ? (
+            <button className="button secondary compact" type="button" onClick={onUpload}>
+              {t('watch.upload')}
+            </button>
+          ) : (
+            <Link className="button secondary compact" href="/scroll/">
+              {t('watch.upload')}
+            </Link>
+          ))}
       </header>
-      <div className="creator-clips-grid" aria-busy={loading}>
-        {clips.map((clip) => (
-          <ClipCard
-            key={clip.id}
-            clip={clip}
-            creatorId={id}
-            canManage={own && user?.id === id}
-            onManage={() => setManagingClip(clip)}
-          />
-        ))}
+      <div
+        className={contained ? 'creator-clips-scroll' : undefined}
+        ref={contained ? setScrollRoot : undefined}
+        tabIndex={contained ? 0 : undefined}
+        role={contained ? 'region' : undefined}
+        aria-label={contained ? t(own ? 'creator.myClips' : 'creator.uploadedClips') : undefined}
+      >
+        <div className="creator-clips-grid" aria-busy={loading}>
+          {clips.map((clip) => (
+            <ClipCard
+              key={clip.id}
+              clip={clip}
+              creatorId={id}
+              canManage={own && user?.id === id}
+              onManage={() => setManagingClip(clip)}
+            />
+          ))}
+        </div>
+        {ended && !clips.length && !loading && !error && (
+          <div className="creator-empty">
+            <Video size={34} aria-hidden="true" />
+            <h3>{t('creator.emptyClips')}</h3>
+            {own && <p>{t('creator.emptyOwnClips')}</p>}
+          </div>
+        )}
+        {loading && <LoadingIndicator label={t('common.loading')} />}
+        {error && (
+          <div className="creator-error" role="alert">
+            <p>{t('creator.clipsError')}</p>
+            <button
+              className="button secondary compact"
+              type="button"
+              onClick={() => load.current()}
+            >
+              {t('common.retry')}
+            </button>
+          </div>
+        )}
+        <div ref={setSentinel} className="creator-sentinel" />
       </div>
-      {ended && !clips.length && !loading && !error && (
-        <div className="creator-empty">
-          <Video size={34} aria-hidden="true" />
-          <h3>{t('creator.emptyClips')}</h3>
-          {own && <p>{t('creator.emptyOwnClips')}</p>}
-        </div>
-      )}
-      {loading && <LoadingIndicator label={t('common.loading')} />}
-      {error && (
-        <div className="creator-error" role="alert">
-          <p>{t('creator.clipsError')}</p>
-          <button className="button secondary compact" type="button" onClick={() => load.current()}>
-            {t('common.retry')}
-          </button>
-        </div>
-      )}
-      <div ref={setSentinel} className="creator-sentinel" />
       {managingClip && (
         <VideoManageDialog
           video={managingClip}
           onClose={() => setManagingClip(null)}
           onSaved={(updated) => {
-            setClips((previous) => previous.map((clip) =>
-              clip.id === managingClip.id ? { ...clip, ...updated } : clip,
-            ));
+            setClips((previous) =>
+              previous.map((clip) =>
+                clip.id === managingClip.id ? { ...clip, ...updated } : clip,
+              ),
+            );
             setManagingClip(null);
             window.dispatchEvent(new Event('ambatu:clips-changed'));
           }}

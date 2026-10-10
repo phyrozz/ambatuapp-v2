@@ -1,0 +1,718 @@
+.my-dreamy-page {
+  max-width: 1240px;
+  padding-bottom: 80px;
+}
+.dreamy-workspace {
+  --dreamy-surface: var(--surface, #fffdf6);
+  --dreamy-soft: #f1eee5;
+  --dreamy-accent: #fff0e6;
+  min-width: 0;
+}
+.dreamy-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px 28px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: radial-gradient(ellipse at 100% 0, #f6542f12, transparent 60%), var(--dreamy-surface);
+}
+.dreamy-identity-main {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+.dreamy-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 84px;
+  width: 84px;
+  height: 84px;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  background: var(--dreamy-accent);
+  color: var(--orange);
+  font:
+    36px Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-avatar > img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+.dreamy-avatar-edit {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border: 3px solid var(--dreamy-surface);
+  border-radius: 50%;
+  background: var(--orange);
+  color: white;
+}
+.dreamy-identity-copy {
+  min-width: 0;
+}
+.dreamy-identity-copy .eyebrow {
+  margin: 0 0 5px;
+  color: var(--orange);
+}
+.dreamy-identity h1 {
+  margin: 0;
+  font:
+    500 clamp(24px, 3vw, 36px)/1.15 Kanit,
+    Arial,
+    sans-serif;
+  letter-spacing: -0.5px;
+  overflow-wrap: anywhere;
+}
+.dreamy-bio {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  max-width: 560px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dreamy-joined {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.dreamy-header-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 340px;
+}
+.dreamy-header-actions .button {
+  min-height: 42px;
+}
+.dreamy-share-button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: transparent;
+}
+.dreamy-public-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  width: 100%;
+  min-height: 36px;
+  color: var(--muted);
+  font-size: 11px;
+  text-decoration: none;
+}
+.dreamy-social-counts {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  margin: 0 0 0 104px;
+}
+.dreamy-social-counts > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-direction: row-reverse;
+}
+.dreamy-social-counts dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+.dreamy-social-counts dd {
+  margin: 0;
+  font:
+    500 21px/1 Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-count-error {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.dreamy-count-error p {
+  margin: 0;
+}
+.dreamy-count-error button {
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--orange);
+  text-decoration: underline;
+}
+.dreamy-tabs {
+  display: flex;
+  gap: 26px;
+  margin: 18px 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+.dreamy-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  margin-bottom: -1px;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.dreamy-tabs > button[aria-selected='true'] {
+  border-bottom-color: var(--orange);
+  color: var(--ink);
+}
+.dreamy-tab-panel {
+  min-width: 0;
+}
+.dreamy-tab-panel[hidden] {
+  display: none;
+}
+.dreamy-section-hint {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.dreamy-videos .creator-clips-section {
+  margin-top: 0;
+}
+.dreamy-videos .creator-clips-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.dreamy-videos .creator-clips-section > header {
+  margin-bottom: 16px;
+}
+.dreamy-videos .creator-clips-section > header h2 {
+  font-size: 23px;
+}
+.dreamy-videos .creator-clip-copy h3 {
+  font-size: 17px;
+}
+.dreamy-videos .creator-clips-section > header .eyebrow {
+  display: none;
+}
+.dreamy-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+.dreamy-section-heading > svg {
+  color: var(--orange);
+  flex: none;
+}
+.dreamy-section-heading :is(h2, h3) {
+  margin: 0;
+  font:
+    500 23px/1.25 Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: start;
+  gap: 24px;
+}
+.dreamy-profile-fields,
+.dreamy-avatar-settings {
+  min-width: 0;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--dreamy-surface);
+}
+.dreamy-profile-fields > label {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.dreamy-profile-fields :is(input, textarea) {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  font:
+    400 13px/1.5 Arial,
+    sans-serif;
+  color-scheme: light;
+}
+.dreamy-profile-fields textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+.dreamy-character-count {
+  justify-self: end;
+  margin-top: -3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+.dreamy-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.dreamy-save-button {
+  background: var(--orange);
+  color: white;
+  min-height: 46px;
+}
+.dreamy-avatar-settings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.dreamy-avatar-settings-heading h2 {
+  margin: 0 0 6px;
+  font:
+    500 23px/1.25 Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-avatar-settings-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.dreamy-current-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 62px;
+  width: 62px;
+  height: 62px;
+  overflow: hidden;
+  border-radius: 19px;
+  background: var(--dreamy-accent);
+  color: var(--orange);
+  font:
+    28px Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-current-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dreamy-avatar-note {
+  margin: 18px 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--dreamy-soft);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.dreamy-presets-label {
+  margin: 20px 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.dreamy-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 8px;
+  max-height: 248px;
+  overflow-y: auto;
+  padding: 3px;
+}
+.dreamy-avatar-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px 4px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--paper);
+}
+.dreamy-avatar-option[aria-pressed='true'] {
+  border-color: var(--orange);
+  background: var(--dreamy-accent);
+}
+.dreamy-avatar-option > :is(img, span) {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  object-fit: cover;
+  background: var(--dreamy-soft);
+  font:
+    23px Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-avatar-option small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.dreamy-avatar-upload {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 16px 0 8px;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dreamy-avatar-upload input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.dreamy-account-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 20px 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--dreamy-surface);
+}
+.dreamy-account-strip h2 {
+  margin: 0 0 5px;
+  font:
+    500 19px Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-account-strip p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.dreamy-activity-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 22px 0 30px;
+}
+.dreamy-activity-metrics > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--dreamy-surface);
+}
+.dreamy-activity-metrics svg {
+  grid-row: span 2;
+  color: var(--orange);
+}
+.dreamy-activity-metrics strong {
+  font:
+    500 32px/1.1 Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-activity-metrics span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.dreamy-game-scores {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.dreamy-game-score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--dreamy-surface);
+}
+.dreamy-game-score img {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.dreamy-game-score span {
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.dreamy-game-score strong {
+  margin-left: auto;
+  color: var(--orange);
+  font:
+    500 23px Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-local-note {
+  margin: 18px 0 0;
+}
+.dreamy-guest-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  margin: 24px 0;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--dreamy-surface);
+}
+.dreamy-guest-card > svg {
+  color: var(--orange);
+}
+.dreamy-guest-card > div {
+  flex: 1;
+  min-width: 180px;
+}
+.dreamy-guest-card h2 {
+  margin: 0 0 6px;
+  font:
+    500 23px Kanit,
+    Arial,
+    sans-serif;
+}
+.dreamy-guest-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.dreamy-workspace :is(button, a, input, textarea):focus-visible,
+.dreamy-avatar-upload:focus-within {
+  outline: 3px solid #eea387;
+  outline-offset: 3px;
+}
+.dreamy-workspace button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.dreamy-tabs > button:hover,
+.dreamy-public-link:hover {
+  color: var(--orange);
+}
+.dreamy-share-button:hover,
+.dreamy-avatar-option:hover,
+.dreamy-avatar-upload:hover {
+  background: var(--dreamy-accent);
+}
+html[data-theme='dark'] .dreamy-workspace {
+  --dreamy-soft: #2c2c26;
+  --dreamy-accent: #3b2c23;
+}
+html[data-theme='dark'] .dreamy-profile-fields :is(input, textarea) {
+  color-scheme: dark;
+}
+@media (max-width: 1000px) {
+  .dreamy-identity {
+    grid-template-columns: 1fr;
+  }
+  .dreamy-header-actions {
+    grid-column: 1;
+    grid-row: auto;
+    max-width: none;
+    justify-content: flex-start;
+  }
+  .dreamy-public-link {
+    width: auto;
+    margin-left: auto;
+  }
+  .dreamy-editor {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1200px) {
+  .dreamy-videos .creator-clips-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .dreamy-identity {
+    padding: 22px 18px;
+    gap: 18px;
+  }
+  .dreamy-avatar {
+    flex-basis: 64px;
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    font-size: 28px;
+  }
+  .dreamy-identity-main {
+    gap: 15px;
+    align-items: flex-start;
+  }
+  .dreamy-social-counts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-left: 0;
+    gap: 10px;
+  }
+  .dreamy-social-counts > div {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .dreamy-videos .creator-clips-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .dreamy-header-actions {
+    order: 1;
+    gap: 8px;
+  }
+  .dreamy-public-link {
+    margin-left: 0;
+  }
+  .dreamy-bio {
+    font-size: 12px;
+  }
+  .dreamy-tabs {
+    justify-content: space-between;
+    gap: 4px;
+    margin: 12px 0 20px;
+  }
+  .dreamy-tabs > button {
+    gap: 6px;
+    font-size: 12px;
+    min-height: 50px;
+  }
+  .dreamy-profile-fields,
+  .dreamy-avatar-settings {
+    padding: 20px;
+  }
+  .dreamy-account-strip {
+    padding: 18px;
+    flex-wrap: wrap;
+  }
+  .dreamy-activity-metrics {
+    gap: 10px;
+  }
+  .dreamy-activity-metrics > div {
+    padding: 18px;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .dreamy-activity-metrics svg {
+    grid-row: auto;
+  }
+  .dreamy-game-scores {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 360px) {
+  .dreamy-identity h1 {
+    font-size: 22px;
+  }
+  .dreamy-tabs > button {
+    gap: 5px;
+    font-size: 11px;
+  }
+  .dreamy-tabs > button svg {
+    width: 15px;
+  }
+  .dreamy-activity-metrics span {
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dreamy-identity,
+  .dreamy-tab-panel:not([hidden]) {
+    animation: dreamy-enter 0.22s ease both;
+  }
+  .dreamy-workspace :is(button, a, input, textarea) {
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+}
+@keyframes dreamy-enter {
+  from {
+    opacity: 0;
+    translate: 0 5px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dreamy-workspace *,
+  .dreamy-workspace *::before,
+  .dreamy-workspace *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

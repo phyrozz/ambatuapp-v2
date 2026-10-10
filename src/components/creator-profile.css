@@ -165,6 +165,19 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
+.creator-clips-scroll {
+  max-height: min(62dvh, 740px);
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--line) transparent;
+}
+.creator-clips-scroll:focus-visible {
+  outline: 3px solid #eea387;
+  outline-offset: 3px;
+  border-radius: 12px;
+}
 .creator-clip-card {
   display: flex;
   flex-direction: column;
