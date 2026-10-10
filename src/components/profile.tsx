@@ -446,7 +446,6 @@ export function ProfilePanel() {
             key={user.id}
             id={user.id}
             own
-            contained
             active={activeTab === 'videos'}
             onUpload={() => setUploadOpen(true)}
           />

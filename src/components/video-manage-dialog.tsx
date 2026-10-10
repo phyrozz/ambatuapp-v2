@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Pencil, Trash2, X } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
@@ -21,18 +21,39 @@ export function VideoManageDialog({ video, onClose, onSaved, onDeleted }: {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) onClose();
+    const dialog = dialogRef.current;
+    const previousOverflow = document.body.style.overflow;
+    dialog?.showModal();
+    document.body.style.overflow = 'hidden';
+    return () => {
+      if (closeTimer.current !== null) clearTimeout(closeTimer.current);
+      dialog?.close();
+      document.body.style.overflow = previousOverflow;
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [busy, onClose]);
+  }, []);
+
+  function finishWithTransition(action: () => void) {
+    if (closeTimer.current !== null) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      action();
+      return;
+    }
+    setClosing(true);
+    closeTimer.current = setTimeout(action, 160);
+  }
+
+  function dismiss() {
+    if (!busy && !closing) finishWithTransition(onClose);
+  }
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || closing) return;
     setBusy(true); setError('');
     try {
       const token = await getIdToken();
@@ -44,7 +65,7 @@ export function VideoManageDialog({ video, onClose, onSaved, onDeleted }: {
       });
       if (!response.ok) throw new Error('Video update failed.');
       const updated = await response.json() as Pick<ManagedVideo, 'title' | 'description'>;
-      onSaved(updated);
+      finishWithTransition(() => onSaved(updated));
     } catch {
       setError(t('watch.saveVideoError'));
     } finally {
@@ -53,7 +74,7 @@ export function VideoManageDialog({ video, onClose, onSaved, onDeleted }: {
   }
 
   async function deleteVideo() {
-    if (busy) return;
+    if (busy || closing) return;
     setBusy(true); setError('');
     try {
       const token = await getIdToken();
@@ -63,7 +84,7 @@ export function VideoManageDialog({ video, onClose, onSaved, onDeleted }: {
         headers: { authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Video deletion failed.');
-      onDeleted();
+      finishWithTransition(onDeleted);
     } catch {
       setError(t('watch.deleteVideoError'));
     } finally {
@@ -71,9 +92,9 @@ export function VideoManageDialog({ video, onClose, onSaved, onDeleted }: {
     }
   }
 
-  return <div className="video-manage-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-    <section className="video-manage-dialog" role="dialog" aria-modal="true" aria-labelledby="video-manage-title">
-      <button type="button" className="video-manage-close" aria-label={t('chat.dismiss')} disabled={busy} onClick={onClose}><X size={18}/></button>
+  return <dialog ref={dialogRef} className="video-manage-backdrop" data-closing={closing || undefined} aria-labelledby="video-manage-title" onCancel={event => { event.preventDefault(); dismiss(); }} onMouseDown={event => { if (event.target === event.currentTarget) dismiss(); }}>
+    <section className="video-manage-dialog" inert={closing}>
+      <button type="button" className="video-manage-close" aria-label={t('chat.dismiss')} disabled={busy || closing} onClick={dismiss}><X size={18}/></button>
       <h2 id="video-manage-title">{confirmingDelete ? t('watch.deleteVideoTitle') : t('watch.editVideoTitle')}</h2>
       {confirmingDelete ? <>
         <p>{t('watch.deleteVideoDescription')}</p>
@@ -87,11 +108,11 @@ export function VideoManageDialog({ video, onClose, onSaved, onDeleted }: {
         <label>{t('watch.descriptionLabel')}<textarea value={description} maxLength={1000} onChange={event => setDescription(event.target.value)} /></label>
         {error && <p className="video-manage-error" role="alert">{error}</p>}
         <div className="video-manage-actions">
-          <button type="button" className="button secondary" disabled={busy} onClick={onClose}>{t('chat.dismiss')}</button>
+          <button type="button" className="button secondary" disabled={busy || closing} onClick={dismiss}>{t('chat.dismiss')}</button>
           <button type="submit" className="button dark" disabled={busy || !title.trim()}><Pencil size={15}/>{busy ? t('watch.savingChanges') : t('watch.saveChanges')}</button>
         </div>
         <button type="button" className="video-manage-delete" disabled={busy} onClick={() => { setConfirmingDelete(true); setError(''); }}><Trash2 size={15}/>{t('watch.deleteVideo')}</button>
       </form>}
     </section>
-  </div>;
+  </dialog>;
 }
