@@ -5,6 +5,7 @@ import type { Sound } from '@/lib/catalog';
 import { isGameCharacterId, type GameCharacterId } from '@/lib/game-characters';
 import { haptic } from '@/lib/native';
 import { useI18n } from './i18n-provider';
+import { useAuth } from './auth-provider';
 type Saved = {
   favorites: string[];
   scores: Record<string, number>;
@@ -45,6 +46,7 @@ type SoundCatalogState = {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
+  const { getIdToken } = useAuth();
   const [saved, setSaved] = useState(defaults);
   const [ready, setReady] = useState(false);
   const [soundCatalog, setSoundCatalog] = useState<SoundCatalogState>({ status: 'loading', sounds: [], nextCursor: null, loadingMore: false, moreError: false });
@@ -203,9 +205,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
 
     const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? `${window.location.origin}/api/public`;
-    void fetch(`${endpoint}/sounds/${encodeURIComponent(id)}/plays`, { method: 'POST', cache: 'no-store' })
+    void getIdToken().then((token) => {
+      if (!token) return null;
+      return fetch(`${endpoint}/sounds/${encodeURIComponent(id)}/plays`, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { authorization: `Bearer ${token}` },
+      });
+    })
       .then(async (response) => {
-        if (!response.ok) return;
+        if (!response?.ok) return;
         const result = await response.json() as { playCount?: unknown };
         if (typeof result.playCount !== 'number' || !Number.isSafeInteger(result.playCount) || result.playCount < 0) return;
         setSoundCatalog((catalog) => ({

@@ -10,19 +10,18 @@ import { LoadingIndicator } from './loading-indicator';
 import { MediaPlayer } from './media-player';
 import { CommentThreadList, type ThreadComment } from './comment-thread-list';
 
-type VideoData = { id: string; title: string; description: string; uploader: string; uploaderId?: string; uploaderAvatarUrl?: string | null; videoUrl: string; upvotes: number; downvotes: number; commentCount: number };
+type VideoData = { id: string; title: string; description: string; uploader: string; uploaderId?: string; uploaderAvatarUrl?: string | null; videoUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote?: number };
 type Comment = ThreadComment;
+type PendingAction =
+  | { type: 'vote'; value: 1 | -1; id: string }
+  | { type: 'comment'; text: string; parentId?: string; id: string }
+  | { type: 'commentVote'; commentId: string; value: 1 | -1; id: string };
 const base = () => `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/videos`;
-function viewerId() {
-  const key = 'ambatu-anonymous-id';
-  let id = localStorage.getItem(key);
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id); }
-  return id;
-}
+const pendingKey = 'ambatu-watch-pending-action';
 
 export function CommunityVideoPage({ id }: { id: string }) {
   const { t } = useI18n();
-  const { user, getIdToken } = useAuth();
+  const { user, getIdToken, signInWithGoogle } = useAuth();
   const [video, setVideo] = useState<VideoData | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState('');
@@ -42,42 +41,52 @@ export function CommunityVideoPage({ id }: { id: string }) {
   useEffect(() => {
     window.scrollTo(0, 0);
     const controller = new AbortController();
-    const key = `ambatu-video-vote:${id}`;
     setVideo(null); setComments([]); setError(''); setCommentsError(''); setCommentsActionError(''); setCommentsLoading(true); setVideoReady(false); setDescriptionExpanded(false); setReplyingTo(null); setReplyText('');
-    fetch(`${base()}/${encodeURIComponent(id)}`, { cache: 'no-store', signal: controller.signal })
-      .then(response => response.json().then(data => { if (!response.ok) throw new Error(data.error); return data as VideoData; }))
-      .then(item => { setVideo(item); setUserVote(Number(localStorage.getItem(key)) || 0); })
-      .catch(reason => { if (reason.name !== 'AbortError') setError(reason instanceof Error ? reason.message : t('watch.communityError')); });
-    const anonymousId = viewerId();
-    fetch(`${base()}/${encodeURIComponent(id)}/comments?anonymousId=${encodeURIComponent(anonymousId)}`, { cache: 'no-store', signal: controller.signal })
-      .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error || t('watch.communityError')); return data; })
-      .then(thread => setComments(thread.comments ?? []))
-      .catch(reason => { if (reason.name !== 'AbortError') setCommentsError(reason instanceof Error ? reason.message : t('watch.communityError')); })
-      .finally(() => { if (!controller.signal.aborted) setCommentsLoading(false); });
+    void getIdToken().then(token => {
+      const headers: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {};
+      fetch(`${base()}/${encodeURIComponent(id)}`, { cache: 'no-store', headers, signal: controller.signal })
+        .then(response => response.json().then(data => { if (!response.ok) throw new Error(data.error); return data as VideoData; }))
+        .then(item => { setVideo(item); setUserVote(item.userVote === 1 || item.userVote === -1 ? item.userVote : 0); })
+        .catch(reason => { if (reason.name !== 'AbortError') setError(reason instanceof Error ? reason.message : t('watch.communityError')); });
+      fetch(`${base()}/${encodeURIComponent(id)}/comments`, { cache: 'no-store', headers, signal: controller.signal })
+        .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error || t('watch.communityError')); return data; })
+        .then(thread => setComments(thread.comments ?? []))
+        .catch(reason => { if (reason.name !== 'AbortError') setCommentsError(reason instanceof Error ? reason.message : t('watch.communityError')); })
+        .finally(() => { if (!controller.signal.aborted) setCommentsLoading(false); });
+    }).catch(reason => {
+      if (!controller.signal.aborted) {
+        setError(reason instanceof Error ? reason.message : t('watch.communityError'));
+        setCommentsLoading(false);
+      }
+    });
     return () => controller.abort();
-  }, [id, t]);
+  }, [id, t, user?.id, getIdToken]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   async function vote(value: 1 | -1) {
     if (!video) return;
+    if (!user) return requestSignIn({ type: 'vote', value, id });
+    const token = await getIdToken();
+    if (!token) return requestSignIn({ type: 'vote', value, id });
     const direction = value === 1 ? 'up' : 'down';
     setVotePulse(null); requestAnimationFrame(() => setVotePulse(direction)); setTimeout(() => setVotePulse(null), 520);
-    const key = `ambatu-video-vote:${id}`, prior = userVote;
-    const response = await fetch(`${base()}/${encodeURIComponent(id)}/vote`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ anonymousId: viewerId(), value }) });
+    const response = await fetch(`${base()}/${encodeURIComponent(id)}/vote`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ value }) });
     const data = await response.json();
     if (!response.ok) return;
-    localStorage.setItem(key, String(data.value)); setUserVote(data.value);
-    setVideo(current => current ? { ...current, upvotes: current.upvotes + (data.value === 1 ? 1 : 0) - (prior === 1 ? 1 : 0), downvotes: current.downvotes + (data.value === -1 ? 1 : 0) - (prior === -1 ? 1 : 0) } : current);
+    setUserVote(data.value);
+    setVideo(current => current ? { ...current, upvotes: data.upvotes, downvotes: data.downvotes } : current);
   }
 
   async function postComment(value: string, parentId?: string) {
     if (!video || !value.trim()) return;
+    if (!user) return requestSignIn({ type: 'comment', text: value.trim(), ...(parentId ? { parentId } : {}), id });
     try {
       const token = await getIdToken();
+      if (!token) return requestSignIn({ type: 'comment', text: value.trim(), ...(parentId ? { parentId } : {}), id });
       const response = await fetch(`${base()}/${encodeURIComponent(id)}/comments`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ anonymousId: viewerId(), text: value.trim(), ...(parentId ? { parentId } : {}) }),
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: value.trim(), ...(parentId ? { parentId } : {}) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || t('comments.actionError'));
@@ -93,9 +102,12 @@ export function CommunityVideoPage({ id }: { id: string }) {
   async function submitComment(event: FormEvent) { event.preventDefault(); await postComment(text); }
 
   async function voteComment(commentId: string, value: 1 | -1) {
+    if (!user) return requestSignIn({ type: 'commentVote', commentId, value, id });
     try {
+      const token = await getIdToken();
+      if (!token) return requestSignIn({ type: 'commentVote', commentId, value, id });
       const response = await fetch(`${base()}/${encodeURIComponent(id)}/comments/${encodeURIComponent(commentId)}/vote`, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ anonymousId: viewerId(), value }),
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ value }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || t('comments.actionError'));
@@ -105,6 +117,27 @@ export function CommunityVideoPage({ id }: { id: string }) {
       setCommentsActionError(t('comments.actionError'));
     }
   }
+
+  function requestSignIn(action: PendingAction) {
+    try { sessionStorage.setItem(pendingKey, JSON.stringify(action)); } catch {}
+    void signInWithGoogle(`${window.location.pathname}${window.location.search}`).catch(() => {
+      try { sessionStorage.removeItem(pendingKey); } catch {}
+      setCommentsActionError(t('comments.actionError'));
+    });
+  }
+
+  useEffect(() => {
+    if (!user || !video) return;
+    try {
+      const pending = JSON.parse(sessionStorage.getItem(pendingKey) || 'null') as PendingAction | null;
+      if (!pending) return;
+      sessionStorage.removeItem(pendingKey);
+      if (pending.id !== id) return;
+      if (pending.type === 'vote') void vote(pending.value);
+      if (pending.type === 'commentVote') void voteComment(pending.commentId, pending.value);
+      if (pending.type === 'comment') void postComment(pending.text, pending.parentId);
+    } catch {}
+  }, [user, video, id, vote, voteComment, postComment]);
 
   return <div className="page community-video-page">
     <Link className="back-link watch-back-link" href="/watch/"><ArrowLeft size={17}/>{t('watch.back')}</Link>
