@@ -5325,3 +5325,16 @@ html[data-theme='dark'] .scroll-dialog-close { background:#33352f; }
 @media(max-width:760px) { .scroll-dialog-backdrop { align-items:end; padding:0; } .scroll-comments-dialog { width:100%; max-height:84dvh; min-height:65dvh; border-radius:20px 20px 0 0; } .scroll-caption { right:85px; bottom:20px; } .scroll-actions { right:9px; bottom:38px; gap:7px; } .scroll-action { width:49px; min-height:52px; } }
 @media(prefers-reduced-motion:reduce) { .scroll-action,.scroll-play,.scroll-dialog-close { transition:none!important; } .scroll-vote-pulse,.scroll-dialog-backdrop,.scroll-comments-dialog { animation:none!important; } }
 @media(prefers-reduced-motion:reduce) { .scroll-description-toggle,.scroll-uploader-avatar { transition:none!important; } }
+.explore-card-studio { width:100%; text-align:left; font:inherit; cursor:pointer; }
+.explore-card-studio:focus-visible { outline:3px solid color-mix(in srgb,var(--orange) 45%,transparent); outline-offset:3px; }
+.explore-studio-dialog { box-sizing:border-box; width:min(460px,calc(100vw - 32px)); max-height:calc(100dvh - 36px); margin:auto; padding:26px; border:1px solid var(--line); border-radius:20px; overflow:auto; background:var(--surface,#fffdf8); color:var(--ink); box-shadow:0 26px 75px #0005; animation:sort-picker-dialog-in .22s cubic-bezier(.2,.75,.3,1) both; }
+.explore-studio-dialog::backdrop { background:#161411b8; backdrop-filter:blur(5px); }
+.explore-studio-dialog-icon { display:grid; place-items:center; width:44px; height:44px; margin-bottom:15px; border-radius:13px; background:#fff0e6; color:#ba4524; }
+.explore-studio-dialog h2 { margin:0 0 9px; font-family:Kanit,Arial,sans-serif; font-size:25px; line-height:1.15; }
+.explore-studio-dialog p { margin:0; color:var(--muted); font-size:14px; line-height:1.6; }
+.explore-studio-dialog-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:9px; margin-top:23px; }
+.explore-studio-dialog-actions .button { min-height:44px; justify-content:center; gap:7px; }
+html[data-theme='dark'] .explore-studio-dialog { border-color:var(--line); background:var(--surface); }
+html[data-theme='dark'] .explore-studio-dialog-icon { background:#4b2d21; color:#ff997a; }
+@media(max-width:480px) { .explore-studio-dialog { width:calc(100vw - 24px); padding:22px 19px; } .explore-studio-dialog-actions { display:grid; grid-template-columns:1fr; } .explore-studio-dialog-actions .button { width:100%; } }
+@media(prefers-reduced-motion:reduce) { .explore-studio-dialog[open] { animation:none!important; } }
