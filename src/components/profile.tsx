@@ -16,6 +16,7 @@ import {
   Share2,
   Trophy,
   Volume2,
+  Users,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useApp } from './app-provider';
@@ -39,12 +40,14 @@ import { useCreatorProfile } from './use-creator-profile';
 import { VideoUploadDialog } from './video-upload-dialog';
 import { creatorHref } from '@/lib/creator-profile';
 import { publicAppUrl } from '@/lib/share-links';
+import { MyCharacters } from './my-characters';
 import { MyContributions } from './my-contributions';
 import './my-dreamy.css';
 
-type ProfileTab = 'videos' | 'lores' | 'sounds' | 'profile' | 'activity';
+type ProfileTab = 'videos' | 'characters' | 'lores' | 'sounds' | 'profile' | 'activity';
 const profileTabs = [
   { id: 'videos', label: 'profile.tabVideos', icon: Film },
+  { id: 'characters', label: 'profile.tabCharacters', icon: Users },
   { id: 'lores', label: 'profile.tabLore', icon: BookOpen },
   { id: 'sounds', label: 'profile.tabSoundboard', icon: Music2 },
   { id: 'profile', label: 'profile.tabEdit', icon: Pencil },
@@ -116,6 +119,7 @@ export function ProfilePanel() {
     const syncTab = () => {
       if (window.location.hash === '#my-profile-editor') setActiveTab('profile');
       else if (window.location.hash === '#my-activity') setActiveTab('activity');
+      else if (window.location.hash === '#my-characters') setActiveTab('characters');
       else if (window.location.hash === '#my-lores') setActiveTab('lores');
       else if (window.location.hash === '#my-sounds') setActiveTab('sounds');
       else if (window.location.hash === '#my-videos') setActiveTab('videos');
@@ -130,6 +134,7 @@ export function ProfilePanel() {
     const hash = {
       videos: 'my-videos',
       lores: 'my-lores',
+      characters: 'my-characters',
       sounds: 'my-sounds',
       profile: 'my-profile-editor',
       activity: 'my-activity',
@@ -419,13 +424,17 @@ export function ProfilePanel() {
                 {
                   videos: 'my-videos',
                   lores: 'my-lores',
+                  characters: 'my-characters',
                   sounds: 'my-sounds',
                   profile: 'my-profile-editor',
                   activity: 'my-activity',
                 }[id]
               }
               tabIndex={activeTab === id ? 0 : -1}
-              onClick={() => selectTab(id)}
+              onClick={() => {
+                selectTab(id);
+                tabButtons.current[id]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+              }}
               onKeyDown={(event) => {
                 let next: number;
                 if (event.key === 'ArrowRight') next = (index + 1) % profileTabs.length;
@@ -463,6 +472,18 @@ export function ProfilePanel() {
             active={activeTab === 'videos'}
             onUpload={() => setUploadOpen(true)}
           />
+        </section>
+      )}
+
+      {user && (
+        <section
+          id="my-characters"
+          className="dreamy-tab-panel"
+          role="tabpanel"
+          aria-labelledby="dreamy-tab-characters"
+          hidden={activeTab !== 'characters'}
+        >
+          <MyCharacters key={user.id} active={activeTab === 'characters'} />
         </section>
       )}
 

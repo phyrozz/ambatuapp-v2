@@ -26,14 +26,14 @@ export function CommunityUpload({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [published, setPublished] = useState(false);
+  const [savedStatus, setSavedStatus] = useState<'Draft' | 'Published' | null>(null);
   return (
     <div className="community-upload-entry">
       <button
         className="button dark compact"
         type="button"
         onClick={() => {
-          setPublished(false);
+          setSavedStatus(null);
           setOpen(true);
         }}
       >
@@ -44,18 +44,24 @@ export function CommunityUpload({
         )}
         {t(kind === 'sound' ? 'contribute.uploadSound' : 'contribute.writeLore')}
       </button>
-      {published && (
+      {savedStatus && (
         <p className="community-upload-success" role="status">
-          {t(kind === 'sound' ? 'contribute.soundSuccess' : 'contribute.loreSuccess')}
+          {t(
+            savedStatus === 'Draft'
+              ? 'contribute.draftSaved'
+              : kind === 'sound'
+                ? 'contribute.soundSuccess'
+                : 'contribute.loreSuccess',
+          )}
         </p>
       )}
       {open && (
         <CommunityUploadDialog
           kind={kind}
           onClose={() => setOpen(false)}
-          onPublished={() => {
+          onPublished={(status) => {
             setOpen(false);
-            setPublished(true);
+            setSavedStatus(status);
             onPublished();
           }}
         />
@@ -71,7 +77,7 @@ function CommunityUploadDialog({
 }: {
   kind: ContentKind;
   onClose: () => void;
-  onPublished: () => void;
+  onPublished: (status: 'Draft' | 'Published') => void;
 }) {
   const { t } = useI18n();
   const { user, ready, configured, getIdToken, signInWithGoogle } = useAuth();
@@ -210,6 +216,8 @@ function CommunityUploadDialog({
 
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const status = submitter?.value === 'Draft' ? 'Draft' : 'Published';
     if (submitting.current || closing || !user) return;
     setError('');
     const pendingTag = tag.trim();
@@ -256,11 +264,12 @@ function CommunityUploadDialog({
           soundKey = upload.soundKey as string;
           setUploadedAudio({ file, soundKey });
         }
-        await post('sounds', { name: title.trim(), category: category.trim(), soundKey });
+        await post('sounds', { name: title.trim(), category: category.trim(), soundKey, status });
       } else {
         submissionId.current ??= crypto.randomUUID();
         await post('lores', {
           submissionId: submissionId.current,
+          status,
           title: title.trim(),
           text: text.trim(),
           tags: selectedTags,
@@ -268,7 +277,7 @@ function CommunityUploadDialog({
           imageKeys: images.map((image) => image.key),
         });
       }
-      finish(onPublished);
+      finish(() => onPublished(status));
     } catch (reason) {
       const key =
         reason instanceof Error &&
@@ -281,7 +290,11 @@ function CommunityUploadDialog({
         ].includes(reason.message)
           ? reason.message
           : 'contribute.failed';
-      setError(t(key));
+      setError(
+        t(
+          status === 'Draft' && key === 'contribute.failed' ? 'profile.contributionSaveError' : key,
+        ),
+      );
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -600,7 +613,7 @@ function CommunityUploadDialog({
                 </section>
               </>
             )}
-            <p className="community-upload-notice">{t('contribute.publicNotice')}</p>
+            <p className="community-upload-notice">{t('contribute.draftNotice')}</p>
             {error && (
               <p className="video-manage-error" role="alert">
                 {error}
@@ -611,10 +624,25 @@ function CommunityUploadDialog({
                 {t('chat.dismiss')}
               </button>
               <button
-                className="button dark"
+                className="button secondary"
                 type="submit"
+                value="Draft"
                 disabled={
                   busy ||
+                  uploading ||
+                  !title.trim() ||
+                  (kind === 'sound' ? !category.trim() || !file : !text.trim())
+                }
+              >
+                {t('contribute.saveDraft')}
+              </button>
+              <button
+                className="button dark"
+                type="submit"
+                value="Published"
+                disabled={
+                  busy ||
+                  uploading ||
                   !title.trim() ||
                   (kind === 'sound' ? !category.trim() || !file : !text.trim())
                 }
@@ -622,7 +650,7 @@ function CommunityUploadDialog({
                 <Upload size={16} aria-hidden="true" />
                 {t(
                   busy
-                    ? 'contribute.publishing'
+                    ? 'profile.savingItem'
                     : kind === 'sound'
                       ? 'contribute.publishSound'
                       : 'contribute.publishLore',

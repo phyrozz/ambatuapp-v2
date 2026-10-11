@@ -4,13 +4,17 @@ import { BookOpen, Music2, Pencil, Trash2, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
+import { useApp } from './app-provider';
+import { CommunityUpload } from './community-upload';
 import { LoadingIndicator } from './loading-indicator';
+import { SoundPlayback } from './sound-playback';
 import './community-upload.css';
 import './my-contributions.css';
 
 type LoreTranslation = { locale: string; label: string; title: string; text: string };
 type ManagedLore = {
   kind: 'lore';
+  status: 'Draft' | 'Published';
   id: string;
   title: string;
   text: string;
@@ -22,6 +26,7 @@ type ManagedLore = {
 };
 type ManagedSound = {
   kind: 'sound';
+  status: 'Draft' | 'Published';
   id: string;
   name: string;
   category: string;
@@ -60,6 +65,7 @@ function errorText(
 
 export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; active: boolean }) {
   const { t, locale } = useI18n();
+  const { refreshSoundCatalog } = useApp();
   const { user, getIdToken } = useAuth();
   const userId = user?.id;
   const [items, setItems] = useState<ManagedItem[]>([]);
@@ -145,17 +151,19 @@ export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; acti
   function updateItem(item: ManagedItem) {
     setItems((previous) => previous.map((current) => (current.id === item.id ? item : current)));
     setSelected(null);
-    setNotice(t('profile.contributionSaved'));
+    setNotice(t(item.status === 'Draft' ? 'contribute.draftSaved' : 'profile.contributionSaved'));
+    if (item.kind === 'sound') refreshSoundCatalog();
   }
 
   function removeItem(id: string) {
     setItems((previous) => previous.filter((item) => item.id !== id));
     setSelected(null);
     setNotice(t('profile.contributionDeleted'));
+    if (kind === 'sound') refreshSoundCatalog();
   }
 
   const headingKey = kind === 'lore' ? 'profile.loreUploads' : 'profile.soundUploads';
-  const hintKey = kind === 'lore' ? 'profile.loreUploadsHint' : 'profile.soundUploadsHint';
+  const hintKey = 'contribute.manageHint';
   const emptyKey = kind === 'lore' ? 'profile.noLores' : 'profile.noSounds';
   const loadErrorKey = kind === 'lore' ? 'profile.loreLoadError' : 'profile.soundLoadError';
 
@@ -169,11 +177,13 @@ export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; acti
           <h2>{t(headingKey)}</h2>
           <p className="dreamy-section-hint">{t(hintKey)}</p>
         </div>
-        {kind === 'lore' ? (
-          <BookOpen size={22} aria-hidden="true" />
-        ) : (
-          <Music2 size={22} aria-hidden="true" />
-        )}
+        <CommunityUpload
+          kind={kind}
+          onPublished={() => {
+            setRefreshKey((value) => value + 1);
+            if (kind === 'sound') refreshSoundCatalog();
+          }}
+        />
       </header>
       {notice && (
         <p className="my-contributions-notice" role="status">
@@ -210,6 +220,11 @@ export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; acti
             (item) =>
               'text' in item && (
                 <article className="my-contribution-card" key={item.id}>
+                  <span
+                    className={`my-contribution-status ${item.status === 'Draft' ? 'draft' : 'published'}`}
+                  >
+                    {t(item.status === 'Draft' ? 'character.draft' : 'character.published')}
+                  </span>
                   {item.imageUrls[0] && (
                     <img
                       className="my-contribution-cover"
@@ -263,18 +278,13 @@ export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; acti
             (item) =>
               'file' in item && (
                 <article className="my-contribution-card my-contribution-sound" key={item.id}>
-                  <div className="my-contribution-sound-icon">
-                    <Music2 size={23} aria-hidden="true" />
-                  </div>
+                  <span
+                    className={`my-contribution-status ${item.status === 'Draft' ? 'draft' : 'published'}`}
+                  >
+                    {t(item.status === 'Draft' ? 'character.draft' : 'character.published')}
+                  </span>
+                  <SoundPlayback sound={{ ...item, color: 0, playCount: 0 }} preview heading />
                   <div className="my-contribution-copy">
-                    <h3>{item.name}</h3>
-                    <p className="my-contribution-category">{item.category}</p>
-                    <audio
-                      controls
-                      preload="none"
-                      src={item.file}
-                      aria-label={t('profile.audioPreview', { name: item.name })}
-                    />
                     <div className="my-contribution-actions">
                       <button
                         className="button secondary compact"
@@ -478,6 +488,8 @@ function ContributionEditDialog({
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const status = submitter?.value === 'Draft' ? 'Draft' : 'Published';
     if (submitting.current || closing) return;
     submitting.current = true;
     setBusy(true);
@@ -503,12 +515,21 @@ function ContributionEditDialog({
           soundKey = upload.soundKey;
           setUploadedAudio({ file: audioFile, soundKey });
         }
-        await request(`sounds/${encodeURIComponent(item.id)}`, 'PATCH', {
+        const response = await request(`sounds/${encodeURIComponent(item.id)}`, 'PATCH', {
+          status,
           name: title.trim(),
           category: category.trim(),
           ...(soundKey ? { soundKey } : {}),
         });
-        finish(() => onSaved({ ...item, name: title.trim(), category: category.trim() }));
+        finish(() =>
+          onSaved({
+            ...item,
+            ...response.sound,
+            status,
+            name: title.trim(),
+            category: category.trim(),
+          }),
+        );
       } else {
         const selectedTags =
           tag.trim() && !tags.some((current) => current.toLowerCase() === tag.trim().toLowerCase())
@@ -517,13 +538,14 @@ function ContributionEditDialog({
         if (selectedTags.length > 10 || selectedTags.some((value) => value.length > 40))
           throw new Error('tags');
         const response = (await request(`lores/${encodeURIComponent(item.id)}`, 'PATCH', {
+          status,
           title: title.trim(),
           text: text.trim(),
           tags: selectedTags,
           translations,
           imageKeys: images.map((image) => image.key),
         })) as { lore: Omit<ManagedLore, 'kind' | 'createdAt'> };
-        finish(() => onSaved({ ...item, ...response.lore, kind: 'lore' }));
+        finish(() => onSaved({ ...item, ...response.lore, status, kind: 'lore' }));
       }
     } catch (reason) {
       setError(
@@ -623,6 +645,7 @@ function ContributionEditDialog({
           </>
         ) : (
           <form className="video-manage-form" onSubmit={save}>
+            <p className="community-upload-notice">{t('contribute.draftNotice')}</p>
             <label>
               {t(item.kind === 'lore' ? 'contribute.loreTitle' : 'contribute.soundName')}
               <input
@@ -894,13 +917,32 @@ function ContributionEditDialog({
               </button>
               <button
                 type="submit"
+                value="Draft"
+                className="button secondary"
+                disabled={
+                  busy || uploadingImages || !title.trim() || (item.kind === 'lore' && !text.trim())
+                }
+              >
+                {t('contribute.saveDraft')}
+              </button>
+              <button
+                type="submit"
+                value="Published"
                 className="button dark"
                 disabled={
                   busy || uploadingImages || !title.trim() || (item.kind === 'lore' && !text.trim())
                 }
               >
                 <Pencil size={15} aria-hidden="true" />
-                {t(busy ? 'profile.savingItem' : 'profile.saveItem')}
+                {t(
+                  busy
+                    ? 'profile.savingItem'
+                    : item.status === 'Draft'
+                      ? item.kind === 'lore'
+                        ? 'contribute.publishLore'
+                        : 'contribute.publishSound'
+                      : 'profile.saveItem',
+                )}
               </button>
             </div>
             <button

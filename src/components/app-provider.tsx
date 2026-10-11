@@ -28,7 +28,7 @@ type AppContext = Saved & {
   loadingSounds: string[];
   current: Sound | undefined;
   error: string;
-  play: (sound: Sound) => void;
+  play: (sound: Sound, options?: { preview?: boolean }) => void;
   stop: () => void;
   toggleFavorite: (id: string) => void;
   saveScore: (id: string, score: number) => void;
@@ -224,7 +224,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => undefined);
   }
-  function play(sound: Sound) {
+  function play(sound: Sound, options?: { preview?: boolean }) {
     setError('');
     const existing = players.current.get(sound.id);
     if (existing) {
@@ -263,8 +263,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPlaying(ids => ids.includes(sound.id) ? ids : [...ids, sound.id]);
       if (counted) return;
       counted = true;
-      recordSoundPlay(sound.id);
-      setSaved((s) => ({ ...s, plays: s.plays + 1 }));
+      if (!options?.preview) {
+        recordSoundPlay(sound.id);
+        setSaved((s) => ({ ...s, plays: s.plays + 1 }));
+      }
     };
     const clear = () => {
       if (players.current.get(sound.id) === audio) {
