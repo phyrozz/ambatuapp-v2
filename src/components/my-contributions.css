@@ -1,0 +1,263 @@
+.dreamy-contributions-panel {
+  min-width: 0;
+}
+.my-contributions {
+  min-width: 0;
+}
+.my-contributions-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.my-contributions-heading .eyebrow {
+  margin: 0 0 4px;
+  color: var(--orange);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.my-contributions-heading h2 {
+  margin: 0;
+  font:
+    500 25px/1.2 Kanit,
+    Arial,
+    sans-serif;
+}
+.my-contributions-heading .dreamy-section-hint {
+  margin: 6px 0 0;
+}
+.my-contributions-heading > svg {
+  flex: none;
+  margin-top: 7px;
+  color: var(--orange);
+}
+.my-contributions-notice {
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  border: 1px solid #48926755;
+  border-radius: 10px;
+  background: #48926712;
+  color: var(--ink);
+  font-size: 12px;
+}
+.my-contributions-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 13px 15px;
+  border: 1px solid #b43d3055;
+  border-radius: 12px;
+  background: #b43d300a;
+}
+.my-contributions-error p {
+  flex: 1;
+  min-width: 160px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.my-contributions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+.my-contribution-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--dreamy-surface);
+  animation: dreamy-enter 0.2s ease both;
+}
+.my-contribution-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 8;
+  object-fit: cover;
+  background: var(--dreamy-soft);
+}
+.my-contribution-copy {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+}
+.my-contribution-copy h3 {
+  margin: 0;
+  font:
+    500 19px/1.3 Kanit,
+    Arial,
+    sans-serif;
+  overflow-wrap: anywhere;
+}
+.my-contribution-copy > p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  min-height: 3.9em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.my-contribution-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.my-contribution-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  margin-top: 2px;
+}
+.my-contribution-actions .button {
+  min-height: 44px;
+}
+.my-contribution-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #b43d30;
+  font-size: 12px;
+  font-weight: 700;
+}
+.my-contribution-delete:hover {
+  border-color: #b43d3055;
+  background: #b43d300a;
+}
+.my-contribution-sound {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: start;
+  gap: 0 14px;
+  padding: 16px;
+}
+.my-contribution-sound-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--dreamy-accent);
+  color: var(--orange);
+}
+.my-contribution-sound .my-contribution-copy {
+  padding: 0;
+}
+.my-contribution-sound .my-contribution-copy > p.my-contribution-category {
+  display: block;
+  min-height: 0;
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+}
+.my-contribution-sound audio {
+  width: 100%;
+  height: 38px;
+}
+.my-contributions-empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 44px 20px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  color: var(--muted);
+  text-align: center;
+}
+.my-contributions-empty svg {
+  color: var(--orange);
+}
+.my-contributions-empty p {
+  margin: 0;
+  font-size: 13px;
+}
+.my-contributions-sentinel {
+  height: 1px;
+}
+.my-contribution-audio-picker {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--ink) !important;
+  cursor: pointer;
+}
+.my-contribution-audio-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.my-contribution-audio-picker:focus-within {
+  outline: 3px solid #eea387;
+  outline-offset: 3px;
+}
+.my-contribution-dialog {
+  width: min(620px, 100%);
+}
+.my-contribution-dialog .video-manage-close {
+  width: 44px;
+  height: 44px;
+}
+.my-contribution-dialog .community-upload-remove {
+  flex-basis: 44px;
+  width: 44px;
+  height: 44px;
+}
+.my-contribution-dialog .community-upload-images,
+.my-contribution-dialog .community-upload-translations {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .my-contributions-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-contributions-heading h2 {
+    font-size: 23px;
+  }
+}
+@media (max-width: 430px) {
+  .my-contribution-copy {
+    padding: 13px;
+  }
+  .my-contribution-sound {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 0 11px;
+    padding: 13px;
+  }
+  .my-contribution-sound-icon {
+    width: 42px;
+    height: 42px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .my-contribution-card {
+    animation: none;
+  }
+}

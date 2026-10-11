@@ -1,0 +1,223 @@
+.community-upload-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 24px;
+}
+.community-upload-success {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.community-upload-dialog {
+  width: min(600px, 100%);
+}
+.community-upload-fields {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.community-upload-dialog .community-lore-text {
+  min-height: 220px;
+  line-height: 1.65;
+}
+.community-upload-field-hint {
+  margin: -8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.community-upload-character-count {
+  justify-self: end;
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.community-upload-notice {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.community-upload-login {
+  display: grid;
+  gap: 16px;
+}
+.community-upload-login p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.community-upload-fields input[type='file'] {
+  min-width: 0;
+  font-size: 13px;
+}
+.community-upload-fields input::file-selector-button {
+  margin-right: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.community-upload-tag-field,
+.community-upload-translations article {
+  display: grid;
+  gap: 10px;
+}
+.community-upload-tag-field > label,
+.community-upload-translations article label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.community-upload-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.community-upload-tags > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+}
+.community-upload-tags button,
+.community-upload-remove {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+}
+.community-upload-tags button {
+  width: 20px;
+  height: 20px;
+}
+.community-upload-translations,
+.community-upload-images {
+  display: grid;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.community-upload-translations > header,
+.community-upload-translations-header,
+.community-upload-translation-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.community-upload-translations h3,
+.community-upload-translations-header h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+}
+.community-upload-translations article {
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.community-upload-translation-title strong {
+  font-size: 12px;
+}
+.community-upload-remove {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+}
+.community-upload-translation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.community-upload-images-header {
+  min-width: 0;
+}
+.community-upload-translations-header > div {
+  min-width: 0;
+}
+.community-upload-translations-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.community-upload-translations-header > .button {
+  position: relative;
+  flex: 0 0 auto;
+}
+.community-upload-translations-header input[type='file'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.community-upload-translations-header input[type='file']:focus-visible {
+  outline: 3px solid #eea387;
+  outline-offset: 3px;
+  border-radius: 9px;
+}
+.community-upload-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 10px;
+}
+.community-upload-image-grid > div {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
+}
+.community-upload-image-grid img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.community-upload-image-grid .community-upload-remove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+}
+@media (max-width: 600px) {
+  .community-upload-entry > .button {
+    width: 100%;
+    min-height: 46px;
+  }
+  .community-upload-translation-grid {
+    grid-template-columns: 1fr;
+  }
+  .community-upload-translations-header {
+    align-items: flex-start;
+  }
+  .community-upload-dialog .community-lore-text {
+    min-height: 180px;
+  }
+}

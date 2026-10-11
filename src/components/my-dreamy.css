@@ -175,11 +175,15 @@
 }
 .dreamy-tabs {
   display: flex;
+  justify-content: flex-start;
+  overflow-x: auto;
   gap: 26px;
   margin: 18px 0 24px;
   border-bottom: 1px solid var(--line);
+  scrollbar-width: thin;
 }
 .dreamy-tabs > button {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -639,8 +643,8 @@ html[data-theme='dark'] .dreamy-profile-fields :is(input, textarea) {
     font-size: 12px;
   }
   .dreamy-tabs {
-    justify-content: space-between;
-    gap: 4px;
+    justify-content: flex-start;
+    gap: 18px;
     margin: 12px 0 20px;
   }
   .dreamy-tabs > button {

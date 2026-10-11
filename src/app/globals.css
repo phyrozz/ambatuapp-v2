@@ -5383,3 +5383,9 @@ html[data-theme='dark'] .explore-studio-dialog { border-color:var(--line); backg
 html[data-theme='dark'] .explore-studio-dialog-icon { background:#4b2d21; color:#ff997a; }
 @media(max-width:480px) { .explore-studio-dialog { width:calc(100vw - 24px); padding:22px 19px; } .explore-studio-dialog-actions { display:grid; grid-template-columns:1fr; } .explore-studio-dialog-actions .button { width:100%; } }
 @media(prefers-reduced-motion:reduce) { .explore-studio-dialog[open] { animation:none!important; } }
+
+.sound-uploader-name,.lore-author-line { color:var(--muted);font-size:11px;line-height:1.45;text-decoration:none; }
+.sound-uploader-name { display:block;margin:-9px 15px 13px;overflow-wrap:anywhere; }
+.lore-author-line { display:inline-block;max-width:100%;margin:3px 0 10px;color:var(--orange,#e85d2a);font-weight:700;overflow-wrap:anywhere; }
+.lore-author-line:hover,.sound-uploader-name:hover { text-decoration:underline;text-underline-offset:3px; }
+.lore-reader-author { margin:0 0 18px; }

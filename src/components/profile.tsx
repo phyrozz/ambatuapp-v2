@@ -4,11 +4,13 @@ import Link from 'next/link';
 import {
   ArrowUpRight,
   BarChart3,
+  BookOpen,
   Camera,
   Film,
   Heart,
   LogIn,
   LogOut,
+  Music2,
   Pencil,
   Save,
   Share2,
@@ -37,11 +39,14 @@ import { useCreatorProfile } from './use-creator-profile';
 import { VideoUploadDialog } from './video-upload-dialog';
 import { creatorHref } from '@/lib/creator-profile';
 import { publicAppUrl } from '@/lib/share-links';
+import { MyContributions } from './my-contributions';
 import './my-dreamy.css';
 
-type ProfileTab = 'videos' | 'profile' | 'activity';
+type ProfileTab = 'videos' | 'lores' | 'sounds' | 'profile' | 'activity';
 const profileTabs = [
   { id: 'videos', label: 'profile.tabVideos', icon: Film },
+  { id: 'lores', label: 'profile.tabLore', icon: BookOpen },
+  { id: 'sounds', label: 'profile.tabSoundboard', icon: Music2 },
   { id: 'profile', label: 'profile.tabEdit', icon: Pencil },
   { id: 'activity', label: 'profile.tabActivity', icon: BarChart3 },
 ] as const;
@@ -111,6 +116,8 @@ export function ProfilePanel() {
     const syncTab = () => {
       if (window.location.hash === '#my-profile-editor') setActiveTab('profile');
       else if (window.location.hash === '#my-activity') setActiveTab('activity');
+      else if (window.location.hash === '#my-lores') setActiveTab('lores');
+      else if (window.location.hash === '#my-sounds') setActiveTab('sounds');
       else if (window.location.hash === '#my-videos') setActiveTab('videos');
     };
     syncTab();
@@ -120,8 +127,13 @@ export function ProfilePanel() {
 
   function selectTab(tab: ProfileTab) {
     setActiveTab(tab);
-    const hash =
-      tab === 'profile' ? 'my-profile-editor' : tab === 'activity' ? 'my-activity' : 'my-videos';
+    const hash = {
+      videos: 'my-videos',
+      lores: 'my-lores',
+      sounds: 'my-sounds',
+      profile: 'my-profile-editor',
+      activity: 'my-activity',
+    }[tab];
     window.history.replaceState(
       window.history.state,
       '',
@@ -404,11 +416,13 @@ export function ProfilePanel() {
               role="tab"
               aria-selected={activeTab === id}
               aria-controls={
-                id === 'videos'
-                  ? 'my-videos'
-                  : id === 'profile'
-                    ? 'my-profile-editor'
-                    : 'my-activity'
+                {
+                  videos: 'my-videos',
+                  lores: 'my-lores',
+                  sounds: 'my-sounds',
+                  profile: 'my-profile-editor',
+                  activity: 'my-activity',
+                }[id]
               }
               tabIndex={activeTab === id ? 0 : -1}
               onClick={() => selectTab(id)}
@@ -449,6 +463,30 @@ export function ProfilePanel() {
             active={activeTab === 'videos'}
             onUpload={() => setUploadOpen(true)}
           />
+        </section>
+      )}
+
+      {user && (
+        <section
+          id="my-lores"
+          className="dreamy-tab-panel dreamy-contributions-panel"
+          role="tabpanel"
+          aria-labelledby="dreamy-tab-lores"
+          hidden={activeTab !== 'lores'}
+        >
+          <MyContributions kind="lore" active={activeTab === 'lores'} />
+        </section>
+      )}
+
+      {user && (
+        <section
+          id="my-sounds"
+          className="dreamy-tab-panel dreamy-contributions-panel"
+          role="tabpanel"
+          aria-labelledby="dreamy-tab-sounds"
+          hidden={activeTab !== 'sounds'}
+        >
+          <MyContributions kind="sound" active={activeTab === 'sounds'} />
         </section>
       )}
 

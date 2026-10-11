@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { creatorHref } from '@/lib/creator-profile';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowBigDown, ArrowBigUp, ArrowRight, BookOpen, Languages, MessageCircle, Search, SlidersHorizontal, X } from 'lucide-react';
 import { LoadingIndicator } from './loading-indicator';
@@ -9,7 +10,7 @@ import { AppSelect, languageFlag } from './app-select';
 import { SortPicker } from './sort-picker';
 import { EmptyState } from './cards';
 
-type Lore = { id: string; title: string; text: string; tags: string[]; imageUrls: string[]; upvotes: number; downvotes: number; commentCount: number };
+type Lore = { id: string; title: string; text: string; tags: string[]; imageUrls: string[]; upvotes: number; downvotes: number; commentCount: number; uploaderId?: string | null; uploaderName?: string | null };
 type Facets = { tags: string[]; languages: { locale: string; label: string }[] };
 const base = () => process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? '';
 const PAGE_SIZE = 12;
@@ -111,5 +112,7 @@ export function LoreFeed() {
 
 function LoreCard({ lore }: { lore: Lore }) {
   const { t } = useI18n(); const excerpt = lore.text.length > 320 ? `${lore.text.slice(0, 320).trimEnd()}…` : lore.text;
-  return <article className="lore-card">{lore.imageUrls[0] && <Link className="lore-cover-link" href={`/lores/${lore.id}/`}><img className="lore-cover" src={lore.imageUrls[0]} alt="" /></Link>}<div className="lore-card-copy"><div className="lore-tags">{lore.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><h2><Link href={`/lores/${lore.id}/`}>{lore.title}</Link></h2><p className="lore-excerpt">{excerpt}</p><div className="lore-card-footer"><span className="lore-vote-count" aria-label={`${t('lore.upvote')}: ${lore.upvotes}`}><ArrowBigUp size={17} />{lore.upvotes}</span><span className="lore-vote-count" aria-label={`${t('lore.downvote')}: ${lore.downvotes}`}><ArrowBigDown size={17} />{lore.downvotes}</span><span aria-label={`${t('lore.comments')}: ${lore.commentCount}`}><MessageCircle size={15} />{lore.commentCount}</span><Link className="lore-read" href={`/lores/${lore.id}/`}>{t('lore.readStory')} <ArrowRight size={16} /></Link></div></div></article>;
+  return <article className="lore-card">{lore.imageUrls[0] && <Link className="lore-cover-link" href={`/lores/${lore.id}/`}><img className="lore-cover" src={lore.imageUrls[0]} alt="" /></Link>}<div className="lore-card-copy"><div className="lore-tags">{lore.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><h2><Link href={`/lores/${lore.id}/`}>{lore.title}</Link></h2>
+    {lore.uploaderId && lore.uploaderName && <Link className="lore-author-line" href={creatorHref(lore.uploaderId)} aria-label={t('creator.view', { name: lore.uploaderName })}>{t('lore.writtenBy', { name: lore.uploaderName })}</Link>}
+    <p className="lore-excerpt">{excerpt}</p><div className="lore-card-footer"><span className="lore-vote-count" aria-label={`${t('lore.upvote')}: ${lore.upvotes}`}><ArrowBigUp size={17} />{lore.upvotes}</span><span className="lore-vote-count" aria-label={`${t('lore.downvote')}: ${lore.downvotes}`}><ArrowBigDown size={17} />{lore.downvotes}</span><span aria-label={`${t('lore.comments')}: ${lore.commentCount}`}><MessageCircle size={15} />{lore.commentCount}</span><Link className="lore-read" href={`/lores/${lore.id}/`}>{t('lore.readStory')} <ArrowRight size={16} /></Link></div></div></article>;
 }

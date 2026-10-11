@@ -378,5 +378,7 @@ function parseSound(value: unknown, index: number): Sound | null {
     color: typeof item.color === 'number' && Number.isInteger(item.color) ? Math.min(3, Math.max(0, item.color)) : index % 4,
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : null,
     playCount: typeof item.playCount === 'number' && Number.isSafeInteger(item.playCount) && item.playCount >= 0 ? item.playCount : 0,
+    uploaderId: typeof item.uploaderId === 'string' && item.uploaderId ? item.uploaderId : null,
+    uploaderName: typeof item.uploaderName === 'string' && item.uploaderName ? item.uploaderName : null,
   };
 }

@@ -6,6 +6,8 @@ export type Sound = {
   color: number;
   createdAt: string | null;
   playCount: number;
+  uploaderId?: string | null;
+  uploaderName?: string | null;
 };
 
 export const games = [

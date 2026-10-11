@@ -22,7 +22,7 @@ function ProfileRoute() {
       </div>
     );
   return (
-    <MemberGate title="creator.title" returnTo={creatorHref(id)}>
+    <MemberGate scrollStyle title="creator.title" returnTo={creatorHref(id)}>
       <div className="page creator-page">
         <CreatorProfile key={id} id={id} />
       </div>

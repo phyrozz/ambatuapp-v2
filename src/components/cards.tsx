@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { creatorHref } from '@/lib/creator-profile';
 import { ArrowUpRight, Heart, Play, Square, AudioLines, Gamepad2 } from 'lucide-react';
 import { games, type Sound } from '@/lib/catalog';
 import type { Character } from '@/lib/characters';
@@ -125,6 +126,11 @@ export function SoundCard({ sound, index = 0, showPlayCount = false }: { sound: 
           </span>
         </span>
       </button>
+      {sound.uploaderId && sound.uploaderName && (
+        <Link className="sound-uploader-name" href={creatorHref(sound.uploaderId)} aria-label={t('creator.view', { name: sound.uploaderName })}>
+          {t('sounds.uploadedBy', { name: sound.uploaderName })}
+        </Link>
+      )}
     </article>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import Link from 'next/link';
+import { creatorHref } from '@/lib/creator-profile';
 import { FormEvent, useEffect, useState } from 'react';
 import { ArrowBigDown, ArrowBigUp, ArrowLeft, Languages, LogIn, MessageCircle, Send, X } from 'lucide-react';
 import { LoadingIndicator } from './loading-indicator';
@@ -10,7 +11,7 @@ import { useAuth } from './auth-provider';
 import { CommentThreadList, type ThreadComment } from './comment-thread-list';
 
 type Translation = { locale: string; label: string; title: string; text: string };
-type Lore = { id: string; title: string; text: string; translations?: Translation[]; tags: string[]; imageUrls: string[]; upvotes: number; downvotes: number; commentCount: number; userVote?: number };
+type Lore = { id: string; title: string; text: string; translations?: Translation[]; tags: string[]; imageUrls: string[]; upvotes: number; downvotes: number; commentCount: number; userVote?: number; uploaderId?: string | null; uploaderName?: string | null };
 type Comment = ThreadComment & { createdAt: string | null };
 type Pending =
   | { type: 'vote'; value: 1 | -1; id: string }
@@ -183,6 +184,7 @@ export function LoreReader({ id }: { id: string }) {
         <div className="lore-tags">{lore.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
         <h1>{title}</h1>
         <p>{t('lore.minutes', { count: Math.max(1, Math.ceil(body.trim().split(/\s+/).length / 220)) })}</p>
+        {lore.uploaderId && lore.uploaderName && <Link className="lore-author-line lore-reader-author" href={creatorHref(lore.uploaderId)} aria-label={t('creator.view', { name: lore.uploaderName })}>{t('lore.writtenBy', { name: lore.uploaderName })}</Link>}
         {Boolean(lore.translations?.length) && <div className="lore-language"><Languages size={17}/><span>{t('lore.readIn')}</span><AppSelect value={locale} onChange={setLocale} ariaLabel={t('lore.readIn')} options={[{ value: 'original', label: t('lore.original'), icon: 'book' }, ...lore.translations!.map(item => ({ value: item.locale, label: item.label, icon: languageFlag(item.locale) }))]}/></div>}
       </header>
       {lore.imageUrls?.length > 0 && <div className={`lore-reader-gallery ${lore.imageUrls.length === 1 ? 'single' : ''}`}>{lore.imageUrls.map((url, index) => <img src={url} alt="" key={`${url}-${index}`} loading="lazy" />)}</div>}
