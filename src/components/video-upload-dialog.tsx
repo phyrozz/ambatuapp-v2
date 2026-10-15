@@ -17,6 +17,7 @@ export type PublishedVideo = {
   uploaderId: string | null;
   uploaderAvatarUrl: string | null;
   videoUrl: string;
+  downloadUrl?: string;
   thumbnailUrl: string;
   upvotes: number;
   downvotes: number;

@@ -1,8 +1,9 @@
 'use client';
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, CircleUserRound, MessageCircle, Pause, Pencil, Play, Send, Upload, Volume2, VolumeX } from 'lucide-react';
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, Check, ChevronDown, ChevronUp, CircleUserRound, Download, Gauge, MessageCircle, Pause, Pencil, Play, Send, Upload, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { ScrollComments } from './scroll-comments';
@@ -15,7 +16,7 @@ import { creatorHref } from '@/lib/creator-profile';
 import { CreatorSearch } from './creator-search';
 import { VideoManageDialog } from './video-manage-dialog';
 
-type Clip = { id: string; title: string; description: string; uploader: string; uploaderId: string | null; uploaderAvatarUrl: string | null; videoUrl: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote: number };
+type Clip = { id: string; title: string; description: string; uploader: string; uploaderId: string | null; uploaderAvatarUrl: string | null; videoUrl: string; downloadUrl?: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote: number };
 type VoteResult = { value: number; upvotes: number; downvotes: number };
 
 function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, onShare, onVote, isOwner, onManage, singleClip = false }: { clip: Clip; root: HTMLDivElement | null; muted: boolean; dialogOpen: boolean; toggleMute: () => void; openComments: () => void; onShare: () => void; onVote: (value: 1 | -1) => Promise<void>; isOwner: boolean; onManage: () => void; singleClip?: boolean }) {
@@ -27,6 +28,9 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
   const lastVideoTap = useRef<{ time: number; x: number; y: number; windowMs: number } | null>(null);
   const videoPointerStart = useRef<{ x: number; y: number } | null>(null);
   const videoTapTimer = useRef<number | null>(null);
+  const longPressTimer = useRef<number | null>(null);
+  const longPressTriggered = useRef(false);
+  const contextMenuElement = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const [mediaReady, setMediaReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -34,6 +38,8 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
   const [paused, setPaused] = useState(true);
   const [progress, setProgress] = useState(0);
   const [votePulse, setVotePulse] = useState<{ size: 'regular' | 'large'; id: number } | null>(null);
+  const [videoMenu, setVideoMenu] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const votePulseSequence = useRef(0);
   const votePulseTimer = useRef<number | null>(null);
   const [voteError, setVoteError] = useState(false);
@@ -42,6 +48,7 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
   useEffect(() => () => {
     if (votePulseTimer.current !== null) window.clearTimeout(votePulseTimer.current);
     if (videoTapTimer.current !== null) window.clearTimeout(videoTapTimer.current);
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
   }, []);
   const descriptionCanExpand = clip.description.length > 240 || clip.description.split(/\r?\n/).length > 5;
   const uploaderInitial = clip.uploader.trim().charAt(0).toLocaleUpperCase() || 'A';
@@ -74,6 +81,30 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
     }
     void player.play().catch(() => { if (player.paused) setPaused(true); });
   }, [active, near, mediaReady, dialogOpen, muted]);
+  useEffect(() => { if (video.current) video.current.playbackRate = playbackRate; }, [playbackRate]);
+  useEffect(() => {
+    if (!videoMenu) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const closeOnKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setVideoMenu(false);
+      if (event.key !== 'Tab') return;
+      const buttons = contextMenuElement.current?.querySelectorAll<HTMLButtonElement>('button');
+      const first = buttons?.[0], last = buttons?.[buttons.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', closeOnKeyDown);
+    contextMenuElement.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', closeOnKeyDown);
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [videoMenu]);
+  useEffect(() => { if (dialogOpen) setVideoMenu(false); }, [dialogOpen]);
   const showVotePulse = useCallback((size: 'regular' | 'large') => {
     const id = ++votePulseSequence.current;
     setVotePulse({ size, id });
@@ -87,7 +118,43 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
       await onVote(value);
     } catch { setVoteError(true); }
   }, [onVote, showVotePulse]);
+  const openVideoMenu = () => {
+    if (videoTapTimer.current !== null) window.clearTimeout(videoTapTimer.current);
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
+    videoTapTimer.current = null;
+    longPressTimer.current = null;
+    lastVideoTap.current = null;
+    videoPointerStart.current = null;
+    setVideoMenu(true);
+  };
+  const handleVideoPointerDown = (event: ReactPointerEvent<HTMLVideoElement>) => {
+    videoPointerStart.current = { x: event.clientX, y: event.clientY };
+    longPressTriggered.current = false;
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
+    if (event.pointerType !== 'mouse' && event.button === 0) {
+      longPressTimer.current = window.setTimeout(() => {
+        longPressTimer.current = null;
+        longPressTriggered.current = true;
+        openVideoMenu();
+      }, 520);
+    }
+  };
+  const handleVideoPointerMove = (event: ReactPointerEvent<HTMLVideoElement>) => {
+    const start = videoPointerStart.current;
+    if (longPressTimer.current !== null && start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
   const handleVideoPointerUp = (event: ReactPointerEvent<HTMLVideoElement>) => {
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false;
+      videoPointerStart.current = null;
+      lastVideoTap.current = null;
+      return;
+    }
     const start = videoPointerStart.current;
     videoPointerStart.current = null;
     if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 16) { lastVideoTap.current = null; return; }
@@ -122,7 +189,7 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
     if (deliberatePause.current) player.pause(); else void player.play().catch(() => {});
   };
   return <article ref={article} className={`scroll-clip ${active ? 'is-active' : ''}`} aria-label={clip.title}>
-    <video ref={video} src={near ? clip.videoUrl : undefined} poster={clip.thumbnailUrl || undefined} playsInline autoPlay={active && !dialogOpen && !deliberatelyPaused} loop muted={muted} preload="metadata" aria-label={clip.title} onPointerDown={event => { videoPointerStart.current = { x: event.clientX, y: event.clientY }; }} onPointerUp={handleVideoPointerUp} onPointerCancel={() => { videoPointerStart.current = null; lastVideoTap.current = null; }} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onTimeUpdate={event => { const player = event.currentTarget; if (player.duration) setProgress(player.currentTime / player.duration); }} onError={() => setFailed(true)} onCanPlay={() => { setMediaReady(true); if (active && !dialogOpen && !deliberatePause.current && !document.hidden) void video.current?.play().catch(() => {}); }} />
+    <video ref={video} src={near ? clip.videoUrl : undefined} poster={clip.thumbnailUrl || undefined} playsInline autoPlay={active && !dialogOpen && !deliberatelyPaused} loop muted={muted} preload="metadata" aria-label={clip.title} onPointerDown={handleVideoPointerDown} onPointerMove={handleVideoPointerMove} onPointerUp={handleVideoPointerUp} onPointerCancel={() => { if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current); longPressTimer.current = null; videoPointerStart.current = null; lastVideoTap.current = null; }} onContextMenu={event => { event.preventDefault(); openVideoMenu(); }} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onTimeUpdate={event => { const player = event.currentTarget; if (player.duration) setProgress(player.currentTime / player.duration); }} onError={() => setFailed(true)} onCanPlay={() => { setMediaReady(true); if (active && !dialogOpen && !deliberatePause.current && !document.hidden) void video.current?.play().catch(() => {}); }} />
     <div className={`scroll-caption${descriptionExpanded ? ' is-expanded' : ''}`}>
       {clip.uploaderId && <Link className="scroll-uploader-name" href={creatorHref(clip.uploaderId)} aria-label={t('creator.view', { name:clip.uploader })}>{clip.uploader}</Link>}
       <h2>{singleClip ? clip.title : <Link href={`/watch/${encodeURIComponent(clip.id)}/`}>{clip.title}</Link>}</h2>
@@ -148,6 +215,30 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
     <button type="button" className="scroll-mute" onClick={toggleMute} aria-label={t(muted ? 'scroll.unmute' : 'scroll.mute')}>{muted ? <VolumeX size={20}/> : <Volume2 size={20}/>}</button>
     <div className="scroll-progress" aria-hidden="true"><span style={{ transform: `scaleX(${Math.max(0, Math.min(1, progress))})` }} /></div>
     {votePulse && <div key={votePulse.id} className={`scroll-vote-pulse${votePulse.size === 'large' ? ' is-large' : ''}`} aria-hidden="true"><ArrowBigUp size={votePulse.size === 'large' ? 104 : 64} fill="currentColor"/></div>}
+    {videoMenu && createPortal(<div className="scroll-video-sheet-backdrop" onPointerDown={event => { if (event.target === event.currentTarget) setVideoMenu(false); }}>
+      <div ref={contextMenuElement} className="scroll-video-context-menu" role="dialog" aria-modal="true" aria-labelledby={`scroll-video-options-${clip.id}`}>
+        <div className="scroll-video-sheet-handle" aria-hidden="true" />
+        <h2 id={`scroll-video-options-${clip.id}`} className="scroll-video-sheet-title">{t('scroll.videoOptions')}</h2>
+        <div className="scroll-video-context-actions">
+          <button type="button" className="scroll-video-context-action" onClick={() => {
+            const link = document.createElement('a');
+            link.href = clip.downloadUrl || clip.videoUrl;
+            link.download = `${clip.id}.mp4`;
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setVideoMenu(false);
+          }}><span className="scroll-video-context-icon"><Download size={25}/></span><span>{t('scroll.downloadVideo')}</span></button>
+          <button type="button" className="scroll-video-context-action" onClick={() => { setVideoMenu(false); onShare(); }}><span className="scroll-video-context-icon"><Send size={25}/></span><span>{t('friends.shareClip')}</span></button>
+        </div>
+        <div className="scroll-video-context-speeds" role="group" aria-label={t('scroll.playbackSpeed')}>
+          <span className="scroll-video-context-heading"><Gauge size={17}/>{t('scroll.playbackSpeed')}</span>
+          {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => <button key={rate} type="button" aria-pressed={playbackRate === rate} className="scroll-video-context-speed" onClick={() => setPlaybackRate(rate)}><span>{rate}×</span>{playbackRate === rate && <Check size={16}/>}</button>)}
+        </div>
+        <button type="button" className="scroll-video-sheet-cancel" onClick={() => setVideoMenu(false)}>{t('friends.cancelAction')}</button>
+      </div>
+    </div>, document.body)}
   </article>;
 }
 
