@@ -5344,7 +5344,9 @@ body:has(.scroll-feed.is-single) .sidebar,body:has(.scroll-feed.is-single) .mobi
 .scroll-play { position:absolute; z-index:2; top:17px; right:70px; display:grid; place-items:center; width:44px; height:44px; border:1px solid #ffffff73; border-radius:12px; background:#141210a8; color:#fff; backdrop-filter:blur(8px); transition:transform .18s ease,background-color .18s ease; }
 .scroll-play:hover { transform:scale(1.05); background:#b93d21; }
 .scroll-vote-pulse { position:absolute; z-index:3; inset:0; display:grid; place-items:center; color:#fff; text-shadow:0 4px 24px #0008; pointer-events:none; animation:scroll-vote-pop .55s cubic-bezier(.2,.85,.3,1) both; }
+.scroll-vote-pulse.is-large { animation-name:scroll-vote-pop-large; }
 @keyframes scroll-vote-pop { from { opacity:0; transform:scale(.5); } 45% { opacity:1; transform:scale(1.18); } to { opacity:0; transform:scale(1.4); } }
+@keyframes scroll-vote-pop-large { from { opacity:0; transform:scale(.25); } 35% { opacity:1; transform:scale(1.45); } to { opacity:0; transform:scale(2.1); } }
 .scroll-dialog-backdrop { position:fixed; z-index:110; inset:0; display:grid; place-items:center; padding:18px; background:#161411b8; backdrop-filter:blur(5px); animation:sort-picker-backdrop-in .18s ease both; }
 .scroll-comments-dialog { display:flex; flex-direction:column; width:min(620px,100%); max-height:min(760px,88dvh); min-height:min(440px,80dvh); border:1px solid var(--line); border-radius:20px; background:var(--surface,#fffdf8); color:var(--ink); box-shadow:0 26px 75px #0005; overflow:hidden; animation:sort-picker-dialog-in .24s cubic-bezier(.2,.75,.3,1) both; }
 .scroll-comments-dialog>header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:20px 21px 15px; border-bottom:1px solid var(--line); }

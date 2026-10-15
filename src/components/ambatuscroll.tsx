@@ -24,19 +24,25 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
   const video = useRef<HTMLVideoElement>(null);
   const deliberatePause = useRef(false);
   const [deliberatelyPaused, setDeliberatelyPaused] = useState(false);
-  const lastTouch = useRef<{ time: number; x: number; y: number } | null>(null);
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const lastVideoTap = useRef<{ time: number; x: number; y: number; windowMs: number } | null>(null);
+  const videoPointerStart = useRef<{ x: number; y: number } | null>(null);
+  const videoTapTimer = useRef<number | null>(null);
   const [near, setNear] = useState(false);
   const [mediaReady, setMediaReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [active, setActive] = useState(false);
   const [paused, setPaused] = useState(true);
   const [progress, setProgress] = useState(0);
-  const [voteBusy, setVoteBusy] = useState(false);
-  const [votePulse, setVotePulse] = useState(false);
+  const [votePulse, setVotePulse] = useState<{ size: 'regular' | 'large'; id: number } | null>(null);
+  const votePulseSequence = useRef(0);
+  const votePulseTimer = useRef<number | null>(null);
   const [voteError, setVoteError] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  useEffect(() => () => {
+    if (votePulseTimer.current !== null) window.clearTimeout(votePulseTimer.current);
+    if (videoTapTimer.current !== null) window.clearTimeout(videoTapTimer.current);
+  }, []);
   const descriptionCanExpand = clip.description.length > 240 || clip.description.split(/\r?\n/).length > 5;
   const uploaderInitial = clip.uploader.trim().charAt(0).toLocaleUpperCase() || 'A';
   const uploaderAvatar = clip.uploaderAvatarUrl && !avatarFailed
@@ -68,24 +74,45 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
     }
     void player.play().catch(() => { if (player.paused) setPaused(true); });
   }, [active, near, mediaReady, dialogOpen, muted]);
-  const vote = useCallback(async (value: 1 | -1) => {
-    if (voteBusy) return;
-    setVoteBusy(true); setVoteError(false);
-    if (value === 1) { setVotePulse(true); window.setTimeout(() => setVotePulse(false), 550); }
+  const showVotePulse = useCallback((size: 'regular' | 'large') => {
+    const id = ++votePulseSequence.current;
+    setVotePulse({ size, id });
+    if (votePulseTimer.current !== null) window.clearTimeout(votePulseTimer.current);
+    votePulseTimer.current = window.setTimeout(() => setVotePulse(current => current?.id === id ? null : current), 550);
+  }, []);
+  const vote = useCallback(async (value: 1 | -1, largePulse = false) => {
+    setVoteError(false);
+    if (value === 1) showVotePulse(largePulse ? 'large' : 'regular');
     try {
       await onVote(value);
     } catch { setVoteError(true); }
-    finally { setVoteBusy(false); }
-  }, [onVote, voteBusy]);
-  const handleTouch = (event: ReactPointerEvent<HTMLElement>) => {
-    if (event.pointerType !== 'touch' || (event.target as Element).closest('button,a')) return;
-    const start = touchStart.current;
-    touchStart.current = null;
-    if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 16) { lastTouch.current = null; return; }
-    const now = Date.now(), last = lastTouch.current;
-    if (last && now - last.time < 320 && Math.hypot(event.clientX - last.x, event.clientY - last.y) < 35) {
-      lastTouch.current = null; if (clip.userVote !== 1) void vote(1);
-    } else lastTouch.current = { time: now, x: event.clientX, y: event.clientY };
+  }, [onVote, showVotePulse]);
+  const handleVideoPointerUp = (event: ReactPointerEvent<HTMLVideoElement>) => {
+    const start = videoPointerStart.current;
+    videoPointerStart.current = null;
+    if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 16) { lastVideoTap.current = null; return; }
+    const now = Date.now(), last = lastVideoTap.current;
+    const tapWindow = event.pointerType === 'touch' ? 320 : 450;
+    if (last && videoTapTimer.current !== null && now - last.time < last.windowMs && Math.hypot(event.clientX - last.x, event.clientY - last.y) < 35) {
+      window.clearTimeout(videoTapTimer.current);
+      videoTapTimer.current = null;
+      lastVideoTap.current = null;
+      setVoteError(false);
+      if (clip.userVote === 1) showVotePulse('large');
+      else void vote(1, true);
+    } else {
+      if (videoTapTimer.current !== null) {
+        window.clearTimeout(videoTapTimer.current);
+        videoTapTimer.current = null;
+        togglePlay();
+      }
+      lastVideoTap.current = { time: now, x: event.clientX, y: event.clientY, windowMs: tapWindow };
+      videoTapTimer.current = window.setTimeout(() => {
+        videoTapTimer.current = null;
+        lastVideoTap.current = null;
+        togglePlay();
+      }, tapWindow);
+    }
   };
   const togglePlay = () => {
     const player = video.current;
@@ -94,8 +121,8 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
     setDeliberatelyPaused(deliberatePause.current);
     if (deliberatePause.current) player.pause(); else void player.play().catch(() => {});
   };
-  return <article ref={article} className={`scroll-clip ${active ? 'is-active' : ''}`} aria-label={clip.title} onPointerDown={event => { if (event.pointerType === 'touch') touchStart.current = { x: event.clientX, y: event.clientY }; }} onPointerUp={handleTouch} onDoubleClick={event => { if (clip.userVote !== 1 && !(event.target as Element).closest('button,a')) void vote(1); }}>
-    <video ref={video} src={near ? clip.videoUrl : undefined} poster={clip.thumbnailUrl || undefined} playsInline autoPlay={active && !dialogOpen && !deliberatelyPaused} loop muted={muted} preload="metadata" aria-label={clip.title} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onTimeUpdate={event => { const player = event.currentTarget; if (player.duration) setProgress(player.currentTime / player.duration); }} onError={() => setFailed(true)} onCanPlay={() => { setMediaReady(true); if (active && !dialogOpen && !deliberatePause.current && !document.hidden) void video.current?.play().catch(() => {}); }} />
+  return <article ref={article} className={`scroll-clip ${active ? 'is-active' : ''}`} aria-label={clip.title}>
+    <video ref={video} src={near ? clip.videoUrl : undefined} poster={clip.thumbnailUrl || undefined} playsInline autoPlay={active && !dialogOpen && !deliberatelyPaused} loop muted={muted} preload="metadata" aria-label={clip.title} onPointerDown={event => { videoPointerStart.current = { x: event.clientX, y: event.clientY }; }} onPointerUp={handleVideoPointerUp} onPointerCancel={() => { videoPointerStart.current = null; lastVideoTap.current = null; }} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onTimeUpdate={event => { const player = event.currentTarget; if (player.duration) setProgress(player.currentTime / player.duration); }} onError={() => setFailed(true)} onCanPlay={() => { setMediaReady(true); if (active && !dialogOpen && !deliberatePause.current && !document.hidden) void video.current?.play().catch(() => {}); }} />
     <div className={`scroll-caption${descriptionExpanded ? ' is-expanded' : ''}`}>
       {clip.uploaderId && <Link className="scroll-uploader-name" href={creatorHref(clip.uploaderId)} aria-label={t('creator.view', { name:clip.uploader })}>{clip.uploader}</Link>}
       <h2>{singleClip ? clip.title : <Link href={`/watch/${encodeURIComponent(clip.id)}/`}>{clip.title}</Link>}</h2>
@@ -112,15 +139,15 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
       {clip.uploaderId
         ? <Link className="scroll-uploader-avatar" href={creatorHref(clip.uploaderId)} aria-label={t('creator.view', { name: clip.uploader })} title={clip.uploader}>{uploaderAvatar}</Link>
         : <span className="scroll-uploader-avatar" aria-hidden="true" title={clip.uploader}>{uploaderAvatar}</span>}
-      <button type="button" className={`scroll-action ${clip.userVote === 1 ? 'selected' : ''}`} aria-label={`${t('lore.upvote')}: ${clip.upvotes}`} aria-pressed={clip.userVote === 1} disabled={voteBusy} onClick={() => void vote(1)}><ArrowBigUp size={27}/><span>{clip.upvotes}</span></button>
-      <button type="button" className={`scroll-action ${clip.userVote === -1 ? 'selected' : ''}`} aria-label={`${t('lore.downvote')}: ${clip.downvotes}`} aria-pressed={clip.userVote === -1} disabled={voteBusy} onClick={() => void vote(-1)}><ArrowBigDown size={27}/><span>{clip.downvotes}</span></button>
+      <button type="button" className={`scroll-action ${clip.userVote === 1 ? 'selected' : ''}`} aria-label={`${t('lore.upvote')}: ${clip.upvotes}`} aria-pressed={clip.userVote === 1} onClick={() => void vote(1)}><ArrowBigUp size={27}/><span>{clip.upvotes}</span></button>
+      <button type="button" className={`scroll-action ${clip.userVote === -1 ? 'selected' : ''}`} aria-label={`${t('lore.downvote')}: ${clip.downvotes}`} aria-pressed={clip.userVote === -1} onClick={() => void vote(-1)}><ArrowBigDown size={27}/><span>{clip.downvotes}</span></button>
       <button type="button" className="scroll-action" aria-label={`${t('lore.comments')}: ${clip.commentCount}`} onClick={openComments}><MessageCircle size={26}/><span>{clip.commentCount}</span></button>
       <button type="button" className="scroll-action" aria-label={t('friends.shareClip')} onClick={onShare}><Send size={25}/></button>
     </div>
     <button type="button" className="scroll-play" onClick={togglePlay} aria-label={t(paused ? 'scroll.play' : 'scroll.pause')}>{paused ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}</button>
     <button type="button" className="scroll-mute" onClick={toggleMute} aria-label={t(muted ? 'scroll.unmute' : 'scroll.mute')}>{muted ? <VolumeX size={20}/> : <Volume2 size={20}/>}</button>
     <div className="scroll-progress" aria-hidden="true"><span style={{ transform: `scaleX(${Math.max(0, Math.min(1, progress))})` }} /></div>
-    {votePulse && <div className="scroll-vote-pulse" aria-hidden="true"><ArrowBigUp size={64} fill="currentColor"/></div>}
+    {votePulse && <div key={votePulse.id} className={`scroll-vote-pulse${votePulse.size === 'large' ? ' is-large' : ''}`} aria-hidden="true"><ArrowBigUp size={votePulse.size === 'large' ? 104 : 64} fill="currentColor"/></div>}
   </article>;
 }
 
@@ -135,6 +162,7 @@ export function Ambatuscroll() {
   const validReturnCreator = /^[\w-]{1,128}$/.test(returnCreator) && returnCreator !== 'admin';
   const returnHref = validReturnCreator ? creatorHref(returnCreator) : returnConversation ? `/chat/?conversation=${encodeURIComponent(returnConversation)}` : '/chat/';
   const [clips, setClips] = useState<Clip[]>([]);
+  const voteRequestIds = useRef(new Map<string, number>());
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -188,24 +216,24 @@ export function Ambatuscroll() {
     return () => observer.disconnect();
   }, [root, clips, loading, error, ended, singleClipId]);
   const vote = useCallback(async (id: string, value: 1 | -1) => {
-    const before = clips.find(clip => clip.id === id);
-    if (!before) return;
-    const prior = before.userVote ?? 0;
-    const next = prior === value ? 0 : value;
-    setClips(previous => previous.map(clip => clip.id === id ? {
-      ...clip,
-      userVote: next,
-      upvotes: clip.upvotes + (next === 1 ? 1 : 0) - (prior === 1 ? 1 : 0),
-      downvotes: clip.downvotes + (next === -1 ? 1 : 0) - (prior === -1 ? 1 : 0),
-    } : clip));
-    try {
-      const result = await memberApi<VoteResult>(`/scroll/${encodeURIComponent(id)}/vote`, await getIdToken(), undefined, { value });
+    setClips(previous => previous.map(clip => {
+      if (clip.id !== id) return clip;
+      const prior = clip.userVote ?? 0;
+      const next = prior === value ? 0 : value;
+      return {
+        ...clip,
+        userVote: next,
+        upvotes: clip.upvotes + (next === 1 ? 1 : 0) - (prior === 1 ? 1 : 0),
+        downvotes: clip.downvotes + (next === -1 ? 1 : 0) - (prior === -1 ? 1 : 0),
+      };
+    }));
+    const requestId = (voteRequestIds.current.get(id) ?? 0) + 1;
+    voteRequestIds.current.set(id, requestId);
+    const result = await memberApi<VoteResult>(`/scroll/${encodeURIComponent(id)}/vote`, await getIdToken(), undefined, { value });
+    if (voteRequestIds.current.get(id) === requestId) {
       setClips(previous => previous.map(clip => clip.id === id ? { ...clip, userVote: result.value, upvotes: result.upvotes, downvotes: result.downvotes } : clip));
-    } catch (error) {
-      setClips(previous => previous.map(clip => clip.id === id ? { ...clip, userVote: before.userVote, upvotes: before.upvotes, downvotes: before.downvotes } : clip));
-      throw error;
     }
-  }, [clips, getIdToken]);
+  }, [getIdToken]);
   const currentClip = clips.find(clip => clip.id === commentClipId);
   return <section className={`ambatuscroll has-creator-search${singleClipId ? ' is-single' : ''}`}><AmbatuscrollHeader backHref={singleClipId ? returnHref : undefined} backLabel={validReturnCreator ? 'creator.backToProfile' : undefined} onUpload={singleClipId ? undefined : () => setUploadOpen(true)} />
     {!singleClipId && <CreatorSearch onActiveChange={setSearchActive}/>}
