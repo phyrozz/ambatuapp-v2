@@ -472,6 +472,11 @@
   overflow-wrap: anywhere;
   font-size: 14px;
 }
+.clip-share-list { min-height: 150px; }
+.clip-share-conversation-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; background: #f6e7dc; color: #b94b2b; }
+.clip-share-conversation-label { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.clip-share-conversation-label strong { flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clip-share-conversation-label small { color: var(--muted); font-size: 11px; }
 .friend-picker-row.selected {
   background: #fff1e6;
 }
@@ -687,6 +692,7 @@ html[data-theme='dark'] .friend-picker-row:hover:not(:disabled) {
   color: #ffab83;
   border-color: #78523a;
 }
+html[data-theme='dark'] .clip-share-conversation-icon { background: #4b2d21; color: #ffab84; }
 html[data-theme='dark'] .friends-search,
 html[data-theme='dark'] .friends-field input {
   background: #1c1d18;

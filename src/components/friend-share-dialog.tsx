@@ -10,6 +10,7 @@ import { FriendPickerDialog } from './friend-picker-dialog';
 import { FriendsDialog } from './friends-dialog';
 import type { Friend } from './use-friends';
 import { LoadingIndicator } from './loading-indicator';
+import { ClipSharePickerDialog } from './clip-share-picker-dialog';
 
 export function FriendShareDialog({
   kind,
@@ -84,6 +85,7 @@ export function FriendShareDialog({
         )}
       </FriendsDialog>
     );
+  if (kind === 'clip') return <ClipSharePickerDialog title={title} message={message} onClose={onClose} />;
   return sentCount ? (
     <FriendsDialog
       title={t(sentCount === 1 ? 'friends.sharedOne' : 'friends.shared', { count: sentCount })}
