@@ -175,7 +175,7 @@ export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; acti
             {t(kind === 'lore' ? 'contribute.writeLore' : 'contribute.uploadSound')}
           </p>
           <h2>{t(headingKey)}</h2>
-          <p className="dreamy-section-hint">{t(hintKey)}</p>
+          {/* <p className="dreamy-section-hint">{t(hintKey)}</p> */}
         </div>
         <CommunityUpload
           kind={kind}

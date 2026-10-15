@@ -324,9 +324,9 @@ export function ProfilePanel() {
           <div className="dreamy-identity-copy">
             <p className="eyebrow">{t(user ? 'nav.profile' : 'profile.eyebrow')}</p>
             <h1>{user ? displayName : t('nav.profile')}</h1>
-            <p className="dreamy-bio">
+            {/* <p className="dreamy-bio">
               {user && savedIdentity.bio ? savedIdentity.bio : t('profile.description')}
-            </p>
+            </p> */}
             {user && creator.profile?.joinedAt && (
               <p className="dreamy-joined">
                 {t('creator.joined', {
@@ -464,7 +464,7 @@ export function ProfilePanel() {
           aria-labelledby="dreamy-tab-videos"
           hidden={activeTab !== 'videos'}
         >
-          <p className="dreamy-section-hint">{t('profile.videoLibraryHint')}</p>
+          {/* <p className="dreamy-section-hint">{t('profile.videoLibraryHint')}</p> */}
           <CreatorClips
             key={user.id}
             id={user.id}

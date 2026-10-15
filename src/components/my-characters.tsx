@@ -111,7 +111,7 @@ export function MyCharacters({ active }: { active: boolean }) {
         <div>
           <p className="eyebrow">{t('character.add')}</p>
           <h2>{t('profile.tabCharacters')}</h2>
-          <p className="dreamy-section-hint">{t('profile.charactersHint')}</p>
+          {/* <p className="dreamy-section-hint">{t('profile.charactersHint')}</p> */}
         </div>
         <div className="community-upload-entry">
           <button className="button dark compact" onClick={() => setEditing('new')}>
@@ -124,7 +124,7 @@ export function MyCharacters({ active }: { active: boolean }) {
         <div className="my-characters-empty">
           <Users size={34} aria-hidden="true" />
           <h3>{t('profile.charactersEmpty')}</h3>
-          <p>{t('profile.charactersHint')}</p>
+          {/* <p>{t('profile.charactersHint')}</p> */}
         </div>
       )}
       <div className="my-characters-grid">
@@ -352,7 +352,7 @@ function CharacterEditor({
           <X size={18} aria-hidden="true" />
         </button>
         <h2 id="character-editor-title">{t(character ? 'character.edit' : 'character.add')}</h2>
-        <p>{t('profile.charactersHint')}</p>
+        {/* <p>{t('profile.charactersHint')}</p> */}
         <form className="video-manage-form" onSubmit={save}>
           <fieldset className="community-upload-fields" disabled={busy}>
             <section className="community-upload-images character-portrait-picker">
