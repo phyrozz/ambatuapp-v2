@@ -1,0 +1,167 @@
+.my-dreamy-tour-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  pointer-events: none;
+}
+.my-dreamy-tour-dialog::backdrop {
+  background: transparent;
+}
+.my-dreamy-tour-shades {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+}
+.my-dreamy-tour-shade {
+  position: fixed;
+  display: block;
+  background: rgb(19 18 16 / 68%);
+  backdrop-filter: blur(3px);
+  pointer-events: auto;
+}
+.my-dreamy-tour-shade-full {
+  inset: 0;
+}
+.my-dreamy-tour-card {
+  position: fixed;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  width: min(440px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px);
+  box-sizing: border-box;
+  padding: 26px;
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--dreamy-surface);
+  color: var(--ink);
+  box-shadow: 0 24px 90px #17130f70;
+  animation: dreamy-enter 0.2s ease both;
+  pointer-events: auto;
+}
+.my-dreamy-tour-card-positioned {
+  transform: none;
+}
+.my-dreamy-tour-step {
+  margin: 0 0 12px;
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.my-dreamy-tour-card h2 {
+  margin: 0;
+  font: 500 28px/1.15 Kanit, Arial, sans-serif;
+}
+.my-dreamy-tour-description {
+  min-height: 4.5em;
+  margin: 12px 0 22px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.my-dreamy-tour-progress {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0 0 24px;
+}
+.my-dreamy-tour-progress span {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+}
+.my-dreamy-tour-progress span.active {
+  background: var(--orange);
+}
+.my-dreamy-tour-actions,
+.my-dreamy-tour-actions > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.my-dreamy-tour-actions {
+  justify-content: space-between;
+}
+.my-dreamy-tour-actions button {
+  min-height: 44px;
+}
+.my-dreamy-tour-skip {
+  padding: 7px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.my-dreamy-tour-skip:hover {
+  color: var(--ink);
+}
+.my-dreamy-tour-dialog button:focus-visible {
+  outline: 3px solid #eea387;
+  outline-offset: 3px;
+}
+.my-dreamy-tour-highlight {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--orange);
+  outline-offset: 5px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 10px rgb(255 100 70 / 20%);
+}
+@media (max-width: 400px) {
+  .my-dreamy-tour-card {
+    padding: 22px;
+  }
+  .my-dreamy-tour-card h2 {
+    font-size: 25px;
+  }
+  .my-dreamy-tour-description {
+    min-height: 0;
+  }
+}
+@media (max-width: 600px) {
+  .my-dreamy-tour-card {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 88px);
+    padding: 16px 18px;
+  }
+  .my-dreamy-tour-step {
+    margin-bottom: 7px;
+    font-size: 10px;
+  }
+  .my-dreamy-tour-card h2 {
+    font-size: 23px;
+  }
+  .my-dreamy-tour-description {
+    min-height: 0;
+    margin: 8px 0 12px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .my-dreamy-tour-progress {
+    margin-bottom: 14px;
+  }
+  .my-dreamy-tour-actions button {
+    min-height: 40px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .my-dreamy-tour-card {
+    animation: none;
+  }
+}

@@ -1,8 +1,6 @@
 'use client';
 
-import Link from 'next/link';
 import {
-  ArrowUpRight,
   BarChart3,
   BookOpen,
   Camera,
@@ -39,14 +37,14 @@ import { LoadingIndicator } from './loading-indicator';
 import { CreatorClips } from './creator-clips';
 import { useCreatorProfile } from './use-creator-profile';
 import { VideoUploadDialog } from './video-upload-dialog';
-import { creatorHref } from '@/lib/creator-profile';
 import { publicAppUrl } from '@/lib/share-links';
 import { MyCharacters } from './my-characters';
 import { MyContributions } from './my-contributions';
 import { CreatorInsights } from './creator-insights';
+import { MyDreamyTour, type MyDreamyTourTab } from './my-dreamy-tour';
 import './my-dreamy.css';
 
-type ProfileTab = 'videos' | 'characters' | 'lores' | 'sounds' | 'profile' | 'activity' | 'insights';
+type ProfileTab = MyDreamyTourTab;
 const profileTabs = [
   { id: 'videos', label: 'profile.tabVideos', icon: Film },
   { id: 'characters', label: 'profile.tabCharacters', icon: Users },
@@ -414,7 +412,7 @@ export function ProfilePanel() {
       </header>
 
       {user && (
-        <div className="dreamy-tabs" role="tablist" aria-label={t('nav.profile')}>
+        <div id="dreamy-tabs" className="dreamy-tabs" role="tablist" aria-label={t('nav.profile')}>
           {profileTabs.map(({ id, label, icon: Icon }, index) => (
             <button
               key={id}
@@ -749,6 +747,7 @@ export function ProfilePanel() {
         <p className="dreamy-section-hint dreamy-local-note">{t('profile.localSave')}</p>
       </section>
 
+      {user && <MyDreamyTour key={user.id} userId={user.id} onSelectTab={selectTab} />}
       {shareUrl && <ChatShareDialog url={shareUrl} creator onClose={() => setShareUrl('')} />}
       {cropFile && (
         <AvatarCropDialog

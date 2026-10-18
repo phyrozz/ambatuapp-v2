@@ -820,5 +820,19 @@
   "contribute.saveDraft": "Simpan draf",
   "contribute.draftSaved": "Draf disimpan",
   "contribute.draftNotice": "Simpan draf pribadi, atau terbitkan untuk membagikannya kepada semua orang. Bagikan konten yang memiliki izin untuk menerbitkannya.",
-  "contribute.manageHint": "Kelola draf dan unggahan kamu yang diterbitkan."
+  "contribute.manageHint": "Kelola draf dan unggahan kamu yang diterbitkan.",
+  "tour.welcomeTitle": "Welcome to MyDreamy",
+  "tour.welcomeDescription": "Take a quick tour of your uploads, profile settings, activity, and creator insights.",
+  "tour.videosDescription": "Manage the videos and clips you have uploaded, and share new ones.",
+  "tour.charactersDescription": "Create characters, save drafts, and see how many people visit each published page.",
+  "tour.loresDescription": "Edit your published lore and see views, votes, and comments.",
+  "tour.soundsDescription": "Manage your sound uploads and check listeners and plays.",
+  "tour.profileDescription": "Update your profile details and avatar.",
+  "tour.activityDescription": "Review your saved sounds, listening activity, and personal bests.",
+  "tour.insightsDescription": "See total views, listener counts, plays, votes, comments, and how many uploads are published or still drafts.",
+  "tour.step": "Step {current} of {total}",
+  "tour.skip": "Skip tour",
+  "tour.back": "Back",
+  "tour.next": "Next",
+  "tour.finish": "Finish tour"
 }
