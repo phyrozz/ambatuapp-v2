@@ -138,6 +138,22 @@
   color: var(--muted);
   font-size: 10px;
 }
+.my-contribution-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.my-contribution-stats > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.my-contribution-stats svg {
+  flex: none;
+  color: var(--orange);
+}
 .my-contribution-actions {
   display: flex;
   flex-wrap: wrap;

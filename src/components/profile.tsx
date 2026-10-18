@@ -17,6 +17,7 @@ import {
   Trophy,
   Volume2,
   Users,
+  Eye,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useApp } from './app-provider';
@@ -42,9 +43,10 @@ import { creatorHref } from '@/lib/creator-profile';
 import { publicAppUrl } from '@/lib/share-links';
 import { MyCharacters } from './my-characters';
 import { MyContributions } from './my-contributions';
+import { CreatorInsights } from './creator-insights';
 import './my-dreamy.css';
 
-type ProfileTab = 'videos' | 'characters' | 'lores' | 'sounds' | 'profile' | 'activity';
+type ProfileTab = 'videos' | 'characters' | 'lores' | 'sounds' | 'profile' | 'activity' | 'insights';
 const profileTabs = [
   { id: 'videos', label: 'profile.tabVideos', icon: Film },
   { id: 'characters', label: 'profile.tabCharacters', icon: Users },
@@ -52,6 +54,7 @@ const profileTabs = [
   { id: 'sounds', label: 'profile.tabSoundboard', icon: Music2 },
   { id: 'profile', label: 'profile.tabEdit', icon: Pencil },
   { id: 'activity', label: 'profile.tabActivity', icon: BarChart3 },
+  { id: 'insights', label: 'profile.tabInsights', icon: Eye },
 ] as const;
 
 function today() {
@@ -119,6 +122,7 @@ export function ProfilePanel() {
     const syncTab = () => {
       if (window.location.hash === '#my-profile-editor') setActiveTab('profile');
       else if (window.location.hash === '#my-activity') setActiveTab('activity');
+      else if (window.location.hash === '#my-insights') setActiveTab('insights');
       else if (window.location.hash === '#my-characters') setActiveTab('characters');
       else if (window.location.hash === '#my-lores') setActiveTab('lores');
       else if (window.location.hash === '#my-sounds') setActiveTab('sounds');
@@ -138,6 +142,7 @@ export function ProfilePanel() {
       sounds: 'my-sounds',
       profile: 'my-profile-editor',
       activity: 'my-activity',
+      insights: 'my-insights',
     }[tab];
     window.history.replaceState(
       window.history.state,
@@ -367,10 +372,10 @@ export function ProfilePanel() {
                 <LogOut size={16} aria-hidden="true" />
                 {t('profile.signOut')}
               </button>
-              <Link className="dreamy-public-link" href={creatorHref(user.id)}>
+              {/* <Link className="dreamy-public-link" href={creatorHref(user.id)}>
                 {t('creator.profileLink')}
                 <ArrowUpRight size={15} aria-hidden="true" />
-              </Link>
+              </Link> */}
             </div>
             <dl className="dreamy-social-counts">
               {(
@@ -428,6 +433,7 @@ export function ProfilePanel() {
                   sounds: 'my-sounds',
                   profile: 'my-profile-editor',
                   activity: 'my-activity',
+                  insights: 'my-insights',
                 }[id]
               }
               tabIndex={activeTab === id ? 0 : -1}
@@ -508,6 +514,18 @@ export function ProfilePanel() {
           hidden={activeTab !== 'sounds'}
         >
           <MyContributions kind="sound" active={activeTab === 'sounds'} />
+        </section>
+      )}
+
+      {user && (
+        <section
+          id="my-insights"
+          className="dreamy-tab-panel"
+          role="tabpanel"
+          aria-labelledby="dreamy-tab-insights"
+          hidden={activeTab !== 'insights'}
+        >
+          <CreatorInsights key={user.id} userId={user.id} active={activeTab === 'insights'} />
         </section>
       )}
 

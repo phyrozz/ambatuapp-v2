@@ -2,13 +2,14 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import Link from 'next/link';
 import { creatorHref } from '@/lib/creator-profile';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { ArrowBigDown, ArrowBigUp, ArrowLeft, Languages, LogIn, MessageCircle, Send, X } from 'lucide-react';
 import { LoadingIndicator } from './loading-indicator';
 import { useI18n } from './i18n-provider';
 import { AppSelect, languageFlag } from './app-select';
 import { useAuth } from './auth-provider';
 import { CommentThreadList, type ThreadComment } from './comment-thread-list';
+import { recordContentView } from '@/lib/content-views';
 
 type Translation = { locale: string; label: string; title: string; text: string };
 type Lore = { id: string; title: string; text: string; translations?: Translation[]; tags: string[]; imageUrls: string[]; upvotes: number; downvotes: number; commentCount: number; userVote?: number; uploaderId?: string | null; uploaderName?: string | null };
@@ -24,7 +25,7 @@ const pendingKey = 'ambatuapp-lore-pending-action';
 
 export function LoreReader({ id }: { id: string }) {
   const { t } = useI18n();
-  const { user, getIdToken, signInWithGoogle } = useAuth();
+  const { user, ready, getIdToken, signInWithGoogle } = useAuth();
   const [lore, setLore] = useState<Lore | null>(null);
   const [locale, setLocale] = useState('original');
   const [comments, setComments] = useState<Comment[]>([]);
@@ -39,6 +40,7 @@ export function LoreReader({ id }: { id: string }) {
   const [commentsError, setCommentsError] = useState('');
   const [commentsActionError, setCommentsActionError] = useState('');
   const [loginOpen, setLoginOpen] = useState(false);
+  const recordedViews = useRef(new Set<string>());
 
   async function load() {
     const token = await getIdToken();
@@ -58,6 +60,14 @@ export function LoreReader({ id }: { id: string }) {
     setReplyText('');
     void load().catch(reason => setError(reason instanceof Error ? reason.message : t('lore.notFound'))).finally(() => setLoading(false));
   }, [id, user]);
+
+  useEffect(() => {
+    if (!ready || lore?.id !== id) return;
+    const identity = `${id}:${user?.id ?? 'guest'}`;
+    if (recordedViews.current.has(identity)) return;
+    recordedViews.current.add(identity);
+    void getIdToken().then((token) => recordContentView('lore', id, token)).catch(() => undefined);
+  }, [getIdToken, id, lore?.id, ready, user?.id]);
 
   const requireLogin = (action: Pending) => {
     sessionStorage.setItem(pendingKey, JSON.stringify(action));

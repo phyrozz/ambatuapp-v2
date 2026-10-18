@@ -500,6 +500,62 @@
   color: var(--muted);
   font-size: 12px;
 }
+.creator-insights-heading {
+  margin-bottom: 12px;
+}
+.creator-insights-heading .eyebrow {
+  margin: 0 0 4px;
+  color: var(--orange);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.creator-insights-heading h2 {
+  margin: 0;
+  font: 500 25px/1.2 Kanit, Arial, sans-serif;
+}
+.creator-insights-heading p:last-child {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.creator-insights-note {
+  margin: 0 0 18px;
+}
+.creator-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.creator-insights-grid > div {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--dreamy-surface);
+  animation: dreamy-enter 0.2s ease both;
+}
+.creator-insights-grid dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.creator-insights-grid dt svg {
+  flex: none;
+  color: var(--orange);
+}
+.creator-insights-grid dd {
+  margin: 12px 0 0;
+  color: var(--ink);
+  font: 500 30px/1 Kanit, Arial, sans-serif;
+  overflow-wrap: anywhere;
+}
 .dreamy-game-scores {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -690,6 +746,16 @@ html[data-theme='dark'] .dreamy-profile-fields :is(input, textarea) {
   .dreamy-game-scores {
     grid-template-columns: 1fr;
   }
+  .creator-insights-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .creator-insights-grid > div {
+    padding: 15px;
+  }
+  .creator-insights-grid dd {
+    font-size: 27px;
+  }
 }
 @media (max-width: 360px) {
   .dreamy-identity h1 {
@@ -704,6 +770,11 @@ html[data-theme='dark'] .dreamy-profile-fields :is(input, textarea) {
   }
   .dreamy-activity-metrics span {
     font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .creator-insights-grid > div {
+    animation: none;
   }
 }
 @media (prefers-reduced-motion: no-preference) {

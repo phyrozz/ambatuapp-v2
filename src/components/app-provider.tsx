@@ -6,6 +6,7 @@ import { isGameCharacterId, type GameCharacterId } from '@/lib/game-characters';
 import { haptic } from '@/lib/native';
 import { useI18n } from './i18n-provider';
 import { useAuth } from './auth-provider';
+import { contentViewerId } from '@/lib/content-views';
 type Saved = {
   favorites: string[];
   scores: Record<string, number>;
@@ -206,11 +207,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? `${window.location.origin}/api/public`;
     void getIdToken().then((token) => {
-      if (!token) return null;
       return fetch(`${endpoint}/sounds/${encodeURIComponent(id)}/plays`, {
         method: 'POST',
         cache: 'no-store',
-        headers: { authorization: `Bearer ${token}` },
+        headers: token
+          ? { authorization: `Bearer ${token}` }
+          : { 'content-type': 'application/json' },
+        ...(!token ? { body: JSON.stringify({ visitorId: contentViewerId() }) } : {}),
       });
     })
       .then(async (response) => {

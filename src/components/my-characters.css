@@ -66,6 +66,18 @@
 .my-character-tags {
   margin: -6px 0 16px;
 }
+.my-character-stats {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.my-character-stats svg {
+  flex: none;
+  color: var(--orange);
+}
 .my-characters-empty {
   display: grid;
   justify-items: center;

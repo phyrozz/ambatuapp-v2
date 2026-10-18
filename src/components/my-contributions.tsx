@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpen, Music2, Pencil, Trash2, Upload, X } from 'lucide-react';
+import { BookOpen, Eye, Headphones, MessageCircle, Music2, Pencil, ThumbsDown, ThumbsUp, Trash2, Upload, Users, X } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
@@ -23,6 +23,10 @@ type ManagedLore = {
   imageKeys: string[];
   imageUrls: string[];
   createdAt: string | null;
+  viewCount: number;
+  upvotes: number;
+  downvotes: number;
+  commentCount: number;
 };
 type ManagedSound = {
   kind: 'sound';
@@ -32,6 +36,8 @@ type ManagedSound = {
   category: string;
   file: string;
   createdAt: string | null;
+  playCount: number;
+  listenerCount: number;
 };
 type ManagedItem = ManagedLore | ManagedSound;
 type LoreImage = { key: string; url: string; local?: boolean };
@@ -163,7 +169,6 @@ export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; acti
   }
 
   const headingKey = kind === 'lore' ? 'profile.loreUploads' : 'profile.soundUploads';
-  const hintKey = 'contribute.manageHint';
   const emptyKey = kind === 'lore' ? 'profile.noLores' : 'profile.noSounds';
   const loadErrorKey = kind === 'lore' ? 'profile.loreLoadError' : 'profile.soundLoadError';
 
@@ -175,7 +180,6 @@ export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; acti
             {t(kind === 'lore' ? 'contribute.writeLore' : 'contribute.uploadSound')}
           </p>
           <h2>{t(headingKey)}</h2>
-          {/* <p className="dreamy-section-hint">{t(hintKey)}</p> */}
         </div>
         <CommunityUpload
           kind={kind}
@@ -245,6 +249,12 @@ export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; acti
                         {t('contribute.translatedEditions')}
                       </span>
                     </div>
+                    <div className="my-contribution-stats">
+                      <span><Eye size={14} aria-hidden="true" />{item.viewCount.toLocaleString(locale)} {t('insights.views')}</span>
+                      <span><ThumbsUp size={14} aria-hidden="true" />{item.upvotes.toLocaleString(locale)} {t('insights.upvotes')}</span>
+                      <span><ThumbsDown size={14} aria-hidden="true" />{item.downvotes.toLocaleString(locale)} {t('insights.downvotes')}</span>
+                      <span><MessageCircle size={14} aria-hidden="true" />{item.commentCount.toLocaleString(locale)} {t('insights.comments')}</span>
+                    </div>
                     <div className="my-contribution-actions">
                       <button
                         className="button secondary compact"
@@ -283,8 +293,12 @@ export function MyContributions({ kind, active }: { kind: 'lore' | 'sound'; acti
                   >
                     {t(item.status === 'Draft' ? 'character.draft' : 'character.published')}
                   </span>
-                  <SoundPlayback sound={{ ...item, color: 0, playCount: 0 }} preview heading />
+                  <SoundPlayback sound={{ ...item, color: 0 }} preview heading />
                   <div className="my-contribution-copy">
+                    <div className="my-contribution-stats">
+                      <span><Users size={14} aria-hidden="true" />{item.listenerCount.toLocaleString(locale)} {t('insights.soundListeners')}</span>
+                      <span><Headphones size={14} aria-hidden="true" />{item.playCount.toLocaleString(locale)} {t('insights.soundPlays')}</span>
+                    </div>
                     <div className="my-contribution-actions">
                       <button
                         className="button secondary compact"

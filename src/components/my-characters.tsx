@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, Pencil, Users, Upload, X } from 'lucide-react';
+import { Eye, Plus, Pencil, Users, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
@@ -17,6 +17,7 @@ type OwnCharacter = {
   bio: string;
   tags: string[];
   status: 'Draft' | 'Published';
+  viewCount: number;
   imageKey: string | null;
   imageUrl: string | null;
 };
@@ -35,7 +36,7 @@ function api(path = '') {
 }
 
 export function MyCharacters({ active }: { active: boolean }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { user, getIdToken } = useAuth();
   const [items, setItems] = useState<OwnCharacter[]>([]);
   const [loading, setLoading] = useState(false);
@@ -150,6 +151,10 @@ export function MyCharacters({ active }: { active: boolean }) {
                   ))}
                 </div>
               )}
+              <div className="my-character-stats">
+                <Eye size={14} aria-hidden="true" />
+                <span>{item.viewCount.toLocaleString(locale)} {t('insights.characterViews')}</span>
+              </div>
               <div className="my-character-actions">
                 <button
                   className="button secondary compact"

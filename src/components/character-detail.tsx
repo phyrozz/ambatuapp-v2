@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowUpRight } from 'lucide-react';
 import { getCharacter, type Character } from '@/lib/characters';
@@ -8,6 +8,8 @@ import { CharacterLoading } from './character-loading';
 import { EmptyState, SoundCard } from './cards';
 import { useApp } from './app-provider';
 import { useI18n } from './i18n-provider';
+import { useAuth } from './auth-provider';
+import { recordContentView } from '@/lib/content-views';
 
 type CharacterResult = {
   id: string;
@@ -17,8 +19,10 @@ type CharacterResult = {
 
 export function CharacterDetail({ id }: { id: string }) {
   const { t } = useI18n();
+  const { ready, user, getIdToken } = useAuth();
   const { sounds, soundCatalogStatus, ensureSoundLoaded } = useApp();
   const [result, setResult] = useState<CharacterResult | null>(null);
+  const recordedViews = useRef(new Set<string>());
 
   useEffect(() => {
     let active = true;
@@ -34,6 +38,13 @@ export function CharacterDetail({ id }: { id: string }) {
 
   const current = result?.id === id ? result : null;
   const character = current?.character ?? null;
+  useEffect(() => {
+    if (!ready || !character) return;
+    const identity = `${id}:${user?.id ?? 'guest'}`;
+    if (recordedViews.current.has(identity)) return;
+    recordedViews.current.add(identity);
+    void getIdToken().then((token) => recordContentView('character', id, token)).catch(() => undefined);
+  }, [character, getIdToken, id, ready, user?.id]);
   useEffect(() => {
     if (!character?.soundIds.length || soundCatalogStatus !== 'ready') return;
     const loadedIds = new Set(sounds.map((sound) => sound.id));
