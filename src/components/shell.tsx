@@ -52,6 +52,9 @@ const mobileNav = [
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const routePath = path === '/' ? '/' : `${path.replace(/\/+$/, '')}/`;
+  const activeMobileNavIndex = mobileNav.findIndex(
+    ({ href }) => routePath === href || (href !== '/' && routePath.startsWith(href)),
+  );
   const router = useRouter();
   const [topbarHidden, setTopbarHidden] = useState(false);
   const [topbarScrolled, setTopbarScrolled] = useState(false);
@@ -248,12 +251,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span>{t('shell.community')}</span>
         </footer>
       </div>
-      <nav className="mobile-nav" aria-label={t('shell.mobileNavigation')}>
+      <nav
+        className="mobile-nav"
+        aria-label={t('shell.mobileNavigation')}
+        data-active-index={activeMobileNavIndex}
+      >
         {mobileNav.map(({ href, key, Icon }) => (
           <Link
             href={href}
             onClick={href === '/' ? openPwaHomepage : undefined}
             key={href}
+            aria-current={routePath === href || (href !== '/' && routePath.startsWith(href)) ? 'page' : undefined}
             className={`${href === '/scroll/' ? 'chat-featured' : ''} ${routePath === href || (href !== '/' && routePath.startsWith(href)) ? 'active' : ''}`}
           >
             <Icon size={21} />
