@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   ArrowDown,
@@ -7,6 +7,7 @@ import {
   ArrowRight,
   ArrowUp,
   Flag,
+  Check,
   Pause,
   Play,
   RotateCcw,
@@ -14,6 +15,7 @@ import {
   UsersRound,
   Volume2,
   VolumeX,
+  X,
 } from 'lucide-react';
 import { games, type GameId } from '@/lib/catalog';
 import {
@@ -30,14 +32,11 @@ import { useI18n } from './i18n-provider';
 import { AppSelect } from './app-select';
 import { Leaderboard } from './leaderboard';
 import { submitLeaderboardScore } from '@/lib/leaderboard';
-import {
-  gameCharacters,
-  getGameCharacter,
-  isGameCharacterId,
-} from '@/lib/game-characters';
+import { gameCharacters, getGameCharacter } from '@/lib/game-characters';
 import { useAuth } from './auth-provider';
 import { FriendShareDialog } from './friend-share-dialog';
 import { publicAppUrl } from '@/lib/share-links';
+import './game-player.css';
 type Status = 'ready' | 'playing' | 'paused' | 'over' | 'won';
 export function GamePlayer({ id }: { id: GameId }) {
   const { t } = useI18n();
@@ -46,12 +45,31 @@ export function GamePlayer({ id }: { id: GameId }) {
   const { user, getAccessToken } = useAuth();
   const [muted, setMuted] = useState(false);
   const [leaderboardVersion, setLeaderboardVersion] = useState(0);
-  const [gamePlaying, setGamePlaying] = useState(false);
+  const [panel, setPanel] = useState<'leaderboard' | 'character' | null>(null);
+  const [currentScore, setCurrentScore] = useState(0);
   const [invitation, setInvitation] = useState('');
   const audio = useRef<HTMLAudioElement | null>(null);
   const audioFile = useRef<string | null>(null);
   const characterAudio = useRef<HTMLAudioElement | null>(null);
   const character = getGameCharacter(gameCharacter);
+  const panelOpen = panel !== null || Boolean(invitation);
+  useEffect(() => {
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = oldOverflow;
+    };
+  }, []);
+  useEffect(() => {
+    const back = (event: Event) => {
+      if (!panelOpen) return;
+      event.preventDefault();
+      setPanel(null);
+      setInvitation('');
+    };
+    window.addEventListener('game-back', back);
+    return () => window.removeEventListener('game-back', back);
+  }, [panelOpen]);
   useEffect(() => {
     stop();
     return () => {
@@ -70,7 +88,8 @@ export function GamePlayer({ id }: { id: GameId }) {
         !current.paused &&
         !current.ended &&
         audioFile.current !== 'audio/tap.mp3'
-      ) return;
+      )
+        return;
       audio.current?.pause();
       const a = new Audio(`/assets/${file}`);
       a.volume = volume;
@@ -99,73 +118,227 @@ export function GamePlayer({ id }: { id: GameId }) {
   }, [character, muted, volume]);
   const pendingScore = useRef(0);
   const submitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (submitTimer.current) clearTimeout(submitTimer.current); }, []);
-  const onScore = useCallback((score: number) => {
-    saveScore(id, score);
-    if (!user || score <= pendingScore.current) return;
-    pendingScore.current = score;
-    if (submitTimer.current) clearTimeout(submitTimer.current);
-    submitTimer.current = setTimeout(() => {
-      void getAccessToken().then((token) => submitLeaderboardScore(id, pendingScore.current, token))
-        .then(() => setLeaderboardVersion((version) => version + 1))
-        .catch(() => {});
-    }, 900);
-  }, [getAccessToken, id, saveScore, user]);
+  useEffect(
+    () => () => {
+      if (submitTimer.current) clearTimeout(submitTimer.current);
+    },
+    [],
+  );
+  const onScore = useCallback(
+    (score: number) => {
+      setCurrentScore(score);
+      saveScore(id, score);
+      if (!user || score <= pendingScore.current) return;
+      pendingScore.current = score;
+      if (submitTimer.current) clearTimeout(submitTimer.current);
+      submitTimer.current = setTimeout(() => {
+        void getAccessToken()
+          .then((token) => submitLeaderboardScore(id, pendingScore.current, token))
+          .then(() => setLeaderboardVersion((version) => version + 1))
+          .catch(() => {});
+      }, 900);
+    },
+    [getAccessToken, id, saveScore, user],
+  );
   return (
-    <div className="page game-page">
-      <Link className="back-link" href="/games/">
-        <ArrowLeft size={17} />
-        {t('games.back')}
-      </Link>
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">{t(`game.${game.id}.category`)} · {t('games.original')}</p>
+    <div className={`game-session game-session-${id}`}>
+      <header className="game-session-header">
+        <Link className="game-back-button" href="/games/" aria-label={t('games.back')}>
+          <ArrowLeft size={21} />
+        </Link>
+        <div className="game-session-title">
+          <p className="eyebrow">{t(`game.${game.id}.category`)}</p>
           <h1>{game.name}</h1>
         </div>
-        <div className="game-header-actions">
-          <button type="button" className="button secondary game-friend-invite" disabled={gamePlaying} onClick={() => setInvitation(t('friends.gameMessage', { name: game.name, url: publicAppUrl(`/games/${game.id}/`) }))}><UsersRound size={17}/>{t('friends.inviteGame')}</button>
-          <span className="best-pill">
-            <Trophy size={16} />
-            {t('games.best', { score: scores[id] || 0 })}
-          </span>
-          <button
-            className="icon-button"
-            aria-label={t(muted ? 'games.unmute' : 'games.mute')}
-            onClick={() => {
-              setMuted(!muted);
-              audio.current?.pause();
-              audioFile.current = null;
-              characterAudio.current?.pause();
-              characterAudio.current = null;
-            }}
-          >
-            {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-          </button>
+        <div className="game-session-score">
+          <span>{t('arcade.score')}</span>
+          <strong>{currentScore.toLocaleString()}</strong>
         </div>
+        <span className="best-pill">
+          <Trophy size={15} />
+          {t('games.best', { score: scores[id] || 0 })}
+        </span>
+      </header>
+      <div className="game-stage" inert={panelOpen}>
+        {id === 'ambatutap' ? (
+          <TapGame
+            onScore={onScore}
+            sound={sound}
+            character={character}
+            characterSound={characterSound}
+          />
+        ) : id === 'ambatublou' ? (
+          <MinesGame onScore={onScore} sound={sound} characterSound={characterSound} />
+        ) : (
+          <ArcadeGame
+            kind={id}
+            onScore={onScore}
+            sound={sound}
+            character={character}
+            characterSound={characterSound}
+            suspended={panelOpen}
+          />
+        )}
       </div>
-      <div className="game-character-picker game-select-control">
-        <span>{t('arcade.character')}</span>
-        <AppSelect
-          ariaLabel={t('arcade.character')}
-          value={gameCharacter}
-          disabled={gamePlaying}
-          onChange={(value) => { if (isGameCharacterId(value)) setGameCharacter(value); }}
-          options={gameCharacters.map((item) => ({ value: item.id, label: t(item.labelKey) }))}
-        />
-      </div>
-      {id === 'ambatutap' ? (
-        <TapGame onScore={onScore} sound={sound} character={character} characterSound={characterSound} />
-      ) : id === 'ambatublou' ? (
-        <MinesGame onScore={onScore} sound={sound} characterSound={characterSound} onPlayingChange={setGamePlaying} />
-      ) : (
-        <ArcadeGame kind={id} onScore={onScore} sound={sound} character={character} characterSound={characterSound} onPlayingChange={setGamePlaying} />
+      <footer className="game-session-toolbar">
+        <button type="button" onClick={() => setPanel('leaderboard')} aria-haspopup="dialog">
+          <Trophy size={20} />
+          <span>{t('leaderboard.title')}</span>
+        </button>
+        <button type="button" onClick={() => setPanel('character')} aria-haspopup="dialog">
+          <img src={character.avatar} alt="" />
+          <span>{t('arcade.character')}</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={muted}
+          onClick={() => {
+            setMuted(!muted);
+            audio.current?.pause();
+            audioFile.current = null;
+            characterAudio.current?.pause();
+            characterAudio.current = null;
+          }}
+        >
+          {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          <span>{t(muted ? 'games.unmute' : 'games.mute')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setInvitation(
+              t('friends.gameMessage', {
+                name: game.name,
+                url: publicAppUrl(`/games/${game.id}/`),
+              }),
+            )
+          }
+          aria-haspopup="dialog"
+        >
+          <UsersRound size={20} />
+          <span>{t('friends.inviteGame')}</span>
+        </button>
+      </footer>
+      {panel && (
+        <GamePanel
+          title={t(panel === 'leaderboard' ? 'leaderboard.title' : 'arcade.character')}
+          onClose={() => setPanel(null)}
+        >
+          {panel === 'leaderboard' ? (
+            <Leaderboard gameId={id} refreshKey={leaderboardVersion} />
+          ) : (
+            <div className="game-character-grid">
+              {gameCharacters.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  aria-pressed={item.id === gameCharacter}
+                  onClick={() => {
+                    setGameCharacter(item.id);
+                    setPanel(null);
+                  }}
+                >
+                  <img src={item.avatar} alt="" />
+                  <span>{t(item.labelKey)}</span>
+                  {item.id === gameCharacter && <Check size={18} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </GamePanel>
       )}
-      <Leaderboard gameId={id} refreshKey={leaderboardVersion} />
-      {invitation && <FriendShareDialog kind="game" title={game.name} message={invitation} onClose={() => setInvitation('')}/>}
+      {invitation && (
+        <FriendShareDialog
+          kind="game"
+          title={game.name}
+          message={invitation}
+          onClose={() => setInvitation('')}
+        />
+      )}
     </div>
   );
 }
-type GameCharacterProps = { character: ReturnType<typeof getGameCharacter>; characterSound: () => void };
+
+function GamePanel({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const { t } = useI18n();
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const element = dialog.current;
+    element?.showModal();
+    return () => {
+      element?.close();
+      previous?.focus({ preventScroll: true });
+    };
+  }, []);
+  return (
+    <dialog
+      ref={dialog}
+      className="game-panel"
+      aria-labelledby="game-panel-title"
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab') return;
+        const controls = [
+          ...event.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), a[href], [tabindex="0"]',
+          ),
+        ];
+        const first = controls[0],
+          last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target !== event.currentTarget) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (
+          event.clientX < rect.left ||
+          event.clientX > rect.right ||
+          event.clientY < rect.top ||
+          event.clientY > rect.bottom
+        )
+          onClose();
+      }}
+    >
+      <header>
+        <div>
+          <span className="eyebrow">{t('games.original')}</span>
+          <h2 id="game-panel-title">{title}</h2>
+        </div>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={onClose}
+          aria-label={t('chat.dismiss')}
+        >
+          <X size={21} />
+        </button>
+      </header>
+      {children}
+    </dialog>
+  );
+}
+type GameCharacterProps = {
+  character: ReturnType<typeof getGameCharacter>;
+  characterSound: () => void;
+};
 type Props = { onScore: (n: number) => void; sound: (file?: string) => void };
 function TapGame({ onScore, sound, character, characterSound }: Props & GameCharacterProps) {
   const { t } = useI18n();
@@ -217,6 +390,7 @@ function TapGame({ onScore, sound, character, characterSound }: Props & GameChar
         className="button secondary compact"
         onClick={() => {
           setScore(0);
+          onScore(0);
           setCombo(0);
           comboRef.current = 0;
           last.current = 0;
@@ -229,10 +403,11 @@ function TapGame({ onScore, sound, character, characterSound }: Props & GameChar
     </div>
   );
 }
-function MinesGame({ onScore, sound, characterSound, onPlayingChange }: Props &
-  Pick<GameCharacterProps, 'characterSound'> & {
-    onPlayingChange: (playing: boolean) => void;
-  }) {
+function MinesGame({
+  onScore,
+  sound,
+  characterSound,
+}: Props & Pick<GameCharacterProps, 'characterSound'>) {
   const { t } = useI18n();
   const [difficulty, setDifficulty] = useState(0),
     [mines, setMines] = useState<Set<number>>(new Set()),
@@ -242,8 +417,8 @@ function MinesGame({ onScore, sound, characterSound, onPlayingChange }: Props &
     [status, setStatus] = useState<Status>('ready');
   const size = [8, 10, 12][difficulty],
     count = [10, 20, 30][difficulty];
-  useEffect(() => { onPlayingChange(status === 'playing'); }, [onPlayingChange, status]);
   function reset(d = difficulty) {
+    onScore(0);
     setDifficulty(d);
     setMines(new Set());
     setRevealed(new Set());
@@ -290,9 +465,16 @@ function MinesGame({ onScore, sound, characterSound, onPlayingChange }: Props &
       <div className="game-controls">
         <div className="game-select-control">
           <span>{t('mines.difficulty')}</span>
-          <AppSelect ariaLabel={t('mines.difficulty')} value={String(difficulty)} onChange={(value) => reset(+value)} options={[
-            { value: '0', label: t('mines.easy') }, { value: '1', label: t('mines.medium') }, { value: '2', label: t('mines.hard') },
-          ]} />
+          <AppSelect
+            ariaLabel={t('mines.difficulty')}
+            value={String(difficulty)}
+            onChange={(value) => reset(+value)}
+            options={[
+              { value: '0', label: t('mines.easy') },
+              { value: '1', label: t('mines.medium') },
+              { value: '2', label: t('mines.hard') },
+            ]}
+          />
         </div>
         <button
           className={`button compact ${flagMode ? 'dark' : 'secondary'}`}
@@ -324,7 +506,17 @@ function MinesGame({ onScore, sound, characterSound, onPlayingChange }: Props &
                 e.preventDefault();
                 flag(i);
               }}
-              aria-label={t('mines.cell', { row: Math.floor(i / size) + 1, column: (i % size) + 1, state: mine ? t('mines.mine') : flags.has(i) ? t('mines.flagged') : open ? t('mines.neighbors', { count: n }) : t('mines.hidden') })}
+              aria-label={t('mines.cell', {
+                row: Math.floor(i / size) + 1,
+                column: (i % size) + 1,
+                state: mine
+                  ? t('mines.mine')
+                  : flags.has(i)
+                    ? t('mines.flagged')
+                    : open
+                      ? t('mines.neighbors', { count: n })
+                      : t('mines.hidden'),
+              })}
             >
               {mine ? '✹' : flags.has(i) ? '⚑' : open && n ? n : ''}
             </button>
@@ -346,9 +538,7 @@ function MinesGame({ onScore, sound, characterSound, onPlayingChange }: Props &
           {t('mines.playAgain')}
         </button>
       )}
-      <p className="game-instructions">
-        {t('mines.controls')}
-      </p>
+      <p className="game-instructions">{t('mines.controls')}</p>
     </div>
   );
 }
@@ -380,10 +570,17 @@ const initialWorld = (): World => ({
   pipes: [{ x: 430, gap: 190, passed: false }],
   ticks: 0,
 });
-function ArcadeGame({ kind, onScore, sound, character, characterSound, onPlayingChange }: Props &
+function ArcadeGame({
+  kind,
+  onScore,
+  sound,
+  character,
+  characterSound,
+  suspended,
+}: Props &
   GameCharacterProps & {
     kind: ArcadeKind;
-    onPlayingChange: (playing: boolean) => void;
+    suspended: boolean;
   }) {
   const { t } = useI18n();
   const canvas = useRef<HTMLCanvasElement>(null),
@@ -395,7 +592,6 @@ function ArcadeGame({ kind, onScore, sound, character, characterSound, onPlaying
   useEffect(() => {
     callback.current = { onScore, sound, characterSound, character };
   }, [onScore, sound, characterSound, character]);
-  useEffect(() => { onPlayingChange(status === 'playing'); }, [onPlayingChange, status]);
   const changeStatus = useCallback((s: Status) => {
     statusRef.current = s;
     setStatus(s);
@@ -404,7 +600,11 @@ function ArcadeGame({ kind, onScore, sound, character, characterSound, onPlaying
     world.current = initialWorld();
     setScore(0);
     changeStatus('playing');
+    callback.current.onScore(0);
   }, [changeStatus]);
+  useEffect(() => {
+    if (suspended && statusRef.current === 'playing') changeStatus('paused');
+  }, [suspended, changeStatus]);
   const direction = useCallback((x: number, y: number) => {
     const w = world.current;
     if (x !== -w.direction.x || y !== -w.direction.y) w.queued = { x, y };
@@ -425,6 +625,7 @@ function ArcadeGame({ kind, onScore, sound, character, characterSound, onPlaying
   }, [kind, start]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (suspended) return;
       if ((e.target as HTMLElement).matches('button,input,select,a')) return;
       const dirs: Record<string, Point> = {
         ArrowUp: { x: 0, y: -1 },
@@ -453,7 +654,7 @@ function ArcadeGame({ kind, onScore, sound, character, characterSound, onPlaying
       window.removeEventListener('keydown', key);
       document.removeEventListener('visibilitychange', visibility);
     };
-  }, [action, changeStatus, direction, kind]);
+  }, [action, changeStatus, direction, kind, suspended]);
   useEffect(() => {
     const ctx = canvas.current?.getContext('2d');
     if (!ctx) return;
@@ -619,11 +820,7 @@ function ArcadeGame({ kind, onScore, sound, character, characterSound, onPlaying
           width={400}
           height={400}
           tabIndex={0}
-          aria-label={
-            kind === 'ambatusnake'
-              ? t('arcade.snakeLabel')
-              : t('arcade.flappyLabel')
-          }
+          aria-label={kind === 'ambatusnake' ? t('arcade.snakeLabel') : t('arcade.flappyLabel')}
           onClick={kind === 'flappy-bus' ? action : undefined}
           onTouchStart={(e) => {
             swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -669,7 +866,13 @@ function ArcadeGame({ kind, onScore, sound, character, characterSound, onPlaying
               onClick={() => (status === 'paused' ? changeStatus('playing') : start())}
             >
               <Play size={17} />
-              {t(status === 'paused' ? 'arcade.resume' : status === 'ready' ? 'arcade.letsPlay' : 'arcade.playAgain')}
+              {t(
+                status === 'paused'
+                  ? 'arcade.resume'
+                  : status === 'ready'
+                    ? 'arcade.letsPlay'
+                    : 'arcade.playAgain',
+              )}
             </button>
           </div>
         )}

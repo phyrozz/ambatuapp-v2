@@ -95,6 +95,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
     document.addEventListener('click', openNativeDetail, true);
     const listener = import('@capacitor/app').then(({ App }) =>
       App.addListener('backButton', () => {
+        if (/^\/games\/[^/]+\/?$/.test(window.location.pathname)) {
+          const event = new Event('game-back', { cancelable: true });
+          if (window.dispatchEvent(event)) router.push('/games/');
+          return;
+        }
         if (window.location.pathname !== '/') router.back();
         else void App.minimizeApp();
       }),
@@ -134,6 +139,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('scroll', onScroll);
   }, [path]);
   /* eslint-enable react-hooks/set-state-in-effect */
+  if (/^\/games\/[^/]+\/$/.test(routePath)) {
+    return <main id="main" className="game-workspace" tabIndex={-1}>{children}</main>;
+  }
   return (
     <>
       <a href="#main" className="skip-link">
