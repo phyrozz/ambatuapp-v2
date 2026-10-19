@@ -145,6 +145,14 @@
   font-size: 11px;
   line-height: 1.5;
 }
+.game-session[data-native='true'] .game-instructions {
+  display: none;
+}
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .game-stage .game-instructions {
+    display: none;
+  }
+}
 .game-stage .game-overlay {
   gap: 14px;
   padding: 20px;

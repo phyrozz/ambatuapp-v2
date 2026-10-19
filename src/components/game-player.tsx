@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { Capacitor } from '@capacitor/core';
 import {
   ArrowDown,
   ArrowLeft,
@@ -48,12 +49,14 @@ export function GamePlayer({ id }: { id: GameId }) {
   const [panel, setPanel] = useState<'leaderboard' | 'character' | null>(null);
   const [currentScore, setCurrentScore] = useState(0);
   const [invitation, setInvitation] = useState('');
+  const session = useRef<HTMLDivElement>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const audioFile = useRef<string | null>(null);
   const characterAudio = useRef<HTMLAudioElement | null>(null);
   const character = getGameCharacter(gameCharacter);
   const panelOpen = panel !== null || Boolean(invitation);
   useEffect(() => {
+    if (session.current) session.current.dataset.native = String(Capacitor.isNativePlatform());
     const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -141,7 +144,7 @@ export function GamePlayer({ id }: { id: GameId }) {
     [getAccessToken, id, saveScore, user],
   );
   return (
-    <div className={`game-session game-session-${id}`}>
+    <div ref={session} className={`game-session game-session-${id}`}>
       <header className="game-session-header">
         <Link className="game-back-button" href="/games/" aria-label={t('games.back')}>
           <ArrowLeft size={21} />
@@ -385,7 +388,7 @@ function TapGame({ onScore, sound, character, characterSound }: Props & GameChar
         <img src={character.avatar} alt={t(character.labelKey)} />
         <span>{t('tap.energy')}</span>
       </button>
-      <p>{t('tap.controls')}</p>
+      <p className="game-instructions">{t('tap.controls')}</p>
       <button
         className="button secondary compact"
         onClick={() => {
@@ -802,9 +805,6 @@ function ArcadeGame({
   return (
     <div className="arcade-arena">
       <div className="game-controls">
-        <span className="score-pill">
-          {t('arcade.score')} <b>{score}</b>
-        </span>
         <button
           className="button secondary compact"
           disabled={!['playing', 'paused'].includes(status)}
