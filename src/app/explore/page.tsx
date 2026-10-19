@@ -6,14 +6,34 @@ import { useI18n } from '@/components/i18n-provider';
 import { useFriendRequests } from '@/components/friend-request-provider';
 import { openExternal } from '@/lib/native';
 const studioUrl = 'https://studio.ambatu.fun/';
+const primaryPages = [
+  {
+    href: '/lores/',
+    key: 'nav.lore',
+    description: 'lore.description',
+    className: 'lore',
+    Icon: BookOpen,
+  },
+  {
+    href: '/characters/',
+    key: 'nav.characters',
+    description: 'characters.description',
+    className: 'characters',
+    Icon: UsersRound,
+  },
+  {
+    href: '/games/',
+    key: 'nav.games',
+    description: 'games.description',
+    className: 'games',
+    Icon: Gamepad2,
+  },
+];
 const pages = [
   { href: '/friends/', key: 'friends.title', Icon: UsersRound },
-  { href: '/lores/', key: 'nav.lore', Icon: BookOpen },
-  { href: '/games/', key: 'nav.games', Icon: Gamepad2 },
   { href: '/profile/', key: 'nav.profile', Icon: UserRound },
   { href: '/watch/', key: 'nav.watch', Icon: Play },
   { href: '/soundboard/', key: 'nav.soundboard', Icon: AudioLines },
-  { href: '/characters/', key: 'nav.characters', Icon: UsersRound },
   { href: '/favorites/', key: 'nav.favorites', Icon: Heart },
   { href: '/?home=1', key: 'nav.discover', Icon: House },
 ];
@@ -33,6 +53,16 @@ export default function ExplorePage() {
   return <section className="page explore-page">
     <header className="explore-intro"><span className="explore-mark" aria-hidden="true"><LayoutGrid size={20} /></span><p className="eyebrow">{t('nav.explore')}</p><h1>{t('explore.title')}<span className="orange-text">.</span></h1><p>{t('explore.description')}</p></header>
     <nav aria-label={t('explore.title')}>
+      <div className="explore-major-grid">
+        {primaryPages.map(({ href, key, description, className, Icon }, index) => (
+          <Link className={`explore-major-link explore-major-${className}`} href={href} key={href} style={{ '--card-index': index } as React.CSSProperties}>
+            <span className="explore-major-icon"><Icon size={23} /></span>
+            <span className="explore-major-copy"><strong>{t(key)}</strong><span>{t(description)}</span></span>
+            <Icon className="explore-major-art" size={118} aria-hidden="true" />
+            <ArrowUpRight className="explore-major-arrow" size={21} aria-hidden="true" />
+          </Link>
+        ))}
+      </div>
       <div className="explore-featured">
         <Link className="explore-feature explore-feature-scroll" href="/scroll/"><span className="explore-feature-icon"><Smartphone size={25} /></span><span className="explore-feature-art" aria-hidden="true"><Play size={68} fill="currentColor" /></span><span className="explore-feature-copy"><span className="eyebrow">{t('nav.watch')}</span><strong>{t('nav.scroll')}</strong><span>{t('scroll.hint')}</span></span><ArrowUpRight className="explore-feature-arrow" size={23} /></Link>
         <Link className="explore-feature explore-feature-chat" href="/chat/"><span className="explore-feature-icon"><MessageCircle size={25} /></span><span className="explore-feature-copy"><span className="eyebrow">{t('nav.chat')}</span><strong>{t('nav.chat')}</strong><span>{t('friends.description')}</span></span><ArrowUpRight className="explore-feature-arrow" size={23} /></Link>
