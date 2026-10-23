@@ -163,7 +163,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             />
             <span>
               ambatu<span className="orange-text">app</span>
-              <small>{t('shell.tagline')}</small>
+              {/* <small>{t('shell.tagline')}</small> */}
             </span>
           </Link>
           <span className="beta-badge">{t('shell.beta')}</span>
@@ -211,7 +211,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <div className={`workspace ${routePath === '/chat/' ? 'chat-workspace' : ''} ${routePath === '/scroll/' ? 'scroll-workspace' : ''}`}>
         <header className={`topbar ${topbarHidden ? 'topbar-hidden' : ''} ${topbarScrolled ? 'topbar-scrolled' : ''}`}>
           <span className="topbar-note">
-            <span className="status-dot" /> {t('shell.chaos')}
+            {/* <span className="status-dot" /> {t('shell.chaos')} */}
           </span>
           <div className="mobile-brand-group">
             <Link href="/" onClick={openPwaHomepage} className="mobile-brand">

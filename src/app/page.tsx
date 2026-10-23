@@ -36,12 +36,12 @@ export default function Home() {
   }, []);
   return (
     <div className="page home-page">
-      <div className="welcome">
+      {/* <div className="welcome">
         <p className="eyebrow">
           <span className="tiny-star">✳</span> {t('home.welcome')}
         </p>
         <span className="edition">{t('home.edition')}</span>
-      </div>
+      </div> */}
       <section className="hero">
         <div className="hero-copy">
           <span className="pill">

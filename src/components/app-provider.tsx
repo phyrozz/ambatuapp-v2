@@ -4,17 +4,20 @@ import { Capacitor } from '@capacitor/core';
 import type { Sound } from '@/lib/catalog';
 import { isGameCharacterId, type GameCharacterId } from '@/lib/game-characters';
 import { haptic } from '@/lib/native';
+import { syncLeaderboardScores } from '@/lib/leaderboard';
 import { useI18n } from './i18n-provider';
 import { useAuth } from './auth-provider';
 import { contentViewerId } from '@/lib/content-views';
 type Saved = {
   favorites: string[];
   scores: Record<string, number>;
+  accountScores: Record<string, Record<string, number>>;
   plays: number;
   volume: number;
   gameCharacter: GameCharacterId;
 };
-const defaults: Saved = { favorites: [], scores: {}, plays: 0, volume: 0.7, gameCharacter: 'dreamy' };
+const defaults: Saved = { favorites: [], scores: {}, accountScores: {}, plays: 0, volume: 0.7, gameCharacter: 'dreamy' };
+const emptyScores: Record<string, number> = {};
 type AppContext = Saved & {
   ready: boolean;
   sounds: Sound[];
@@ -47,7 +50,7 @@ type SoundCatalogState = {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
-  const { getIdToken } = useAuth();
+  const { getIdToken, getAccessToken, user } = useAuth();
   const [saved, setSaved] = useState(defaults);
   const [ready, setReady] = useState(false);
   const [soundCatalog, setSoundCatalog] = useState<SoundCatalogState>({ status: 'loading', sounds: [], nextCursor: null, loadingMore: false, moreError: false });
@@ -79,6 +82,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 ),
               ) as Record<string, number>)
             : {},
+        accountScores:
+          data.accountScores && typeof data.accountScores === 'object' && !Array.isArray(data.accountScores)
+            ? Object.fromEntries(
+                Object.entries(data.accountScores).map(([accountId, scores]) => [
+                  accountId,
+                  scores && typeof scores === 'object' && !Array.isArray(scores)
+                    ? Object.fromEntries(
+                        Object.entries(scores).filter(
+                          ([, score]) => typeof score === 'number' && Number.isFinite(score) && score >= 0,
+                        ),
+                      ) as Record<string, number>
+                    : {},
+                ]),
+              ) as Record<string, Record<string, number>>
+            : {},
         plays: Number.isFinite(data.plays) ? Math.max(0, data.plays) : 0,
         volume: Number.isFinite(data.volume) ? Math.min(1, Math.max(0, data.volume)) : 0.7,
         gameCharacter: isGameCharacterId(data.gameCharacter)
@@ -91,6 +109,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  const userId = user?.id;
+  const accountScores = userId ? saved.accountScores[userId] : undefined;
+  const scoreSyncAccount = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ready || !userId) {
+      scoreSyncAccount.current = null;
+      return;
+    }
+    const initialSync = scoreSyncAccount.current !== userId;
+    scoreSyncAccount.current = userId;
+    let active = true;
+    const timer = setTimeout(() => {
+      void getAccessToken()
+        .then((token) => syncLeaderboardScores(accountScores ?? {}, token))
+        .then((scores) => {
+          if (!active || !scores) return;
+          setSaved((current) => {
+            const currentAccountScores = current.accountScores[userId] ?? {};
+            const merged = { ...currentAccountScores };
+            for (const [gameId, score] of Object.entries(scores)) {
+              if (typeof score === 'number' && Number.isFinite(score) && score >= 0) {
+                merged[gameId] = Math.max(merged[gameId] ?? 0, score);
+              }
+            }
+            if (Object.keys(merged).length === Object.keys(currentAccountScores).length
+              && Object.entries(merged).every(([gameId, score]) => currentAccountScores[gameId] === score)) {
+              return current;
+            }
+            return { ...current, accountScores: { ...current.accountScores, [userId]: merged } };
+          });
+        })
+        .catch(() => undefined);
+    }, initialSync ? 0 : 900);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [accountScores, getAccessToken, ready, userId]);
 
   useEffect(() => {
     const endpoint = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? `${window.location.origin}/api/public`;
@@ -302,6 +359,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <Context.Provider
       value={{
         ...saved,
+        scores: userId ? accountScores ?? emptyScores : saved.scores,
         ready,
         playing,
         loadingSounds,
@@ -331,11 +389,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               ? s.favorites.filter((f) => f !== id)
               : [...s.favorites, id],
           })),
-        saveScore: (id, score) =>
-          setSaved((s) => ({
-            ...s,
-            scores: { ...s.scores, [id]: Math.max(s.scores[id] || 0, score) },
-          })),
+        saveScore: (id, score) => setSaved((s) => {
+          if (userId) {
+            const currentScores = s.accountScores[userId] ?? {};
+            if (score <= (currentScores[id] ?? 0)) return s;
+            return {
+              ...s,
+              accountScores: {
+                ...s.accountScores,
+                [userId]: { ...currentScores, [id]: score },
+              },
+            };
+          }
+          if (score <= (s.scores[id] ?? 0)) return s;
+          return { ...s, scores: { ...s.scores, [id]: score } };
+        }),
         setVolume: (volume) => {
           players.current.forEach((p) => (p.volume = volume));
           setSaved((s) => ({ ...s, volume }));

@@ -16,3 +16,15 @@ export async function submitLeaderboardScore(gameId: string, score: number, acce
   });
   if (!response.ok) throw new Error('Could not submit your score.');
 }
+
+export async function syncLeaderboardScores(scores: Record<string, number>, accessToken: string | null) {
+  if (!endpoint || !accessToken) return null;
+  const response = await fetch(`${endpoint}/leaderboards/sync`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ scores }),
+  });
+  if (!response.ok) throw new Error('Could not sync your scores.');
+  return ((await response.json()) as { scores?: Record<string, number> }).scores ?? {};
+}

@@ -322,8 +322,8 @@ function GamePanel({
     >
       <header>
         <div>
-          <span className="eyebrow">{t('games.original')}</span>
-          <h2 id="game-panel-title">{title}</h2>
+          {/* <span className="eyebrow">{t('games.original')}</span>
+          <h2 id="game-panel-title">{title}</h2> */}
         </div>
         <button
           type="button"
