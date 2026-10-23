@@ -436,6 +436,14 @@
 .friends-dialog .chat-share-link {
   margin: 0;
 }
+.clip-share-link-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface, #fffdf9);
+}
 .friends-dialog .friends-selection-limit {
   margin: 0;
 }
@@ -472,11 +480,77 @@
   overflow-wrap: anywhere;
   font-size: 14px;
 }
-.clip-share-list { min-height: 150px; }
-.clip-share-conversation-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; background: #f6e7dc; color: #b94b2b; }
-.clip-share-conversation-label { display: grid; flex: 1; min-width: 0; gap: 3px; }
-.clip-share-conversation-label strong { flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.clip-share-conversation-label small { color: var(--muted); font-size: 11px; }
+/* Clip recipients use a swipeable row of avatars. */
+.clip-share-list {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: flex-start;
+  gap: 14px;
+  flex: none;
+  min-height: 132px;
+  max-height: none;
+  padding: 8px 2px 12px;
+  border: 0;
+  border-radius: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.clip-share-list > .friend-picker-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 80px;
+  width: 80px;
+  min-height: 116px;
+  padding: 3px;
+  border: 0;
+  border-radius: 12px;
+  text-align: center;
+  scroll-snap-align: start;
+}
+.clip-share-avatar { position: relative; display: block; flex: none; width: 64px; height: 64px; }
+.clip-share-avatar .friend-avatar,
+.clip-share-conversation-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 0;
+  border-radius: 50%;
+  background: #f1e4db;
+  color: #a74a2e;
+  font-size: 26px;
+}
+.clip-share-list > .friend-picker-row strong {
+  flex: none;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.clip-share-conversation-label { display: grid; justify-items: center; width: 100%; min-width: 0; gap: 3px; }
+.clip-share-conversation-label small { color: var(--muted); font-size: 10px; }
+.clip-share-avatar .friend-picker-check {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 23px;
+  height: 23px;
+  border: 3px solid var(--clip-sheet-bg, #fffdf9);
+  border-radius: 50%;
+}
+.clip-share-list > .friends-sentinel { flex: 0 0 1px; width: 1px; height: 1px; }
+.clip-share-list > .loading-indicator { flex: 0 0 120px; align-self: center; justify-content: center; }
+.clip-share-list > .friends-error { flex: 0 0 220px; align-self: center; }
+.clip-share-list > .friends-empty { flex: 0 0 220px; min-height: 120px; }
 .friend-picker-row.selected {
   background: #fff1e6;
 }
@@ -670,7 +744,8 @@ html[data-theme='dark'] .friends-dialog {
   background: #252621;
 }
 html[data-theme='dark'] .friend-card,
-html[data-theme='dark'] .friend-picker-list {
+html[data-theme='dark'] .friend-picker-list,
+html[data-theme='dark'] .clip-share-link-panel {
   background: #20211c;
 }
 html[data-theme='dark'] .friend-card.is-pinned,
@@ -829,4 +904,49 @@ html[data-theme='dark'] .chat-friend-compose {
   .chat-friend-compose {
     transition: none;
   }
+}
+
+/* The clip share sheet keeps recipient choices and external sharing together. */
+.friends-dialog.clip-share-dialog {
+  --clip-sheet-bg: #fffdf9;
+  font-family: Arial, sans-serif;
+  width: min(560px, 100%);
+  gap: 18px;
+  padding: 24px;
+  background: var(--clip-sheet-bg);
+}
+.clip-share-dialog > header { align-items: center; }
+.clip-share-dialog h2 { margin: 0; font-size: 21px; }
+.clip-share-dialog .friends-icon-button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--paper); }
+.clip-share-dialog .friends-dialog-help { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.clip-share-dialog .friends-search { border-color: transparent; border-radius: 999px; background: var(--paper); }
+.clip-share-dialog .friends-search:focus-within { border-color: var(--orange); box-shadow: 0 0 0 2px #e85d2a18; }
+.friends-dialog.clip-share-dialog .friends-search input:focus-visible { outline: none; box-shadow: none; }
+.clip-share-dialog .friends-search input { padding-block: 11px; font-size: 14px; }
+.friends-dialog.clip-share-dialog .clip-share-list,
+.friends-dialog.clip-share-dialog .clip-share-list > .friend-picker-row { background: transparent; }
+.friends-dialog.clip-share-dialog .clip-share-list > .friend-picker-row { border: 0; color: var(--ink); }
+.clip-share-dialog .friend-picker-row.selected .clip-share-avatar { border-radius: 50%; box-shadow: 0 0 0 3px var(--orange); }
+.clip-share-dialog .friend-picker-row:hover:not(:disabled) .clip-share-avatar { transform: translateY(-2px); }
+.clip-share-dialog .clip-share-link-panel { padding: 18px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+.clip-share-dialog .chat-share-link { font-size: 12px; color: var(--muted); }
+.clip-share-dialog .chat-share-link input { background: var(--paper); border: 0; font-weight: 400; font-size: 12px; }
+.clip-share-dialog .chat-share-actions .button { border-radius: 999px; }
+.clip-share-dialog .friends-dialog-actions { border: 0; padding-top: 0; }
+.clip-share-count { margin-right: auto; color: var(--muted); font-size: 12px; }
+.clip-share-dialog .friends-dialog-actions .button { border-radius: 999px; }
+html[data-theme='dark'] .friends-dialog.clip-share-dialog { --clip-sheet-bg: #252621; }
+html[data-theme='dark'] .friends-dialog.clip-share-dialog .clip-share-link-panel { background: transparent; }
+@media (max-width: 640px) {
+  .clip-share-dialog-backdrop { align-items: end; padding: 0; }
+  .friends-dialog.clip-share-dialog {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top) - 16px);
+    padding: 22px 20px max(20px, env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 24px 24px 0 0;
+    gap: 16px;
+  }
+  .clip-share-dialog::before { content: ''; width: 34px; height: 4px; border-radius: 999px; background: var(--line); align-self: center; margin-top: -12px; }
+  .clip-share-dialog .friends-dialog-actions .button { flex: 0 1 auto; min-width: 94px; }
 }

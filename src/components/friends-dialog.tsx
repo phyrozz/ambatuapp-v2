@@ -11,12 +11,14 @@ export function FriendsDialog({
   description,
   onClose,
   busy = false,
+  className = '',
   children,
 }: {
   title: string;
   description?: string;
   onClose: () => void;
   busy?: boolean;
+  className?: string;
   children: ReactNode;
 }) {
   const { t } = useI18n();
@@ -74,14 +76,14 @@ export function FriendsDialog({
     ? null
     : createPortal(
         <div
-          className="friends-dialog-backdrop"
+          className={`friends-dialog-backdrop${className ? ` ${className}-backdrop` : ''}`}
           onPointerDown={(event) => {
             if (!busy && event.target === event.currentTarget) onClose();
           }}
         >
           <section
             ref={pane}
-            className="friends-dialog"
+            className={`friends-dialog ${className}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby={heading}
@@ -91,7 +93,7 @@ export function FriendsDialog({
           >
             <header>
               <div>
-                <span className="eyebrow">{t('friends.eyebrow')}</span>
+                {/* <span className="eyebrow">{t('friends.eyebrow')}</span> */}
                 <h2 id={heading}>{title}</h2>
               </div>
               <button

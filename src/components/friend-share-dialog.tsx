@@ -11,16 +11,19 @@ import { FriendsDialog } from './friends-dialog';
 import type { Friend } from './use-friends';
 import { LoadingIndicator } from './loading-indicator';
 import { ClipSharePickerDialog } from './clip-share-picker-dialog';
+import { ClipShareLink } from './clip-share-link';
 
 export function FriendShareDialog({
   kind,
   title,
   message,
+  url,
   onClose,
 }: {
   kind: 'game' | 'clip';
   title: string;
   message: string;
+  url?: string;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -56,10 +59,11 @@ export function FriendShareDialog({
   if (!ready || !user)
     return (
       <FriendsDialog
-        title={t(kind === 'game' ? 'friends.inviteGame' : 'friends.shareClip')}
+        title={t(kind === 'game' ? 'friends.inviteGame' : 'chat.share')}
         description={t('social.signIn')}
         onClose={onClose}
       >
+        {kind === 'clip' && url && <ClipShareLink title={title} url={url} />}
         {!ready ? (
           <LoadingIndicator label={t('common.loading')} />
         ) : (
@@ -85,7 +89,7 @@ export function FriendShareDialog({
         )}
       </FriendsDialog>
     );
-  if (kind === 'clip') return <ClipSharePickerDialog title={title} message={message} onClose={onClose} />;
+  if (kind === 'clip') return <ClipSharePickerDialog title={title} message={message} url={url ?? ''} onClose={onClose} />;
   return sentCount ? (
     <FriendsDialog
       title={t(sentCount === 1 ? 'friends.sharedOne' : 'friends.shared', { count: sentCount })}

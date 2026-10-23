@@ -10,6 +10,7 @@ import { LoadingIndicator } from './loading-indicator';
 import { FriendsDialog } from './friends-dialog';
 import { FriendAvatar } from './friend-picker-dialog';
 import { useFriends, type Friend } from './use-friends';
+import { ClipShareLink } from './clip-share-link';
 
 type ConversationCursor = { pk: string; sk: string; updatedAt: number };
 type ShareRecipient = { key: string; name: string; friend?: Friend; conversation?: ChatConversation };
@@ -26,7 +27,7 @@ function mergeConversations(existing: ChatConversation[], incoming: ChatConversa
   return [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export function ClipSharePickerDialog({ title, message, onClose }: { title: string; message: string; onClose: () => void }) {
+export function ClipSharePickerDialog({ title, message, url, onClose }: { title: string; message: string; url: string; onClose: () => void }) {
   const { t } = useI18n();
   const { user, getAccessToken } = useAuth();
   const [chats, setChats] = useState<ChatConversation[]>([]);
@@ -165,9 +166,11 @@ export function ClipSharePickerDialog({ title, message, onClose }: { title: stri
     return <FriendsDialog
       title={t(sentCount === 1 ? 'chat.sharedOneRecipient' : 'chat.sharedRecipients', { count: sentCount })}
       description={title}
+      className="clip-share-dialog"
       onClose={onClose}
     >
       <div className="friends-share-success" aria-hidden="true"><Check size={32} /></div>
+      <ClipShareLink title={title} url={url} />
       <footer className="friends-dialog-actions">
         <button type="button" className="button secondary" onClick={onClose}>{t('friends.done')}</button>
         <Link className="button dark" href={`/chat/?conversation=${encodeURIComponent(firstConversation)}`} onClick={onClose}>
@@ -178,8 +181,9 @@ export function ClipSharePickerDialog({ title, message, onClose }: { title: stri
   }
 
   return <FriendsDialog
-    title={t('friends.shareClip')}
-    description={`${title} — ${t('chat.shareClipHint')}`}
+    title={t('chat.share')}
+    description={title}
+    className="clip-share-dialog"
     onClose={onClose}
     busy={sending}
   >
@@ -187,20 +191,12 @@ export function ClipSharePickerDialog({ title, message, onClose }: { title: stri
       <Search size={18} />
       <input type="search" value={friendQueryInput} onChange={(event) => setFriendQueryInput(event.target.value)} placeholder={t('friends.searchFriends')} aria-label={t('friends.searchFriends')} disabled={sending} />
     </label>
-    <div className="friends-filter">
-      <small>{t('friends.selectionCount', { count: selectedCount })}</small>
-    </div>
-    {selectedRecipients.length > 0 && <div className="friends-selected">
-      {selectedRecipients.map((recipient) => <button key={recipient.key} type="button" disabled={sending} aria-label={t('friends.removeSelected', { name: recipient.name })} onClick={() => setSelectedRecipients((items) => items.filter((item) => item.key !== recipient.key))}>
-        {recipient.name}<span aria-hidden="true">×</span>
-      </button>)}
-    </div>}
     <div className="friend-picker-list clip-share-list" ref={setChatPane} aria-busy={friendLoading || (showChats && chatsLoading)}>
       {friendItems.map((friend) => {
         const key = `friend:${friend.id}`;
         const checked = selectedRecipients.some((item) => item.key === key);
         return <button key={key} type="button" className={`friend-picker-row${checked ? ' selected' : ''}`} aria-label={friend.username} aria-pressed={checked} disabled={sending || (!checked && selectedLimitReached)} onClick={() => setSelectedRecipients((items) => checked ? items.filter((item) => item.key !== key) : [...items, { key, name: friend.username, friend }])}>
-          <FriendAvatar friend={friend} /><strong>{friend.username}</strong><span className="friend-picker-check" aria-hidden="true">{checked && <Check size={16} />}</span>
+          <span className="clip-share-avatar"><FriendAvatar friend={friend} />{checked && <span className="friend-picker-check" aria-hidden="true"><Check size={13} /></span>}</span><strong>{friend.username}</strong>
         </button>;
       })}
       <div ref={friendSentinel} className="friends-sentinel" />
@@ -213,9 +209,8 @@ export function ClipSharePickerDialog({ title, message, onClose }: { title: stri
         const key = `conversation:${conversation.id}`;
         const checked = selectedRecipients.some((item) => item.key === key);
         return <button key={key} type="button" className={`friend-picker-row${checked ? ' selected' : ''}`} aria-label={name} aria-pressed={checked} disabled={sending || (!checked && selectedLimitReached)} onClick={() => setSelectedRecipients((items) => checked ? items.filter((item) => item.key !== key) : [...items, { key, name, conversation }])}>
-          <span className="clip-share-conversation-icon" aria-hidden="true">{conversation.group ? <UsersRound size={18} /> : <MessageCircle size={18} />}</span>
+          <span className="clip-share-avatar"><span className="clip-share-conversation-icon" aria-hidden="true">{conversation.group ? <UsersRound size={26} /> : <MessageCircle size={26} />}</span>{checked && <span className="friend-picker-check" aria-hidden="true"><Check size={13} /></span>}</span>
           <span className="clip-share-conversation-label"><strong>{name}</strong>{conversation.group && <small>{t('chat.memberCount', { count: conversation.members.length })}</small>}</span>
-          <span className="friend-picker-check" aria-hidden="true">{checked && <Check size={16} />}</span>
         </button>;
       })}
       {showChats && chatsLoading && <LoadingIndicator label={t('common.loading')} />}
@@ -223,9 +218,11 @@ export function ClipSharePickerDialog({ title, message, onClose }: { title: stri
       {showChats && chatsReady && !chatsLoading && !chatsError && !hasMoreChats && !visibleChats.length && !friendItems.length && (friendsEnded || !friendQueryInput.trim()) && <div className="friends-empty compact"><MessageCircle size={28} /><p>{t('chat.noChatsToShare')}</p></div>}
       {showChats && <div ref={setChatSentinel} className="friends-sentinel" />}
     </div>
+    <ClipShareLink title={title} url={url} />
     <small className="friends-selection-limit">{t('chat.shareSelectionLimit', { count: 24 })}</small>
     {sendError && <p className="friends-error" role="alert">{t('chat.shareError')}</p>}
     <footer className="friends-dialog-actions">
+      {selectedCount > 0 && <small className="clip-share-count">{t('friends.selectionCount', { count: selectedCount })}</small>}
       <button type="button" className="button secondary" disabled={sending} onClick={onClose}>{t('friends.cancelAction')}</button>
       <button type="button" className="button dark" disabled={sending || !selectedCount} onClick={() => void sendSelected()}>
         {sending && <LoadingIndicator compact label={t('common.loading')} />}

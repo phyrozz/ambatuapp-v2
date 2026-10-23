@@ -209,7 +209,7 @@ export function Friends() {
     <section className="page friends-page">
       <header className="friends-hero">
         <div className="friends-hero-copy">
-          <span className="eyebrow">{t('friends.eyebrow')}</span>
+          {/* <span className="eyebrow">{t('friends.eyebrow')}</span> */}
           <h1>
             {t('friends.title')}
             <span className="orange-text">.</span>
