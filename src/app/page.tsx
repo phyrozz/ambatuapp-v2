@@ -55,7 +55,7 @@ export default function Home() {
               ambafun.<span className="hero-asterisk">✳</span>
             </span>
           </h1>
-          <p>{t('home.heroBody')}</p>
+          {/* <p>{t('home.heroBody')}</p> */}
         </div>
         <div className="hero-visual">
           <span className="orbit-text">{t('home.classic')}</span>

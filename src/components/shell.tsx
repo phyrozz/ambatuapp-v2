@@ -215,7 +215,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </span>
           <div className="mobile-brand-group">
             <Link href="/" onClick={openPwaHomepage} className="mobile-brand">
-              ambatu<span>app</span> ✳
+              <Image src="/app-icon.svg" alt="" aria-hidden="true" width={32} height={32} className="mobile-brand-icon" />
+              <span className="mobile-brand-wordmark">ambatu<span>app</span></span>
             </Link>
             <span className="mobile-beta-badge">{t('shell.beta')}</span>
           </div>

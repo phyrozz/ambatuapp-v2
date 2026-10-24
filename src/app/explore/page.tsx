@@ -51,7 +51,16 @@ export default function ExplorePage() {
   }, [studioDialogOpen]);
 
   return <section className="page explore-page">
-    <header className="explore-intro"><span className="explore-mark" aria-hidden="true"><LayoutGrid size={20} /></span><p className="eyebrow">{t('nav.explore')}</p><h1>{t('explore.title')}<span className="orange-text">.</span></h1><p>{t('explore.description')}</p></header>
+    <header className="explore-intro">
+      {/* <span className="explore-mark" aria-hidden="true">
+        <LayoutGrid size={20} />
+      </span> */}
+      {/* <p className="eyebrow">{t('nav.explore')}</p> */}
+      <h1>{t('explore.title')}
+        <span className="orange-text">.</span>
+      </h1>
+      <p>{t('explore.description')}</p>
+    </header>
     <nav aria-label={t('explore.title')}>
       <div className="explore-major-grid">
         {primaryPages.map(({ href, key, description, className, Icon }, index) => (

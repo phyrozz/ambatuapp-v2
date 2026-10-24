@@ -2539,16 +2539,20 @@ select {
     display: none;
   }
   .mobile-brand {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     font-family: Kanit;
     font-size: 25px;
     font-weight: 500;
     letter-spacing: -1px;
     white-space: nowrap;
   }
+  .mobile-brand-icon { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; }
   .topbar > .mobile-brand-group { display: flex; flex: 0 1 auto; align-items: center; gap: 6px; min-width: 0; }
   .mobile-beta-badge { flex: 0 0 auto; margin: 0; padding: 2px 5px; border: 1px solid #f0b49f; border-radius: 999px; background: #fff1ea; color: #c94b2c !important; font-family: Arial, sans-serif; font-size: 7px; font-weight: 800; letter-spacing: 1px; line-height: 1.1; }
-  .mobile-brand span {
+  .mobile-brand-wordmark { color: var(--ink); }
+  .mobile-brand-wordmark > span {
     color: var(--orange);
   }
   .topbar > div {
