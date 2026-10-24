@@ -19,6 +19,11 @@ import { VideoManageDialog } from './video-manage-dialog';
 type Clip = { id: string; title: string; description: string; uploader: string; uploaderId: string | null; uploaderAvatarUrl: string | null; videoUrl: string; downloadUrl?: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote: number };
 type VoteResult = { value: number; upvotes: number; downvotes: number };
 
+function ScrollProfileAvatar({ src }: { src?: string | null }) {
+  const [failed, setFailed] = useState(false);
+  return <span className="scroll-profile-icon">{src && !failed ? <img src={src} alt="" decoding="async" onError={() => setFailed(true)} /> : <CircleUserRound size={16} aria-hidden="true" />}</span>;
+}
+
 function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, onShare, onVote, isOwner, onManage, singleClip = false }: { clip: Clip; root: HTMLDivElement | null; muted: boolean; dialogOpen: boolean; toggleMute: () => void; openComments: () => void; onShare: () => void; onVote: (value: 1 | -1) => Promise<void>; isOwner: boolean; onManage: () => void; singleClip?: boolean }) {
   const { t } = useI18n();
   const article = useRef<HTMLElement>(null);
@@ -360,5 +365,6 @@ export function Ambatuscroll() {
 
 export function AmbatuscrollHeader({ backHref, backLabel = 'chat.inbox', onUpload }: { backHref?: string; backLabel?: string; onUpload?: () => void }) {
   const { t } = useI18n();
-  return <header className="ambatuscroll-header">{backHref ? <Link className="scroll-chat-back" href={backHref}><ArrowLeft size={18}/>{t(backLabel)}</Link> : <div className="ambatuscroll-brand-group"><span className="ambatuscroll-brand">ambatu<span className="orange-text">app</span></span><h1>{t('nav.scroll')}<span className="orange-text">.</span></h1></div>}{backHref ? <span className="scroll-single-title">{t('nav.scroll')}</span> : <div className="ambatuscroll-header-actions">{onUpload && <button type="button" className="scroll-upload-button" onClick={onUpload} aria-label={t('watch.upload')}><span className="scroll-upload-icon"><Upload size={16} aria-hidden="true"/></span><span>{t('watch.upload')}</span></button>}<Link className="scroll-profile-button" href="/profile/" aria-label={t('nav.profile')} title={t('nav.profile')}><span className="scroll-profile-icon"><CircleUserRound size={16} aria-hidden="true"/></span></Link></div>}</header>;
+  const { user } = useAuth();
+  return <header className="ambatuscroll-header">{backHref ? <Link className="scroll-chat-back" href={backHref}><ArrowLeft size={18}/>{t(backLabel)}</Link> : <div className="ambatuscroll-brand-group"><span className="ambatuscroll-brand">ambatu<span className="orange-text">app</span></span><h1>{t('nav.scroll')}<span className="orange-text">.</span></h1></div>}{backHref ? <span className="scroll-single-title">{t('nav.scroll')}</span> : <div className="ambatuscroll-header-actions">{onUpload && <button type="button" className="scroll-upload-button" onClick={onUpload} aria-label={t('watch.upload')}><span className="scroll-upload-icon"><Upload size={16} aria-hidden="true"/></span><span>{t('watch.upload')}</span></button>}<Link className="scroll-profile-button" href="/profile/" aria-label={t('nav.profile')} title={t('nav.profile')}><ScrollProfileAvatar key={user?.avatarUrl ?? 'default'} src={user?.avatarUrl} /></Link></div>}</header>;
 }

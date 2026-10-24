@@ -21,15 +21,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
+    let activeSession: Awaited<ReturnType<typeof getValidSession>> = null;
+    const syncProfile = () => {
+      const session = activeSession;
+      if (!session) return;
+      void initializePlayerProfile(session.tokens.idToken, controller.signal)
+        .then(profile => {
+          if (!cancelled) setUser(current => {
+            if (!current || current.id !== session.user.id) return current;
+            return { ...current, name: profile.username, avatarUrl: profile.avatarUrl ?? null };
+          });
+        })
+        .catch(() => { /* Profile registration is retried on the next visit. */ });
+    };
+    window.addEventListener('ambatu:profile-changed', syncProfile);
     void getValidSession().then((session) => {
       if (cancelled) return;
+      activeSession = session;
       setUser(session?.user ?? null);
       setReady(true);
-      if (session) void initializePlayerProfile(session.tokens.idToken, controller.signal)
-        .then(profile => { if (!cancelled) setUser(current => current?.id === session.user.id ? { ...current, name: profile.username } : current); })
-        .catch(() => { /* Profile registration is retried on the next visit. */ });
+      syncProfile();
     });
-    return () => { cancelled = true; controller.abort(); };
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.removeEventListener('ambatu:profile-changed', syncProfile);
+    };
   }, []);
   const signInWithGoogle = useCallback(async (returnTo?: string) => beginGoogleSignIn(returnTo), []);
   const signOut = useCallback(async () => {

@@ -49,6 +49,14 @@ const mobileNav = [
   { href: '/games/', key: 'nav.gamesShort', Icon: Gamepad2 },
   { href: '/explore/', key: 'nav.explore', Icon: LayoutGrid },
 ];
+
+function ProfileButtonAvatar({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  return failed
+    ? <UserRound size={18} aria-hidden="true" />
+    : <img src={src} alt="" decoding="async" onError={() => setFailed(true)} />;
+}
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const routePath = path === '/' ? '/' : `${path.replace(/\/+$/, '')}/`;
@@ -230,7 +238,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <Heart size={19} />
             </Link> */}
             <Link href="/profile/" className={`profile-button ${routePath.startsWith('/profile/') ? 'active' : ''}`} aria-label={t('nav.profile')}>
-              <UserRound size={18} aria-hidden="true" />
+              {user?.avatarUrl ? <ProfileButtonAvatar key={user.avatarUrl} src={user.avatarUrl} /> : <UserRound size={18} aria-hidden="true" />}
               <span className="profile-desktop-label">{t('shell.yourCorner')}</span>
               <span className="profile-mobile-label">{t('nav.profile')}</span>
               <ArrowUpRight size={15} />

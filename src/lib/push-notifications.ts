@@ -127,6 +127,9 @@ export function installPushNavigation(getSocket: () => ChatSocket | null, locale
   if (navigationInstalled) return;
   navigationInstalled = true;
   if (Capacitor.isNativePlatform()) {
+    if ('serviceWorker' in navigator) {
+      void navigator.serviceWorker.register('/firebase-messaging-sw.js?cacheOnly=1').catch(() => undefined);
+    }
     void import('@capacitor-firebase/messaging').then(({ FirebaseMessaging }) => {
       void FirebaseMessaging.addListener('notificationActionPerformed', event => {
         const data = event.notification.data as Record<string, unknown> | undefined;
