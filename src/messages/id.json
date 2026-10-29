@@ -280,6 +280,8 @@
   "profile.password": "Kata sandi",
   "profile.passwordPlaceholder": "Minimal 6 karakter",
   "profile.wait": "Sebentar saja...",
+  "profile.signingIn": "Logging you in…",
+  "profile.sessionExpired": "Your sign-in session expired. Please try again.",
   "profile.create": "Buat akun",
   "profile.signIn": "Masuk",
   "profile.newHere": "Baru di sini? Buat akun",

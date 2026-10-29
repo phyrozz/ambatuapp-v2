@@ -598,26 +598,11 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
   margin: 24px 0;
-  padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--dreamy-surface);
 }
-.dreamy-guest-card > svg {
-  color: var(--orange);
-}
-.dreamy-guest-card > div {
-  flex: 1;
-  min-width: 180px;
-}
-.dreamy-guest-card h2 {
-  margin: 0 0 6px;
-  font:
-    500 23px Kanit,
-    Arial,
-    sans-serif;
+.dreamy-guest-card > button {
+  min-height: 48px;
 }
 .dreamy-guest-card p {
   margin: 0;

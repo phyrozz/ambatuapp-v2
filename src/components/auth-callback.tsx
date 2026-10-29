@@ -1,9 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { completeGoogleSignIn } from '@/lib/cognito';
+import { AlertCircle, ArrowRight, LockKeyhole } from 'lucide-react';
+import { completeGoogleSignIn, SignInSessionExpiredError } from '@/lib/cognito';
 import { initializePlayerProfile } from '@/lib/player-profile';
 import { useI18n } from './i18n-provider';
+import { LoadingIndicator } from './loading-indicator';
 import { Capacitor } from '@capacitor/core';
 
 export function AuthCallback() {
@@ -19,7 +21,7 @@ export function AuthCallback() {
       window.location.replace(`com.example.ambatuapp://auth/callback?${params.toString()}`);
       return;
     }
-    if (providerError || !code) { setError(providerError || t('profile.connectionError')); return; }
+    if (providerError || !code) { setError(t('profile.connectionError')); return; }
     void completeGoogleSignIn(code, state)
       .then(async ({ tokens, returnTo }) => {
         const controller = new AbortController();
@@ -29,8 +31,31 @@ export function AuthCallback() {
         finally { clearTimeout(timeout); }
         window.location.replace(returnTo);
       })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : t('profile.connectionError')));
+      .catch((cause: unknown) => setError(t(cause instanceof SignInSessionExpiredError ? 'profile.sessionExpired' : 'profile.connectionError')));
   }, [t]);
   /* eslint-enable react-hooks/set-state-in-effect */
-  return <section className="page auth-callback"><p className="eyebrow">AMBATUAPP</p><h1>{error ? t('profile.connectionError') : t('profile.wait')}</h1>{error ? <><p>{error}</p><Link className="button dark" href="/profile/">{t('profile.signIn')}</Link></> : <p>{t('profile.googlePrompt')}</p>}</section>;
+  return (
+    <section className="page auth-callback">
+      <div className="auth-callback-card" aria-live="polite">
+        <div className={`auth-callback-icon${error ? ' is-error' : ''}`} aria-hidden="true">
+          {error ? <AlertCircle size={34} /> : <LockKeyhole size={34} />}
+        </div>
+        <p className="eyebrow">AMBATUAPP</p>
+        {error ? (
+          <>
+            <h1>{error}</h1>
+            <Link className="button dark auth-callback-action" href="/profile/">
+              {t('profile.signIn')}
+              <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+          </>
+        ) : (
+          <>
+            <h1>{t('profile.wait')}</h1>
+            <LoadingIndicator label={t('profile.signingIn')} />
+          </>
+        )}
+      </div>
+    </section>
+  );
 }

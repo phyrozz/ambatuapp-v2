@@ -532,11 +532,6 @@ export function ProfilePanel() {
       >
         {!configured || !user ? (
           <div className="dreamy-guest-card">
-            <LogIn size={26} aria-hidden="true" />
-            <div>
-              <h2>{t('profile.home')}</h2>
-              <p>{t(configured ? 'profile.googlePrompt' : 'profile.guest')}</p>
-            </div>
             {configured ? (
               <button
                 type="button"

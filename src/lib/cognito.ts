@@ -140,13 +140,15 @@ export async function beginGoogleSignIn(returnTo = '/profile/') {
   }
 }
 
+export class SignInSessionExpiredError extends Error {}
+
 export async function completeGoogleSignIn(code: string, state: string | null) {
   if (!cognitoConfigured || !domain || !clientId || !callbackUrl) throw new Error('Google sign-in has not been configured yet.');
   const expectedState = sessionStorage.getItem(stateKey);
   const verifier = sessionStorage.getItem(verifierKey);
   sessionStorage.removeItem(stateKey);
   sessionStorage.removeItem(verifierKey);
-  if (!state || !expectedState || state !== expectedState || !verifier) throw new Error('Your sign-in session expired. Please try again.');
+  if (!state || !expectedState || state !== expectedState || !verifier) throw new SignInSessionExpiredError();
   const response = await fetch(`https://${domain}/oauth2/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
