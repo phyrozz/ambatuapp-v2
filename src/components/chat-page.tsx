@@ -1378,8 +1378,24 @@ export function ChatPage() {
   </div>;
   if (!wsUrl) return <div className="page chat-gate"><h1>{t('chat.title')}</h1><p>{t('chat.notConfigured')}</p></div>;
   return <div className="page chat-page">
-    {error && <p className="chat-notice" role="status">{error}<button onClick={() => setError('')} aria-label={t('chat.dismiss')}><X size={15}/></button></p>}
-    {status === 'unavailable' && <p className="chat-notice" role="status">{t('chat.connectionError')}</p>}
+    {(error || status === 'unavailable') && createPortal(
+      <div className="chat-notice-stack" data-thread={Boolean(current)}>
+        {status === 'unavailable' && error !== t('chat.connectionError') && (
+          <div className="chat-notice" role="status">
+            <span>{t('chat.connectionError')}</span>
+          </div>
+        )}
+        {error && (
+          <div className="chat-notice" role="status">
+            <span>{error}</span>
+            <button type="button" onClick={() => setError('')} aria-label={t('chat.dismiss')}>
+              <X size={18} />
+            </button>
+          </div>
+        )}
+      </div>,
+      document.body,
+    )}
     <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}><aside className="chat-inbox"><div className="chat-inbox-header"><div className="chat-inbox-brand"><span className="chat-inbox-brand-icon" aria-hidden="true"><MessageCircle size={21}/></span><div><span className="eyebrow">{t('nav.chat')}</span><h2>{t('chat.inbox')}</h2></div></div><button type="button" className="chat-icon" onClick={() => void enableNotifications()} disabled={pushBusy || pushEnabled || status !== 'ready'} aria-label={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')} title={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')}><Bell size={17}/></button></div>
       <Link className="chat-friends-link" href="/friends/"><span className="chat-friends-icon"><UsersRound size={19}/></span><span><strong>{t('friends.title')}</strong><small>{incomingCount ? t('friends.requestCount', { count: incomingCount }) : t('')}</small></span>{incomingCount > 0 && <span className="chat-friend-count" aria-label={t('friends.requestCount', { count: incomingCount })}>{incomingCount > 99 ? '99+' : incomingCount}</span>}<ArrowUpRight size={18} aria-hidden="true"/></Link>
       <button type="button" className="chat-friend-compose" onClick={() => setFriendPickerOpen(true)}><UsersRound size={17}/>{t('friends.newGroup')}<Plus size={15}/></button>
