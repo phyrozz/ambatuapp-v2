@@ -1176,7 +1176,10 @@ export function ChatPage() {
       const uploadFile = compressCameraPhoto && kind === 'image' ? await compressPhotoToJpeg(file) : file;
       if (uploadFile.size > chatMediaSizeLimit) { setError(t('chat.fileTooLarge')); return; }
       const signed = await client.request('mediaUpload', { kind, contentType: uploadFile.type, size: uploadFile.size });
-      const response = await fetch(String(signed.uploadUrl), { method: 'PUT', headers: { 'content-type': uploadFile.type }, body: uploadFile });
+      const form = new FormData();
+      for (const [name, value] of Object.entries(signed.uploadFields as Record<string, string>)) form.append(name, value);
+      form.append('file', uploadFile);
+      const response = await fetch(String(signed.uploadUrl), { method: 'POST', body: form });
       if (!response.ok) throw new Error();
       const result = await client.request('send', { conversation, kind, key: signed.key });
       const message = result.message as ChatMessage;
