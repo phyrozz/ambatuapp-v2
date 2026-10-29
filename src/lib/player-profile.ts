@@ -20,6 +20,15 @@ async function request(token: string, init?: RequestInit) {
 }
 
 export function getPlayerProfile(token: string) { return request(token); }
+export async function recordPlayerActivity(token: string, signal?: AbortSignal): Promise<void> {
+  if (!endpoint) return;
+  await fetch(`${endpoint}/profile/activity`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}` },
+    cache: 'no-store',
+    signal,
+  });
+}
 export async function initializePlayerProfile(token: string, signal?: AbortSignal): Promise<PlayerProfile> {
   if (!endpoint) throw new Error('Player profile service is not configured.');
   const response = await fetch(`${endpoint}/profile/initialize`, {

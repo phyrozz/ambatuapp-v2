@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { beginGoogleSignIn, cognitoConfigured, getValidSession, revokeStoredSession, type CognitoUser } from '@/lib/cognito';
-import { initializePlayerProfile } from '@/lib/player-profile';
+import { initializePlayerProfile, recordPlayerActivity } from '@/lib/player-profile';
 
 type AuthContext = {
   ready: boolean;
@@ -18,6 +18,7 @@ const Context = createContext<AuthContext | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<CognitoUser | null>(null);
   const [ready, setReady] = useState(false);
+  const playerId = user?.id;
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
@@ -27,6 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!session) return;
       void initializePlayerProfile(session.tokens.idToken, controller.signal)
         .then(profile => {
+          if (!cancelled && document.visibilityState === 'visible') {
+            void recordPlayerActivity(session.tokens.idToken, controller.signal).catch(() => {});
+          }
           if (!cancelled) setUser(current => {
             if (!current || current.id !== session.user.id) return current;
             return { ...current, name: profile.username, avatarUrl: profile.avatarUrl ?? null };
@@ -48,6 +52,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('ambatu:profile-changed', syncProfile);
     };
   }, []);
+  useEffect(() => {
+    if (!playerId) return;
+    const controller = new AbortController();
+    const record = () => {
+      if (document.visibilityState !== 'visible') return;
+      void getValidSession().then(session => {
+        if (session && session.user.id === playerId && !controller.signal.aborted) {
+          return recordPlayerActivity(session.tokens.idToken, controller.signal);
+        }
+      }).catch(() => {});
+    };
+    record();
+    const timer = window.setInterval(record, 15 * 60 * 1000);
+    document.addEventListener('visibilitychange', record);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', record);
+    };
+  }, [playerId]);
   const signInWithGoogle = useCallback(async (returnTo?: string) => beginGoogleSignIn(returnTo), []);
   const signOut = useCallback(async () => {
     setUser(null);
