@@ -65,7 +65,7 @@ export default function ExplorePage() {
         {primaryPages.map(({ href, key, description, className, Icon }, index) => (
           <Link className={`explore-major-link explore-major-${className}`} href={href} key={href} style={{ '--card-index': index } as React.CSSProperties}>
             <span className="explore-major-icon"><Icon size={23} /></span>
-            <span className="explore-major-copy"><strong>{t(key)}</strong><span>{t(description)}</span></span>
+            <span className="explore-major-copy"><strong>{t(key)}</strong></span>
             <Icon className="explore-major-art" size={118} aria-hidden="true" />
             <ArrowUpRight className="explore-major-arrow" size={21} aria-hidden="true" />
           </Link>
@@ -76,9 +76,9 @@ export default function ExplorePage() {
         <Link className="explore-feature explore-feature-chat" href="/chat/"><span className="explore-feature-icon"><MessageCircle size={25} /></span><span className="explore-feature-copy"><span className="eyebrow">{t('nav.chat')}</span><strong>{t('nav.chat')}</strong><span>{t('friends.description')}</span></span><ArrowUpRight className="explore-feature-arrow" size={23} /></Link>
       </div>
       <div className="explore-grid">{pages.map(({ href, key, Icon }, index) => <Link className="explore-card" href={href} key={href} style={{ '--card-index': index } as React.CSSProperties}><span className="explore-card-icon"><Icon size={24} /></span><span>{t(key)}</span>{href === '/friends/' && incomingCount > 0 && <span className="explore-friend-count" aria-label={t('friends.requestCount', { count: incomingCount })}>{incomingCount > 99 ? '99+' : incomingCount}</span>}<ArrowUpRight className="explore-card-arrow" size={17} aria-hidden="true" /></Link>)}
-        <button type="button" className="explore-card explore-card-studio" onClick={() => setStudioDialogOpen(true)} aria-haspopup="dialog" aria-expanded={studioDialogOpen}>
+        {/* <button type="button" className="explore-card explore-card-studio" onClick={() => setStudioDialogOpen(true)} aria-haspopup="dialog" aria-expanded={studioDialogOpen}>
           <span className="explore-card-icon"><Sparkles size={24} /></span><span>{t('explore.studio')}</span><ArrowUpRight className="explore-card-arrow" size={17} aria-hidden="true" />
-        </button>
+        </button> */}
       </div>
     </nav>
     <dialog ref={studioDialogRef} className="explore-studio-dialog" aria-labelledby="explore-studio-title" aria-describedby="explore-studio-description" onClick={event => { if (event.target === event.currentTarget) setStudioDialogOpen(false); }} onClose={() => setStudioDialogOpen(false)}>
