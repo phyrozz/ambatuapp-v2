@@ -280,8 +280,8 @@
   "profile.password": "Kata sandi",
   "profile.passwordPlaceholder": "Minimal 6 karakter",
   "profile.wait": "Sebentar saja...",
-  "profile.signingIn": "Logging you in…",
-  "profile.sessionExpired": "Your sign-in session expired. Please try again.",
+  "profile.signingIn": "Sedang masuk...",
+  "profile.sessionExpired": "Sesi kamu sudah kedaluwarsa. Silakan coba lagi.",
   "profile.create": "Buat akun",
   "profile.signIn": "Masuk",
   "profile.newHere": "Baru di sini? Buat akun",
@@ -837,8 +837,8 @@
   "tour.back": "Kembali",
   "tour.next": "Berikutnya",
   "tour.finish": "Selesaikan tur",
-  "maintenance.eyebrow": "A little tune-up",
-  "maintenance.title": "OH MAY GOT... we'll be back.",
-  "maintenance.description": "AmbatuApp is down for maintenance right now. We'll be back bussin' soon, so come back later, king.",
-  "maintenance.thanks": "Thanks for hanging in there!"
+  "maintenance.eyebrow": "Sedikit penyetelan",
+  "maintenance.title": "OMAYGOT... kami akan kembali lagi ya.",
+  "maintenance.description": "AmbatuApp sedang dalam pemeliharaan. Kami akan kembali nge-bussin, jadi sampai jumpa nanti!",
+  "maintenance.thanks": "Makasih atas menunggu!"
 }
