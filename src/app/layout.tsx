@@ -3,6 +3,7 @@ import { AppProvider } from '@/components/app-provider';
 import { AuthProvider } from '@/components/auth-provider';
 import { I18nProvider } from '@/components/i18n-provider';
 import { Shell } from '@/components/shell';
+import { AdInterstitial } from '@/components/ad-interstitial';
 import { BirthdayGreeting } from '@/components/birthday-greeting';
 import { PushPermissionPrompt } from '@/components/push-permission-prompt';
 import { FriendRequestProvider } from '@/components/friend-request-provider';
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <AuthProvider>
               <FriendRequestProvider>
                 <AppProvider>
+                  <AdInterstitial />
                   <Shell>{children}</Shell>
                   <PushPermissionPrompt />
                   <BirthdayGreeting />

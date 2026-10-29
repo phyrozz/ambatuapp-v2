@@ -71,6 +71,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { incomingCount } = useFriendRequests();
   const adDisabled = routePath.startsWith('/games/') || routePath === '/soundboard/' || routePath === '/chat/' || ['/privacy/', '/terms/'].includes(routePath) || Boolean(current);
+  const allowInterstitialLinks = ['/', '/explore/', '/lores/', '/characters/'].includes(routePath) && !current && !Capacitor.isNativePlatform();
   useEffect(() => {
     if (path === '/' && isStandalonePwa() && new URLSearchParams(window.location.search).get('home') !== '1') {
       router.replace('/scroll/');
@@ -179,7 +180,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="nav-divider" />
         {/* <p className="nav-label">{t('shell.dailyDose')}</p> */}
         <nav aria-label={t('shell.mainNavigation')}>
-          {nav.map(({ href, key, Icon }) => (
+          {nav.map(({ href, key, Icon }) => allowInterstitialLinks && ['/games/', '/characters/'].includes(href) && routePath !== href ? (
+            <a key={href} href={href} className="nav-item interstitial-trigger">
+              <Icon size={20} />
+              <span>{t(key)}</span>
+              {href === '/games/' && <small>4</small>}
+            </a>
+          ) : (
             <Link
               key={href}
               href={href}
