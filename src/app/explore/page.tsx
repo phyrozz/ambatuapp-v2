@@ -59,7 +59,6 @@ export default function ExplorePage() {
       <h1>{t('explore.title')}
         <span className="orange-text">.</span>
       </h1>
-      <p>{t('explore.description')}</p>
     </header>
     <nav aria-label={t('explore.title')}>
       <div className="explore-major-grid">

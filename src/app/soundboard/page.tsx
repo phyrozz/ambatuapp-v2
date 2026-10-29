@@ -5,11 +5,11 @@ export default function Soundboard() {
   const { t } = useI18n();
   return (
     <div className="page soundboard-page">
-      <div className="page-heading">
+      {/* <div className="page-heading">
         <p className="eyebrow">{t('soundboard.eyebrow')}</p>
         <h1>{t('soundboard.title')}</h1>
         <p>{t('soundboard.dynamicDescription')}</p>
-      </div>
+      </div> */}
       <SoundLibrary />
     </div>
   );

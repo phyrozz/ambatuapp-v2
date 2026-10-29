@@ -5,11 +5,11 @@ export default function Characters() {
   const { t } = useI18n();
   return (
     <div className="page characters-page">
-      <div className="page-heading">
+      {/* <div className="page-heading">
         <p className="eyebrow">{t('characters.eyebrow')}</p>
         <h1>{t('characters.title')}</h1>
         <p>{t('characters.description')}</p>
-      </div>
+      </div> */}
       <CharacterLibrary />
     </div>
   );

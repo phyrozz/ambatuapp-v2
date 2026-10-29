@@ -301,9 +301,9 @@ export function ProfilePanel() {
 
   return (
     <div className="dreamy-workspace">
-      <header className="dreamy-identity">
-        <div className="dreamy-identity-main">
-          {user ? (
+      {user && (
+        <header className="dreamy-identity">
+          <div className="dreamy-identity-main">
             <button
               type="button"
               className="dreamy-avatar"
@@ -319,97 +319,93 @@ export function ProfilePanel() {
                 <Camera size={14} aria-hidden="true" />
               </span>
             </button>
-          ) : (
-            <div className="dreamy-avatar is-guest">
-              <Heart size={34} aria-hidden="true" />
-            </div>
-          )}
-          <div className="dreamy-identity-copy">
-            <p className="eyebrow">{t(user ? 'nav.profile' : 'profile.eyebrow')}</p>
-            <h1>{user ? displayName : t('nav.profile')}</h1>
-            {/* <p className="dreamy-bio">
+            <div className="dreamy-identity-copy">
+              <p className="eyebrow">{t('nav.profile')}</p>
+              <h1>{displayName}</h1>
+              {/* <p className="dreamy-bio">
               {user && savedIdentity.bio ? savedIdentity.bio : t('profile.description')}
             </p> */}
-            {user && creator.profile?.joinedAt && (
-              <p className="dreamy-joined">
-                {t('creator.joined', {
-                  date: new Date(creator.profile.joinedAt).toLocaleDateString(locale, {
-                    month: 'long',
-                    year: 'numeric',
-                  }),
-                })}
-              </p>
-            )}
+              {user && creator.profile?.joinedAt && (
+                <p className="dreamy-joined">
+                  {t('creator.joined', {
+                    date: new Date(creator.profile.joinedAt).toLocaleDateString(locale, {
+                      month: 'long',
+                      year: 'numeric',
+                    }),
+                  })}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-        {user && (
-          <>
-            <div className="dreamy-header-actions">
-              <button
-                className="button secondary compact"
-                type="button"
-                onClick={() => selectTab('profile')}
-              >
-                <Pencil size={16} aria-hidden="true" />
-                {t('profile.tabEdit')}
-              </button>
-              <button
-                className="dreamy-share-button"
-                type="button"
-                aria-label={t('profile.shareProfile')}
-                title={t('profile.shareProfile')}
-                onClick={() => setShareUrl(publicAppUrl('/scroll/profile/', { user: user.id }))}
-              >
-                <Share2 size={18} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="button secondary compact"
-                onClick={() => void leaveProfile()}
-              >
-                <LogOut size={16} aria-hidden="true" />
-                {t('profile.signOut')}
-              </button>
-              {/* <Link className="dreamy-public-link" href={creatorHref(user.id)}>
+          {user && (
+            <>
+              <div className="dreamy-header-actions">
+                <button
+                  className="button secondary compact"
+                  type="button"
+                  onClick={() => selectTab('profile')}
+                >
+                  <Pencil size={16} aria-hidden="true" />
+                  {t('profile.tabEdit')}
+                </button>
+                <button
+                  className="dreamy-share-button"
+                  type="button"
+                  aria-label={t('profile.shareProfile')}
+                  title={t('profile.shareProfile')}
+                  onClick={() => setShareUrl(publicAppUrl('/scroll/profile/', { user: user.id }))}
+                >
+                  <Share2 size={18} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="button secondary compact"
+                  onClick={() => void leaveProfile()}
+                >
+                  <LogOut size={16} aria-hidden="true" />
+                  {t('profile.signOut')}
+                </button>
+                {/* <Link className="dreamy-public-link" href={creatorHref(user.id)}>
                 {t('creator.profileLink')}
                 <ArrowUpRight size={15} aria-hidden="true" />
               </Link> */}
-            </div>
-            <dl className="dreamy-social-counts">
-              {(
-                [
-                  ['creator.followers', creator.profile?.followerCount],
-                  ['creator.friends', creator.profile?.friendCount],
-                  ['creator.clips', creator.profile?.clipCount],
-                ] as const
-              ).map(([label, count]) => (
-                <div key={label}>
-                  <dt>{t(label)}</dt>
-                  <dd
-                    title={count?.toLocaleString(locale)}
-                    aria-label={count?.toLocaleString(locale)}
-                  >
-                    {count === undefined
-                      ? '\u2014'
-                      : new Intl.NumberFormat(locale, {
-                          notation: 'compact',
-                          maximumFractionDigits: 1,
-                        }).format(count)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            {creator.error && (
-              <div className="dreamy-count-error" role="alert">
-                <p>{t('profile.connectionError')}</p>
-                <button type="button" onClick={creator.refresh}>
-                  {t('common.retry')}
-                </button>
               </div>
-            )}
-          </>
-        )}
-      </header>
+              <dl className="dreamy-social-counts">
+                {(
+                  [
+                    ['creator.followers', creator.profile?.followerCount],
+                    ['creator.friends', creator.profile?.friendCount],
+                    ['creator.clips', creator.profile?.clipCount],
+                  ] as const
+                ).map(([label, count]) => (
+                  <div key={label}>
+                    <dt>{t(label)}</dt>
+                    <dd
+                      title={count?.toLocaleString(locale)}
+                      aria-label={count?.toLocaleString(locale)}
+                    >
+                      {count === undefined
+                        ? '\u2014'
+                        : new Intl.NumberFormat(locale, {
+                            notation: 'compact',
+                            maximumFractionDigits: 1,
+                          }).format(count)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {creator.error && (
+                <div className="dreamy-count-error" role="alert">
+                  <p>{t('profile.connectionError')}</p>
+                  <button type="button" onClick={creator.refresh}>
+                    {t('common.retry')}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </header>
+      )}
 
       {user && (
         <div id="dreamy-tabs" className="dreamy-tabs" role="tablist" aria-label={t('nav.profile')}>

@@ -1366,7 +1366,7 @@ export function ChatPage() {
         <span className="chat-signin-spark chat-signin-spark-two" />
       </div>
       <div className="chat-signin-copy">
-        <span className="chat-signin-kicker">{t('nav.chat')}</span>
+        {/* <span className="chat-signin-kicker">{t('nav.chat')}</span> */}
         <h1>{t('chat.title')}</h1>
         <p>{params.get('invite') ? t('chat.inviteSignIn') : t('chat.signInHint')}</p>
         <button className="button dark" onClick={() => void signInWithGoogle(`/chat/${params.toString() ? `?${params.toString()}` : ''}`)}><LogIn size={18} />{t('profile.googleSignIn')}</button>
@@ -1378,7 +1378,7 @@ export function ChatPage() {
     {error && <p className="chat-notice" role="status">{error}<button onClick={() => setError('')} aria-label={t('chat.dismiss')}><X size={15}/></button></p>}
     {status === 'unavailable' && <p className="chat-notice" role="status">{t('chat.connectionError')}</p>}
     <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}><aside className="chat-inbox"><div className="chat-inbox-header"><div className="chat-inbox-brand"><span className="chat-inbox-brand-icon" aria-hidden="true"><MessageCircle size={21}/></span><div><span className="eyebrow">{t('nav.chat')}</span><h2>{t('chat.inbox')}</h2></div></div><button type="button" className="chat-icon" onClick={() => void enableNotifications()} disabled={pushBusy || pushEnabled || status !== 'ready'} aria-label={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')} title={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')}><Bell size={17}/></button></div>
-      <Link className="chat-friends-link" href="/friends/"><span className="chat-friends-icon"><UsersRound size={19}/></span><span><strong>{t('friends.title')}</strong><small>{incomingCount ? t('friends.requestCount', { count: incomingCount }) : t('friends.description')}</small></span>{incomingCount > 0 && <span className="chat-friend-count" aria-label={t('friends.requestCount', { count: incomingCount })}>{incomingCount > 99 ? '99+' : incomingCount}</span>}<ArrowUpRight size={18} aria-hidden="true"/></Link>
+      <Link className="chat-friends-link" href="/friends/"><span className="chat-friends-icon"><UsersRound size={19}/></span><span><strong>{t('friends.title')}</strong><small>{incomingCount ? t('friends.requestCount', { count: incomingCount }) : t('')}</small></span>{incomingCount > 0 && <span className="chat-friend-count" aria-label={t('friends.requestCount', { count: incomingCount })}>{incomingCount > 99 ? '99+' : incomingCount}</span>}<ArrowUpRight size={18} aria-hidden="true"/></Link>
       <button type="button" className="chat-friend-compose" onClick={() => setFriendPickerOpen(true)}><UsersRound size={17}/>{t('friends.newGroup')}<Plus size={15}/></button>
       <div className="chat-search"><Search size={17}/><input value={query} onChange={event => { setQuery(event.target.value); setMatches([]); setSearchLoading(event.target.value.trim().length >= 2); }} placeholder={t('chat.searchUsername')} aria-label={t('chat.searchUsername')}/></div>
       {searchLoading && <div className="chat-search-loading"><LoadingIndicator label={t('common.loading')} /></div>}

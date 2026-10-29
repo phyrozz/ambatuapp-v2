@@ -176,7 +176,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </Link>
           <span className="beta-badge">{t('shell.beta')}</span>
         </div>
-        <p className="nav-label">{t('shell.dailyDose')}</p>
+        <div className="nav-divider" />
+        {/* <p className="nav-label">{t('shell.dailyDose')}</p> */}
         <nav aria-label={t('shell.mainNavigation')}>
           {nav.map(({ href, key, Icon }) => (
             <Link

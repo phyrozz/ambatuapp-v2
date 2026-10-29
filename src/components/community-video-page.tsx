@@ -150,7 +150,6 @@ export function CommunityVideoPage({ id }: { id: string }) {
       <div className="community-video-stage">{!videoReady && <div className="video-media-loading"><LoadingIndicator label={t('watch.openingVideo')} /></div>}<MediaPlayer src={video.videoUrl} autoPlay variant="watch" onLoadedData={() => setVideoReady(true)} onError={() => setVideoReady(true)} /></div>
       <div className="community-video-reader-copy">
         <div className="community-video-story">
-          <p className="eyebrow"><span className="watch-accent-dot" />{t('watch.communityEyebrow')}</p>
           <div className="community-video-title-row"><h1>{video.title}</h1>{video.uploaderId === user?.id && <button type="button" className="community-video-manage-button" onClick={() => setManageOpen(true)}><Pencil size={15}/>{t('watch.manageVideo')}</button>}</div>
           <span className="community-video-byline">{video.uploaderAvatarUrl && <img className="profile-avatar-inline" src={video.uploaderAvatarUrl} alt=""/>}{video.uploaderId && video.uploaderId !== user?.id ? <Link href={`/chat/?user=${encodeURIComponent(video.uploaderId)}&name=${encodeURIComponent(video.uploader)}`} aria-label={t('chat.messageUser', { name: video.uploader })}>{t('watch.uploadedBy', { email: video.uploader })}</Link> : t('watch.uploadedBy', { email: video.uploader })}</span>
           {video.description && <>
@@ -159,7 +158,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
               {descriptionExpanded ? <>{t('watch.showLessDescription')}<ChevronUp size={16}/></> : <>{t('watch.showMoreDescription')}<ChevronDown size={16}/></>}
             </button>}
           </>}
-          <div className="community-video-actions" aria-label={t('watch.communityEyebrow')}>
+          <div className="community-video-actions">
             <button className={`up ${userVote === 1 ? 'selected' : ''} ${votePulse === 'up' ? 'vote-pop' : ''}`} aria-label={`${t('lore.upvote')}: ${video.upvotes}`} aria-pressed={userVote === 1} onClick={() => void vote(1)}><ArrowBigUp size={20}/><span>{video.upvotes}</span></button>
             <button className={`down ${userVote === -1 ? 'selected' : ''} ${votePulse === 'down' ? 'vote-pop' : ''}`} aria-label={`${t('lore.downvote')}: ${video.downvotes}`} aria-pressed={userVote === -1} onClick={() => void vote(-1)}><ArrowBigDown size={20}/><span>{video.downvotes}</span></button>
             <span className="community-comment-count"><MessageCircle size={19}/>{video.commentCount}</span>

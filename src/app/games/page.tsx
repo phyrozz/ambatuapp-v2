@@ -6,11 +6,11 @@ export default function Games() {
   const { t } = useI18n();
   return (
     <div className="page games-page">
-      <div className="page-heading">
+      {/* <div className="page-heading">
         <p className="eyebrow">{t('games.eyebrow')}</p>
         <h1>{t('games.title')}</h1>
         <p>{t('games.description')}</p>
-      </div>
+      </div> */}
       <div className="game-grid game-library">
         {games.map((g) => (
           <GameCard key={g.id} game={g} />

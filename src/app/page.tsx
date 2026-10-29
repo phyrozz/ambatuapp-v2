@@ -89,13 +89,12 @@ export default function Home() {
         <span>✳</span>
       </div> */}
       {(communityVideosLoading || topLoresLoading || communityVideos.length > 0 || topLores.length > 0) && <section className="section home-community">
-        <SectionHeading eyebrow={t('home.communityEyebrow')} title={t('home.communityTitle')} />
+        <SectionHeading title={t('home.communityTitle')} />
         {(communityVideosLoading || communityVideos.length > 0) && <div className="home-community-block"><div className="home-community-title"><Play size={18}/><h3>{t('home.communityVideos')}</h3><Link href="/watch/">{t('home.exploreCommunityVideos')} <ArrowRight size={16}/></Link></div>{communityVideosLoading ? <div className="module-loading"><LoadingIndicator label={t('watch.loading')} /></div> : <div className="home-community-grid">{communityVideos.map(video => <Link href={`/watch/${video.id}/`} className="home-community-card" key={video.id}>{video.thumbnailUrl && <img src={video.thumbnailUrl} alt=""/>}<b>{video.title}</b><div className="home-community-stats"><span aria-label={`${t('lore.upvote')}: ${video.upvotes}`}><ArrowBigUp size={14} aria-hidden="true"/>{video.upvotes}</span><span aria-label={`${t('lore.downvote')}: ${video.downvotes}`}><ArrowBigDown size={14} aria-hidden="true"/>{video.downvotes}</span><span aria-label={`${t('lore.comments')}: ${video.commentCount}`}><MessageCircle size={14} aria-hidden="true"/>{video.commentCount}</span></div></Link>)}</div>}</div>}
         {(topLoresLoading || topLores.length > 0) && <div className="home-community-block"><div className="home-community-title"><BookOpen size={18}/><h3>{t('home.communityLore')}</h3><Link href="/lores/">{t('home.exploreLore')} <ArrowRight size={16}/></Link></div>{topLoresLoading ? <div className="module-loading"><LoadingIndicator label={t('lore.searchingArchive')} /></div> : <div className="home-community-grid">{topLores.map(lore => <Link href={`/lores/${lore.id}/`} className="home-community-card" key={lore.id}>{lore.imageUrls[0] && <img src={lore.imageUrls[0]} alt=""/>}<b>{lore.title}</b><div className="home-community-stats"><span aria-label={`${t('lore.upvote')}: ${lore.upvotes}`}><ArrowBigUp size={14} aria-hidden="true"/>{lore.upvotes}</span><span aria-label={`${t('lore.downvote')}: ${lore.downvotes}`}><ArrowBigDown size={14} aria-hidden="true"/>{lore.downvotes}</span><span aria-label={`${t('lore.comments')}: ${lore.commentCount}`}><MessageCircle size={14} aria-hidden="true"/>{lore.commentCount}</span></div></Link>)}</div>}</div>}
       </section>}
       <section className="section home-games-section">
         <SectionHeading
-          eyebrow={t('home.gamesEyebrow')}
           title={t('home.gamesTitle')}
           href="/games/"
           link={t('home.allGames')}
@@ -108,7 +107,6 @@ export default function Home() {
       </section>
       <section className="section sound-section home-sounds-section">
         <SectionHeading
-          eyebrow={t('home.soundsEyebrow')}
           title={t('home.soundsTitle')}
           href="/soundboard/"
           link={t('home.openSoundboard')}
@@ -143,7 +141,7 @@ export default function Home() {
           <Play size={27} fill="currentColor" />
         </span>
         <div>
-          <p className="eyebrow">{t('home.rabbitHole')}</p>
+          {/* <p className="eyebrow">{t('home.rabbitHole')}</p> */}
           <h2>{t('home.clipTitle')}</h2>
           <p>{t('home.clipBody')}</p>
         </div>

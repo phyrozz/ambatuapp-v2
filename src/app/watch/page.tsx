@@ -5,11 +5,11 @@ export default function Watch() {
   const { t } = useI18n();
   return (
     <div className="page watch-page">
-      <div className="page-heading watch-page-heading">
+      {/* <div className="page-heading watch-page-heading">
         <p className="eyebrow">{t('watch.eyebrow')}</p>
         <h1>{t('watch.title')}</h1>
         <p>{t('watch.description')}</p>
-      </div>
+      </div> */}
       <WatchFeed />
     </div>
   );

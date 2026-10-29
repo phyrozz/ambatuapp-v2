@@ -2,7 +2,7 @@
 import { LogIn, Play } from 'lucide-react';
 import { useI18n } from './i18n-provider';
 
-export function ScrollSignInCard({ title, configured, error, onSignIn }: { title: string; configured: boolean; error: boolean; onSignIn: () => void }) {
+export function ScrollSignInCard({ title, configured, error, onSignIn }: { title?: string; configured: boolean; error: boolean; onSignIn: () => void }) {
   const { t } = useI18n();
   return (
     <div className="scroll-signin-card">
@@ -14,7 +14,7 @@ export function ScrollSignInCard({ title, configured, error, onSignIn }: { title
         <span className="scroll-signin-spark scroll-signin-spark-two" />
       </div>
       <div className="scroll-signin-copy">
-        <span className="scroll-signin-kicker">{t(title)}</span>
+        {title && <span className="scroll-signin-kicker">{t(title)}</span>}
         <h2>{t('social.signIn')}</h2>
         <button className="button dark scroll-signin-button" disabled={!configured} onClick={onSignIn}><LogIn size={18} />{t('profile.googleSignIn')}</button>
         {(!configured || error) && <p className="scroll-signin-error" role="alert">{t('social.error')}</p>}

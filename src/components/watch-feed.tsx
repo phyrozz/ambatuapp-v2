@@ -42,7 +42,7 @@ export function WatchFeed() {
   return (
     <>
       <CommunityWatch />
-      <form
+      {/* <form
         className="watch-search"
         onSubmit={(e) => {
           e.preventDefault();
@@ -64,7 +64,7 @@ export function WatchFeed() {
           {t('watch.searchYouTube')}
           <ArrowUpRight size={16} />
         </button>
-      </form>
+      </form> */}
       {status === 'loading' && (
         <div className="module-loading">
           <LoadingIndicator label={t('watch.loading')} />
@@ -106,45 +106,6 @@ export function WatchFeed() {
             description={t('watch.noneHint')}
           />
         ))}
-      {status !== 'ready' && (
-        <>
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">{t('watch.pick')}</p>
-              <h2>{t('watch.originals')}</h2>
-            </div>
-          </div>
-          {charactersLoading ? <div className="module-loading"><LoadingIndicator label={t('characters.loading')} /></div> : <div className="video-grid">
-            {characters
-              .filter((c) =>
-                ['dreamy', 'yes_king', 'kakangku', 'nissan', 'bunda', 'bus_soldier'].includes(c.id),
-              )
-              .map((c) => (
-                <button
-                  className="video-card"
-                  key={c.id}
-                  onClick={() =>
-                    void openExternal(
-                      `https://www.youtube.com/results?search_query=${encodeURIComponent(c.name + ' memes')}`,
-                    )
-                  }
-                >
-                  {c.header && <img src={c.header} alt="" />}
-                  <h3>
-                    {c.name}
-                    <span className="orange-text"> ↗</span>
-                  </h3>
-                  <p>{t('watch.exploreYouTube')}</p>
-                </button>
-              ))}
-          </div>}
-          {status === 'unconfigured' && (
-            <p className="feed-notice">
-              {t('watch.unconfigured')}
-            </p>
-          )}
-        </>
-      )}
     </>
   );
 }

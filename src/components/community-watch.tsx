@@ -100,17 +100,12 @@ export function CommunityWatch() {
   }
 
   return <section className="community-watch" aria-labelledby="community-watch-title">
-    <div className="community-watch-heading">
-      <div className="community-watch-intro">
-        <p className="eyebrow"><span className="watch-accent-dot" />{t('watch.communityEyebrow')}</p>
-        <h2 id="community-watch-title">{t('watch.communityTitle')}</h2>
-        <p>{t('watch.communityDescription')}</p>
-      </div>
+    <AdBanner />
+    <div className="community-watch-toolbar">
+      <SortPicker value={sort} onChange={changeSort} disabled={!videos.length} options={[{ value: 'upvotes', label: t('common.sortPopularity') }, { value: 'newest', label: t('common.sortNewest') }, { value: 'relevance', label: t('common.sortRelevance') }]} />
       {user ? <button className="button dark compact" onClick={() => setUploadOpen(true)}><Upload size={16}/>{t('watch.upload')}</button> : <span className="watch-signin-note">{t('watch.signInUpload')}</span>}
     </div>
-    <div className="community-watch-toolbar"><SortPicker value={sort} onChange={changeSort} disabled={!videos.length} options={[{ value: 'upvotes', label: t('common.sortPopularity') }, { value: 'newest', label: t('common.sortNewest') }, { value: 'relevance', label: t('common.sortRelevance') }]} /></div>
     {uploadOpen && <VideoUploadDialog onClose={() => setUploadOpen(false)} onPublished={created => { setError(''); setVideos(items => orderVideos([created, ...items], sort)); }}/>}
-    <AdBanner />
 
     {loading ? <div className="module-loading"><LoadingIndicator label={t('watch.loading')} /></div> : error ? <p className="feed-notice" role="alert">{error}</p> : videos.length ? <div className="community-video-grid">{videos.map(video => <article className="community-video-card" key={video.id}>
       <Link className="community-video-thumb" href={`/watch/${video.id}/`} aria-label={video.title}>{video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" loading="lazy"/> : <Video size={38}/>}</Link>
