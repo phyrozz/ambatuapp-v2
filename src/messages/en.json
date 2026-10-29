@@ -836,5 +836,9 @@
   "tour.skip": "Skip tour",
   "tour.back": "Back",
   "tour.next": "Next",
-  "tour.finish": "Finish tour"
+  "tour.finish": "Finish tour",
+  "maintenance.eyebrow": "A little tune-up",
+  "maintenance.title": "OH MAY GOT... we'll be back.",
+  "maintenance.description": "AmbatuApp is down for maintenance right now. We'll be back bussin' soon!",
+  "maintenance.thanks": "Thanks for hanging in there!"
 }

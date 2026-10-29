@@ -836,5 +836,9 @@
   "tour.skip": "Lewatkan tur",
   "tour.back": "Kembali",
   "tour.next": "Berikutnya",
-  "tour.finish": "Selesaikan tur"
+  "tour.finish": "Selesaikan tur",
+  "maintenance.eyebrow": "A little tune-up",
+  "maintenance.title": "OH MAY GOT... we'll be back.",
+  "maintenance.description": "AmbatuApp is down for maintenance right now. We'll be back bussin' soon, so come back later, king.",
+  "maintenance.thanks": "Thanks for hanging in there!"
 }
