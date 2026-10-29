@@ -150,7 +150,6 @@ export function GamePlayer({ id }: { id: GameId }) {
           <ArrowLeft size={21} />
         </Link>
         <div className="game-session-title">
-          <p className="eyebrow">{t(`game.${game.id}.category`)}</p>
           <h1>{game.name}</h1>
         </div>
         <div className="game-session-score">
@@ -838,13 +837,13 @@ function ArcadeGame({
         />
         {status !== 'playing' && (
           <div className="game-overlay">
-            <span className="eyebrow">
-              {status === 'over'
-                ? t('arcade.tryAgain')
-                : status === 'paused'
-                  ? t('arcade.breather')
-                  : t('arcade.highScore')}
-            </span>
+            {status !== 'ready' && (
+              <span className="eyebrow">
+                {status === 'over'
+                  ? t('arcade.tryAgain')
+                  : t('arcade.breather')}
+              </span>
+            )}
             <h2>
               {status === 'over'
                 ? t('arcade.goodRun')
@@ -854,13 +853,15 @@ function ArcadeGame({
                     ? t('arcade.filledBoard')
                     : t('arcade.ready')}
             </h2>
-            <p>
-              {status === 'over' || status === 'won'
-                ? t('arcade.scored', { score })
-                : kind === 'ambatusnake'
-                  ? t('arcade.snakeHint')
-                  : t('arcade.flappyHint')}
-            </p>
+            {status !== 'ready' && (
+              <p>
+                {status === 'over' || status === 'won'
+                  ? t('arcade.scored', { score })
+                  : kind === 'ambatusnake'
+                    ? t('arcade.snakeHint')
+                    : t('arcade.flappyHint')}
+              </p>
+            )}
             <button
               className="button dark"
               onClick={() => (status === 'paused' ? changeStatus('playing') : start())}

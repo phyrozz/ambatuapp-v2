@@ -9,24 +9,28 @@ import type { Character } from '@/lib/characters';
 import { useApp } from './app-provider';
 import { useI18n } from './i18n-provider';
 import { SoundPlayback } from './sound-playback';
-export function GameCard({ game }: { game: (typeof games)[number] }) {
+export function GameCard({ game, showDescription = true, showCategory = true, showTag = true, showLaunch = true }: { game: (typeof games)[number]; showDescription?: boolean; showCategory?: boolean; showTag?: boolean; showLaunch?: boolean }) {
   const { t } = useI18n();
   return (
     <Link href={`/games/${game.id}/`} className={`game-card ${game.color}`}>
       <div className={`game-art art-${game.id}`}>
         <GameArtwork id={game.id} />
-        <span className="game-tag">{t(`game.${game.id}.tag`)}</span>
-        <span className="game-launch">
-          <ArrowUpRight size={22} />
-        </span>
+        {showTag && <span className="game-tag">{t(`game.${game.id}.tag`)}</span>}
+        {showLaunch && (
+          <span className="game-launch">
+            <ArrowUpRight size={22} />
+          </span>
+        )}
       </div>
       <div className="game-info">
-        <small>
-          <Gamepad2 size={13} />
-          {t(`game.${game.id}.category`)}
-        </small>
+        {showCategory && (
+          <small>
+            <Gamepad2 size={13} />
+            {t(`game.${game.id}.category`)}
+          </small>
+        )}
         <h3>{game.name}</h3>
-        <p>{t(`game.${game.id}.description`)}</p>
+        {showDescription && <p>{t(`game.${game.id}.description`)}</p>}
       </div>
     </Link>
   );
