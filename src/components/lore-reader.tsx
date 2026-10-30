@@ -37,10 +37,16 @@ export function LoreReader({ id }: { id: string }) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [commentsCursor, setCommentsCursor] = useState<string | null>(null);
+  const [commentsMoreLoading, setCommentsMoreLoading] = useState(false);
+  const [commentsMoreError, setCommentsMoreError] = useState(false);
   const [commentsError, setCommentsError] = useState('');
   const [commentsActionError, setCommentsActionError] = useState('');
   const [loginOpen, setLoginOpen] = useState(false);
   const recordedViews = useRef(new Set<string>());
+  const commentsSentinel = useRef<HTMLDivElement>(null);
+  const commentsRequest = useRef(false);
+  const commentsGeneration = useRef(0);
 
   async function load() {
     const token = await getIdToken();
@@ -54,6 +60,12 @@ export function LoreReader({ id }: { id: string }) {
     setLoading(true);
     setError('');
     setComments([]);
+    commentsGeneration.current++;
+    commentsRequest.current = false;
+    setCommentsLoading(false);
+    setCommentsCursor(null);
+    setCommentsMoreLoading(false);
+    setCommentsMoreError(false);
     setCommentsLoaded(false);
     setCommentsOpen(false);
     setReplyingTo(null);
@@ -87,24 +99,54 @@ export function LoreReader({ id }: { id: string }) {
     }
   }
 
-  async function loadComments() {
-    setCommentsLoading(true);
+  async function loadComments(next: string | null = null) {
+    if (commentsRequest.current) return false;
+    const generation = commentsGeneration.current;
+    commentsRequest.current = true;
+    if (next) setCommentsMoreLoading(true); else setCommentsLoading(true);
     setCommentsError('');
+    setCommentsMoreError(false);
     try {
       const token = await getIdToken();
-      const response = await fetch(`${base()}/lores/${encodeURIComponent(id)}/comments`, { cache: 'no-store', headers: token ? { authorization: `Bearer ${token}` } : {} });
+      const params = new URLSearchParams({ limit: '20' });
+      if (next) params.set('cursor', next);
+      const response = await fetch(`${base()}/lores/${encodeURIComponent(id)}/comments?${params}`, { cache: 'no-store', headers: token ? { authorization: `Bearer ${token}` } : {} });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || t('lore.loadError'));
-      setComments(data.comments ?? []);
+      if (generation !== commentsGeneration.current) return false;
+      const page: Comment[] = Array.isArray(data.comments) ? data.comments : [];
+      setComments(current => {
+        if (!next) return page;
+        const known = new Set(current.map(item => item.id));
+        return [...current, ...page.filter(item => !known.has(item.id))];
+      });
+      setCommentsCursor(typeof data.nextCursor === 'string' ? data.nextCursor : null);
       setCommentsLoaded(true);
       return true;
     } catch (reason) {
-      setCommentsError(reason instanceof Error ? reason.message : t('lore.loadError'));
+      if (generation === commentsGeneration.current) {
+        if (next) setCommentsMoreError(true);
+        else setCommentsError(reason instanceof Error ? reason.message : t('lore.loadError'));
+      }
       return false;
     } finally {
-      setCommentsLoading(false);
+      if (generation === commentsGeneration.current) {
+        commentsRequest.current = false;
+        setCommentsLoading(false);
+        setCommentsMoreLoading(false);
+      }
     }
   }
+
+  useEffect(() => {
+    const target = commentsSentinel.current;
+    if (!target || !commentsOpen || !commentsCursor || commentsLoading || commentsMoreLoading || commentsMoreError) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) void loadComments(commentsCursor);
+    }, { rootMargin: '300px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [commentsOpen, commentsCursor, commentsLoading, commentsMoreLoading, commentsMoreError]);
 
   async function openComments() {
     const opening = !commentsOpen;
@@ -221,6 +263,16 @@ export function LoreReader({ id }: { id: string }) {
           onReplyCancel={() => { setReplyingTo(null); setReplyText(''); }}
           onReplySubmit={commentId => void post(replyText, commentId)}
         />}
+        {commentsCursor && (
+          <div ref={commentsSentinel}>
+            {commentsMoreLoading && <LoadingIndicator label={t('common.loading')} compact />}
+            {commentsMoreError && (
+              <button type="button" onClick={() => void loadComments(commentsCursor)}>
+                {t('common.retry')}
+              </button>
+            )}
+          </div>
+        )}
       </section>}
     </article>
     {loginOpen && <div className="auth-popup" role="dialog" aria-modal="true"><div><button className="icon-button" onClick={() => setLoginOpen(false)} aria-label="Close"><X size={17}/></button><h2>{t('lore.loginTitle')}</h2><p>{t('lore.loginHint')}</p><button className="button dark" onClick={() => void signInWithGoogle(`${window.location.pathname}${window.location.search}`)}><LogIn size={17}/>{t('profile.googleSignIn')}</button></div></div>}
