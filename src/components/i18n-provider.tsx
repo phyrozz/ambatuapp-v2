@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import en from '@/messages/en.json';
 import id from '@/messages/id.json';
 
@@ -27,13 +28,29 @@ function isLocale(value: unknown): value is Locale {
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
+  const selectionMade = useRef(false);
 
-  // Hydrate the browser preference after mount so static HTML stays deterministic.
+  // Resolve the preference after mount so static HTML stays deterministic.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const saved = localStorage.getItem('ambatuapp-locale');
-    const browser = navigator.language.toLowerCase().startsWith('id') ? 'id' : 'en';
-    setLocaleState(isLocale(saved) ? saved : browser);
+    if (isLocale(saved)) {
+      setLocaleState(saved);
+      return;
+    }
+    if (Capacitor.isNativePlatform()) {
+      setLocaleState(navigator.language.toLowerCase().startsWith('id') ? 'id' : 'en');
+      return;
+    }
+    let active = true;
+    fetch('/locale-country.txt', { cache: 'no-store' })
+      .then(response => {
+        if (active && !selectionMade.current && response.ok) {
+          setLocaleState(response.headers.get('x-ambatu-default-locale') === 'id' ? 'id' : 'en');
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -46,6 +63,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     locales: ['en', 'id'],
     localeNames,
     setLocale(next) {
+      selectionMade.current = true;
       setLocaleState(next);
       localStorage.setItem('ambatuapp-locale', next);
     },

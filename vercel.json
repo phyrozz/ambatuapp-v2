@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    {
+      "source": "/locale-country.txt",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Vary", "value": "X-Vercel-IP-Country" }
+      ]
+    },
+    {
+      "source": "/locale-country.txt",
+      "has": [{ "type": "header", "key": "x-vercel-ip-country", "value": "ID" }],
+      "headers": [{ "key": "X-Ambatu-Default-Locale", "value": "id" }]
+    }
+  ]
+}

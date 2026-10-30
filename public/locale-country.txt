@@ -1,0 +1,1 @@
+Language default determined by hosting response headers.
