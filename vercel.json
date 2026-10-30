@@ -13,5 +13,12 @@
       "has": [{ "type": "header", "key": "x-vercel-ip-country", "value": "ID" }],
       "headers": [{ "key": "X-Ambatu-Default-Locale", "value": "id" }]
     }
+  ],
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/index.html"
+    }
   ]
 }
