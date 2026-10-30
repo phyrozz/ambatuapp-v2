@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowBigDown, ArrowBigUp, ArrowLeft, ChevronDown, ChevronUp, MessageCircle, Pencil, Send } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
@@ -34,6 +34,10 @@ export function CommunityVideoPage({ id }: { id: string }) {
   const [commentsError, setCommentsError] = useState('');
   const [commentsActionError, setCommentsActionError] = useState('');
   const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentsCursor, setCommentsCursor] = useState<string | null>(null);
+  const [commentsMoreLoading, setCommentsMoreLoading] = useState(false);
+  const [commentsMoreError, setCommentsMoreError] = useState(false);
+  const commentsSentinel = useRef<HTMLDivElement>(null), commentsGeneration = useRef(0), commentsRequest = useRef(false);
   const [videoReady, setVideoReady] = useState(false);
   const [userVote, setUserVote] = useState(0);
   const [votePulse, setVotePulse] = useState<'up' | 'down' | null>(null);
@@ -45,6 +49,10 @@ export function CommunityVideoPage({ id }: { id: string }) {
   useEffect(() => {
     window.scrollTo(0, 0);
     const controller = new AbortController();
+    const currentGeneration = commentsGeneration;
+    commentsGeneration.current++;
+    commentsRequest.current = false;
+    setCommentsCursor(null); setCommentsMoreLoading(false); setCommentsMoreError(false);
     setVideo(null); setComments([]); setError(''); setCommentsError(''); setCommentsActionError(''); setCommentsLoading(true); setVideoReady(false); setDescriptionExpanded(false); setReplyingTo(null); setReplyText('');
     void getIdToken().then(token => {
       const headers: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {};
@@ -54,7 +62,7 @@ export function CommunityVideoPage({ id }: { id: string }) {
         .catch(reason => { if (reason.name !== 'AbortError') setError(reason instanceof Error ? reason.message : t('watch.communityError')); });
       fetch(`${base()}/${encodeURIComponent(id)}/comments`, { cache: 'no-store', headers, signal: controller.signal })
         .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error || t('watch.communityError')); return data; })
-        .then(thread => setComments(thread.comments ?? []))
+        .then(thread => { setComments(thread.comments ?? []); setCommentsCursor(typeof thread.nextCursor === 'string' ? thread.nextCursor : null); })
         .catch(reason => { if (reason.name !== 'AbortError') setCommentsError(reason instanceof Error ? reason.message : t('watch.communityError')); })
         .finally(() => { if (!controller.signal.aborted) setCommentsLoading(false); });
     }).catch(reason => {
@@ -63,9 +71,36 @@ export function CommunityVideoPage({ id }: { id: string }) {
         setCommentsLoading(false);
       }
     });
-    return () => controller.abort();
+    return () => { controller.abort(); currentGeneration.current++; };
   }, [id, t, user?.id, getIdToken]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  const loadMoreComments = useCallback(async () => {
+    if (!commentsCursor || commentsLoading || commentsRequest.current) return;
+    const generation = commentsGeneration.current;
+    commentsRequest.current = true;
+    setCommentsMoreLoading(true); setCommentsMoreError(false);
+    try {
+      const token = await getIdToken();
+      const params = new URLSearchParams({ limit: '20', cursor: commentsCursor });
+      const response = await fetch(`${base()}/${encodeURIComponent(id)}/comments?${params}`, { cache: 'no-store', headers: token ? { authorization: `Bearer ${token}` } : {} });
+      const data = await response.json();
+      if (!response.ok) throw new Error();
+      if (generation !== commentsGeneration.current) return;
+      setComments(items => {
+        const known = new Set(items.map(item => item.id));
+        return [...items, ...(Array.isArray(data.comments) ? (data.comments as Comment[]).filter(item => !known.has(item.id)) : [])];
+      });
+      setCommentsCursor(typeof data.nextCursor === 'string' ? data.nextCursor : null);
+    } catch { if (generation === commentsGeneration.current) setCommentsMoreError(true); }
+    finally { if (generation === commentsGeneration.current) { commentsRequest.current = false; setCommentsMoreLoading(false); } }
+  }, [commentsCursor, commentsLoading, getIdToken, id]);
+  useEffect(() => {
+    const target = commentsSentinel.current;
+    if (!target || !commentsCursor || commentsLoading || commentsMoreLoading || commentsMoreError) return;
+    const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) void loadMoreComments(); }, { rootMargin: '150px' });
+    observer.observe(target); return () => observer.disconnect();
+  }, [commentsCursor, commentsLoading, commentsMoreLoading, commentsMoreError, loadMoreComments]);
 
   async function vote(value: 1 | -1) {
     if (!video) return;
@@ -179,6 +214,12 @@ export function CommunityVideoPage({ id }: { id: string }) {
             onReplyCancel={() => { setReplyingTo(null); setReplyText(''); }}
             onReplySubmit={commentId => void postComment(replyText, commentId)}
           />}</div>
+          {commentsCursor && (
+            <div ref={commentsSentinel}>
+              {commentsMoreLoading && <LoadingIndicator label={t('common.loading')} compact />}
+              {commentsMoreError && <button type="button" onClick={() => void loadMoreComments()}>{t('common.retry')}</button>}
+            </div>
+          )}
         </section>
       </div>
     </article>}
