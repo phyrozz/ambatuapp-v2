@@ -73,14 +73,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const adDisabled = routePath.startsWith('/games/') || routePath === '/soundboard/' || routePath === '/chat/' || ['/privacy/', '/terms/'].includes(routePath) || Boolean(current);
   const allowInterstitialLinks = ['/', '/explore/', '/lores/', '/characters/'].includes(routePath) && !current && !Capacitor.isNativePlatform();
   useEffect(() => {
-    if (path === '/' && isStandalonePwa() && new URLSearchParams(window.location.search).get('home') !== '1') {
+    if (path === '/' && (isStandalonePwa() || window.matchMedia('(max-width: 760px)').matches) && new URLSearchParams(window.location.search).get('home') !== '1') {
       router.replace('/scroll/');
     }
   }, [path, router]);
   useEffect(() => { installPushNavigation(() => null, locale, user?.id ?? null, url => router.push(url)); }, [locale, user?.id, router]);
   const openPwaHomepage = (event: ReactMouseEvent<HTMLAnchorElement>) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (!isStandalonePwa()) return;
+    if (!isStandalonePwa() && !window.matchMedia('(max-width: 760px)').matches) return;
     event.preventDefault();
     router.push('/?home=1');
   };
