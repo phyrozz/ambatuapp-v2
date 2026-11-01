@@ -15,6 +15,7 @@ import { ChatSoundCard, ChatSoundPicker } from './chat-soundboard';
 import { ChatReactions } from './chat-reactions';
 import { CustomCheckbox } from './custom-checkbox';
 import { ChatGroupMembers } from './chat-group-members';
+import { ChatImagePreview } from './chat-image-preview';
 import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
 import { cachedConversationNames, ChatSocket, withCurrentNames, type ChatConversation, type ChatMessage } from '@/lib/chat';
 import { deleteCachedConversation, loadCachedChatAvatars, loadCachedChatMedia, loadCachedConversations, loadCachedMessages, replaceCachedConversations, saveCachedChatAvatars, saveCachedConversations, saveCachedMessages, selectChatAvatar, type CachedChatAvatar } from '@/lib/chat-cache';
@@ -287,11 +288,18 @@ function ChatMessageBody({ text, conversation }: { text: unknown; conversation: 
 }
 
 function ChatMessageImage({ src, alt, onLoad }: { src?: string; alt: string; onLoad?: () => void }) {
+  const { t } = useI18n();
   const [loaded, setLoaded] = useState(false);
-  return <span className="chat-message-image" data-loaded={loaded || undefined}>
-    <span className="chat-message-image-placeholder" aria-hidden="true" />
-    <img src={src} alt={alt} onLoad={() => { setLoaded(true); onLoad?.(); }} />
-  </span>;
+  const [previewOpen, setPreviewOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="chat-message-image" data-loaded={loaded || undefined} data-message-control="" aria-label={t('chat.openImagePreview')} disabled={!loaded || !src} onClick={() => setPreviewOpen(true)}>
+        <span className="chat-message-image-placeholder" aria-hidden="true" />
+        <img src={src} alt={alt} onLoad={() => { setLoaded(true); onLoad?.(); }} />
+      </button>
+      {previewOpen && src && <ChatImagePreview src={src} alt={alt} onClose={() => setPreviewOpen(false)} />}
+    </>
+  );
 }
 
 function ChatCachedMedia({ message, userId, alt, onLoad }: { message: ChatMessage; userId: string; alt: string; onLoad: () => void }) {
