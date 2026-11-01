@@ -1,16 +1,20 @@
 import type { ChatConversation, ChatMessage } from './chat';
 
 const databaseName = 'ambatuchat-cache';
-const databaseVersion = 2;
+const databaseVersion = 3;
 const conversationStoreName = 'conversations';
 const messageStoreName = 'messages';
 const avatarStoreName = 'avatars';
+const mediaStoreName = 'media';
 const maxCachedMessagesPerConversation = 300;
 const mediaUrlLifetimeMs = 55 * 60 * 1000;
+export const maxChatMediaBytes = 5 * 1024 * 1024;
+const maxCachedMediaBytesPerUser = 100 * 1024 * 1024;
 
 type CachedConversation = ChatConversation & { userId: string };
 type CachedMessage = ChatMessage & { userId: string; cacheKey: string; mediaUrlExpiresAt?: number };
 export type CachedChatAvatar = { id: string; url: string; expiresAt: number };
+type CachedMedia = { userId: string; conversationId: string; key: string; blob: Blob; size: number; lastAccessed: number };
 
 let databasePromise: Promise<IDBDatabase | null> | null = null;
 
@@ -33,6 +37,11 @@ function openDatabase() {
       if (!database.objectStoreNames.contains(avatarStoreName)) {
         const avatars = database.createObjectStore(avatarStoreName, { keyPath: ['userId', 'id'] });
         avatars.createIndex('by-user', 'userId');
+      }
+      if (!database.objectStoreNames.contains(mediaStoreName)) {
+        const media = database.createObjectStore(mediaStoreName, { keyPath: ['userId', 'conversationId', 'key'] });
+        media.createIndex('by-user', 'userId');
+        media.createIndex('by-user-conversation', ['userId', 'conversationId']);
       }
     };
     request.onsuccess = () => {
@@ -93,6 +102,38 @@ export async function saveCachedChatAvatars(userId: string, ids: string[], avata
     if (avatar) store.put({ ...avatar, userId });
     else store.delete([userId, id]);
   }
+  await transactionFinished(transaction);
+}
+
+export async function loadCachedChatMedia(userId: string, conversationId: string, key: string): Promise<Blob | null> {
+  const database = await openDatabase();
+  if (!database) return null;
+  const transaction = database.transaction(mediaStoreName, 'readwrite');
+  const store = transaction.objectStore(mediaStoreName);
+  const record = await requestResult(store.get([userId, conversationId, key])) as CachedMedia | undefined;
+  if (record) store.put({ ...record, lastAccessed: Date.now() });
+  await transactionFinished(transaction);
+  return record?.blob ?? null;
+}
+
+export async function saveCachedChatMedia(userId: string, conversationId: string, key: string, blob: Blob) {
+  if (!blob.size || blob.size > maxChatMediaBytes) return;
+  const database = await openDatabase();
+  if (!database) return;
+  const transaction = database.transaction(mediaStoreName, 'readwrite');
+  const store = transaction.objectStore(mediaStoreName);
+  const request = store.index('by-user').getAll(IDBKeyRange.only(userId));
+  request.onsuccess = () => {
+    const existing = (request.result as CachedMedia[]).filter(record => record.conversationId !== conversationId || record.key !== key);
+    let bytes = existing.reduce((sum, record) => sum + record.size, blob.size);
+    existing.sort((a, b) => a.lastAccessed - b.lastAccessed);
+    for (const record of existing) {
+      if (bytes <= maxCachedMediaBytesPerUser) break;
+      store.delete([userId, record.conversationId, record.key]);
+      bytes -= record.size;
+    }
+    store.put({ userId, conversationId, key, blob, size: blob.size, lastAccessed: Date.now() } satisfies CachedMedia);
+  };
   await transactionFinished(transaction);
 }
 
@@ -201,12 +242,19 @@ export async function saveCachedMessages(userId: string, conversationId: string,
 export async function deleteCachedConversation(userId: string, conversationId: string) {
   const database = await openDatabase();
   if (!database) return;
-  const transaction = database.transaction([conversationStoreName, messageStoreName], 'readwrite');
+  const transaction = database.transaction([conversationStoreName, messageStoreName, mediaStoreName], 'readwrite');
   transaction.objectStore(conversationStoreName).delete([userId, conversationId]);
   const range = IDBKeyRange.only([userId, conversationId]);
-  const request = transaction.objectStore(messageStoreName).index('by-user-conversation').openKeyCursor(range);
+  const request = transaction.objectStore(messageStoreName).index('by-user-conversation').openCursor(range);
   request.onsuccess = () => {
     const cursor = request.result;
+    if (!cursor) return;
+    cursor.delete();
+    cursor.continue();
+  };
+  const mediaRequest = transaction.objectStore(mediaStoreName).index('by-user-conversation').openCursor(range);
+  mediaRequest.onsuccess = () => {
+    const cursor = mediaRequest.result;
     if (!cursor) return;
     cursor.delete();
     cursor.continue();

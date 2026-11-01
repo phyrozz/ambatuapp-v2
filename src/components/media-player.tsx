@@ -12,6 +12,7 @@ type MediaPlayerProps = {
   onLoadedMetadata?: () => void;
   onLoadedData?: () => void;
   onError?: () => void;
+  onPlay?: () => void;
 };
 type MediaProgressStyle = CSSProperties & { '--media-progress': string };
 
@@ -31,6 +32,7 @@ export function MediaPlayer({
   onLoadedMetadata,
   onLoadedData,
   onError,
+  onPlay,
 }: MediaPlayerProps) {
   const { t } = useI18n();
   const player = useRef<HTMLDivElement>(null);
@@ -129,6 +131,7 @@ export function MediaPlayer({
         onPlay={() => {
           setPlaying(true);
           scheduleControlsHide();
+          onPlay?.();
         }}
         onPause={() => {
           setPlaying(false);
