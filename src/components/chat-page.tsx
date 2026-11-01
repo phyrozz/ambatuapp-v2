@@ -16,8 +16,8 @@ import { ChatReactions } from './chat-reactions';
 import { CustomCheckbox } from './custom-checkbox';
 import { ChatGroupMembers } from './chat-group-members';
 import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
-import { ChatSocket, withCurrentNames, type ChatConversation, type ChatMessage } from '@/lib/chat';
-import { deleteCachedConversation, loadCachedConversations, loadCachedMessages, saveCachedConversations, saveCachedMessages } from '@/lib/chat-cache';
+import { cachedConversationNames, ChatSocket, withCurrentNames, type ChatConversation, type ChatMessage } from '@/lib/chat';
+import { deleteCachedConversation, loadCachedChatAvatars, loadCachedConversations, loadCachedMessages, replaceCachedConversations, saveCachedChatAvatars, saveCachedConversations, saveCachedMessages, selectChatAvatar, type CachedChatAvatar } from '@/lib/chat-cache';
 import { initializePlayerProfile } from '@/lib/player-profile';
 import { enableChatPush, installPushNavigation, syncChatPush } from '@/lib/push-notifications';
 import { useFriendRequests } from './friend-request-provider';
@@ -43,6 +43,13 @@ function mergeConversations(existing: ChatConversation[], incoming: ChatConversa
   const merged = new Map(existing.map(item => [item.id, item]));
   incoming.forEach(item => merged.set(item.id, item));
   return [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function ChatAvatarImage({ src, fallback }: { src: string; fallback: string }) {
+  const [failed, setFailed] = useState(false);
+  return failed ? fallback : (
+    <img src={src} alt="" aria-hidden="true" onError={() => setFailed(true)} />
+  );
 }
 
 function mergeMessages(existing: ChatMessage[], incoming: ChatMessage[]) {
@@ -85,32 +92,6 @@ function getChatMessageSenderName(senderId: unknown, names: Record<string, strin
   if (senderId === currentUserId && typeof currentUserName === 'string' && currentUserName.trim()) return currentUserName.trim();
   if (senderId === currentUserId) return missingName;
   return senderId;
-}
-
-function loadAvatarImage(url: string) {
-  return new Promise<boolean>(resolve => {
-    const image = new Image();
-    let finished = false;
-    const finish = (loaded: boolean) => {
-      if (finished) return;
-      finished = true;
-      window.clearTimeout(timeout);
-      image.onload = null;
-      image.onerror = null;
-      resolve(loaded);
-    };
-    const timeout = window.setTimeout(() => finish(false), 10000);
-    image.onload = () => finish(true);
-    image.onerror = () => finish(false);
-    image.src = url;
-    if (image.complete) finish(image.naturalWidth > 0);
-  });
-}
-
-async function preloadAvatarImages(urls: string[]) {
-  const uniqueUrls = [...new Set(urls)];
-  const loaded = await Promise.all(uniqueUrls.map(loadAvatarImage));
-  return new Set(uniqueUrls.filter((_, index) => loaded[index]));
 }
 
 async function compressPhotoToJpeg(file: File): Promise<File> {
@@ -385,6 +366,7 @@ export function ChatPage() {
   const activeRef = useRef('');
   const activeGeneration = useRef(0);
   const conversationRefreshVersion = useRef(0);
+  const receivedConversationPage = useRef(false);
   const conversationReadVersions = useRef(new Map<string, number>());
   const latestReadTargets = useRef(new Map<string, string>());
   const readRequestIds = useRef(new Map<string, number>());
@@ -393,6 +375,7 @@ export function ChatPage() {
   const initialInvite = useRef(false);
   const resolvedNames = useRef<Record<string, string>>({});
   const resolvedAvatarUrls = useRef<Record<string, string>>({});
+  const cachedAvatars = useRef<Record<string, CachedChatAvatar>>({});
   const resolvedProfileIds = useRef(new Set<string>());
   const lastNamesFetch = useRef(0);
   const conversationCursor = useRef<ConversationCursor | null>(null);
@@ -519,11 +502,12 @@ export function ChatPage() {
     if (status === 'ready' && userId && socket.current) void syncChatPush(socket.current, locale, userId);
   }, [locale, status, userId]);
 
-  const hydrateConversationPage = useCallback(async (client: ChatSocket, page: ChatConversation[]) => {
+  const hydrateConversationPage = useCallback(async (client: ChatSocket, page: ChatConversation[], isCurrent: () => boolean) => {
     if (client !== socket.current) return null;
     const ids = [...new Set(page.flatMap(item => [...item.members, ...Object.keys(item.names)]))];
     let fetchedNames: Record<string, string> = {};
     let fetchedAvatarUrls: Record<string, string> = {};
+    let fetched = false;
     const unresolvedProfiles = ids.some(id => !resolvedProfileIds.current.has(id));
     if (ids.length && (unresolvedProfiles || Date.now() - lastNamesFetch.current >= 15000)) {
       lastNamesFetch.current = Date.now();
@@ -538,31 +522,30 @@ export function ChatPage() {
         }));
         fetchedNames = Object.assign({}, ...results.map(result => result.names));
         fetchedAvatarUrls = Object.assign({}, ...results.map(result => result.avatars ?? {}));
-      } catch (reason) {
+        fetched = true;
+      } catch {
         lastNamesFetch.current = 0;
-        throw reason;
+        return;
       }
     }
-    if (client !== socket.current) return null;
+    if (client !== socket.current || !isCurrent()) return;
     const nextNames = { ...resolvedNames.current, ...fetchedNames };
-    const nextAvatarUrls = { ...resolvedAvatarUrls.current, ...fetchedAvatarUrls };
-    const inboxAvatarIds = [...new Set(page.flatMap(item => {
-      if (item.group) return [];
-      const otherId = item.members.find(id => id !== userId);
-      return otherId ? [otherId] : [];
-    }))];
-    const avatarUrls = inboxAvatarIds.map(id => nextAvatarUrls[id]).filter((url): url is string => Boolean(url));
-    const loadedAvatarUrls = await preloadAvatarImages(avatarUrls);
-    if (client !== socket.current) return null;
-    for (const id of inboxAvatarIds) {
-      const avatarUrl = nextAvatarUrls[id];
-      if (avatarUrl && !loadedAvatarUrls.has(avatarUrl)) delete nextAvatarUrls[id];
+    if (fetched) {
+      const nextCached = { ...cachedAvatars.current };
+      for (const id of ids) {
+        const url = fetchedAvatarUrls[id];
+        const avatar = url ? selectChatAvatar(id, url, nextCached[id]) : null;
+        if (avatar) nextCached[id] = avatar;
+        else delete nextCached[id];
+      }
+      cachedAvatars.current = nextCached;
+      resolvedAvatarUrls.current = Object.fromEntries(Object.entries(nextCached).map(([id, avatar]) => [id, avatar.url]));
+      ids.forEach(id => resolvedProfileIds.current.add(id));
+      setPlayerAvatarUrls(resolvedAvatarUrls.current);
+      if (userId) void saveCachedChatAvatars(userId, ids, nextCached).catch(() => {});
     }
     resolvedNames.current = nextNames;
-    resolvedAvatarUrls.current = nextAvatarUrls;
-    ids.forEach(id => resolvedProfileIds.current.add(id));
-    setPlayerAvatarUrls(nextAvatarUrls);
-    return page.map(item => withCurrentNames(item, nextNames));
+    setConversations(items => items.map(item => withCurrentNames(item, nextNames)));
   }, [getIdToken, userId]);
 
   const refresh = useCallback(async (client: ChatSocket) => {
@@ -578,15 +561,16 @@ export function ChatPage() {
       const requestedActive = activeRef.current;
       const data = await client.request('conversations', requestedActive ? { activeConversation: requestedActive } : {});
       if (client !== socket.current || requestVersion !== conversationRefreshVersion.current) return;
+      receivedConversationPage.current = true;
       const page = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt)
         .map(item => pendingReadConversations.current.has(item.id) ? { ...item, unreadCount: 0 } : item);
       const activeConversation = data.activeConversation as ChatConversation | null | undefined;
       const pageIds = new Set(page.map(item => item.id));
       const hydrationPage = activeConversation && !pageIds.has(activeConversation.id) ? [...page, activeConversation] : page;
-      const hydrated = await hydrateConversationPage(client, hydrationPage);
-      if (!hydrated || client !== socket.current || requestVersion !== conversationRefreshVersion.current || pageGeneration !== conversationPageGeneration.current) return;
-      const next = hydrated.filter(item => pageIds.has(item.id) || item.id === requestedActive);
+      const next = hydrationPage.filter(item => pageIds.has(item.id) || item.id === requestedActive)
+        .map(item => withCurrentNames(item, resolvedNames.current));
       const cursor = isConversationCursor(data.nextCursor) ? data.nextCursor : null;
+      if (!cursor && userId) void replaceCachedConversations(userId, next).catch(() => {});
       conversationCursor.current = cursor;
       setHasMoreConversations(Boolean(cursor));
       const removedActive = requestedActive && data.activeConversation === null && activeRef.current === requestedActive;
@@ -605,6 +589,7 @@ export function ChatPage() {
         return cursor ? mergeConversations(current, next) : next;
       });
       setInitialChatsLoaded(true);
+      void hydrateConversationPage(client, hydrationPage, () => requestVersion === conversationRefreshVersion.current && pageGeneration === conversationPageGeneration.current);
     } catch {
       if (client === socket.current && requestVersion === conversationRefreshVersion.current) lastNamesFetch.current = 0;
     }
@@ -622,13 +607,12 @@ export function ChatPage() {
       if (client !== socket.current || pageGeneration !== conversationPageGeneration.current) return;
       const page = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt)
         .map(item => pendingReadConversations.current.has(item.id) ? { ...item, unreadCount: 0 } : item);
-      const next = await hydrateConversationPage(client, page);
-      if (!next || client !== socket.current || pageGeneration !== conversationPageGeneration.current) return;
       const nextCursor = isConversationCursor(data.nextCursor) ? data.nextCursor : null;
       conversationCursor.current = nextCursor;
       setHasMoreConversations(Boolean(nextCursor));
       setConversationRetryBlocked(false);
-      setConversations(items => mergeConversations(items, next));
+      setConversations(items => mergeConversations(items, page.map(item => withCurrentNames(item, resolvedNames.current))));
+      void hydrateConversationPage(client, page, () => pageGeneration === conversationPageGeneration.current);
     } catch {
       if (client === socket.current && pageGeneration === conversationPageGeneration.current) {
         setError(t('chat.connectionError'));
@@ -682,7 +666,9 @@ export function ChatPage() {
   useEffect(() => {
     resolvedNames.current = {};
     resolvedAvatarUrls.current = {};
+    cachedAvatars.current = {};
     resolvedProfileIds.current.clear();
+    receivedConversationPage.current = false;
     lastNamesFetch.current = 0;
     conversationPageGeneration.current++;
     conversationPageLoading.current = false;
@@ -702,9 +688,22 @@ export function ChatPage() {
     if (!user?.id) return;
     let cancelled = false;
     void loadCachedConversations(user.id).then(cached => {
+      if (cancelled || receivedConversationPage.current) return;
+      if (cached.length) {
+        resolvedNames.current = { ...cachedConversationNames(cached), ...resolvedNames.current };
+        setConversations(items => mergeConversations(cached, items));
+        setInitialChatsLoaded(true);
+      }
+    }).catch(() => {});
+    void loadCachedChatAvatars(user.id).then(cached => {
       if (cancelled) return;
-      setConversations(items => mergeConversations(cached, items));
-      setInitialChatsLoaded(true);
+      const next = { ...cachedAvatars.current };
+      for (const avatar of cached) {
+        if (!resolvedProfileIds.current.has(avatar.id) && !next[avatar.id]) next[avatar.id] = avatar;
+      }
+      cachedAvatars.current = next;
+      resolvedAvatarUrls.current = Object.fromEntries(Object.entries(next).map(([id, avatar]) => [id, avatar.url]));
+      setPlayerAvatarUrls(resolvedAvatarUrls.current);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [user?.id]);
@@ -1409,7 +1408,7 @@ export function ChatPage() {
             const unreadCount = Math.max(0, Number(item.unreadCount ?? 0));
             const unread = item.id !== active && unreadCount > 0;
             return <button key={item.id} className={`${active === item.id ? 'active' : ''} ${unread ? 'has-unread' : ''}`} onClick={() => openConversation(item.id)}>
-              <span className="chat-avatar">{item.group ? <UsersRound size={19}/> : (() => { const other = item.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <img src={playerAvatarUrls[other]} alt="" aria-hidden="true"/> : title(item).slice(0, 1).toUpperCase(); })()}</span>
+              <span className="chat-avatar">{item.group ? <UsersRound size={19}/> : (() => { const other = item.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <ChatAvatarImage key={playerAvatarUrls[other]} src={playerAvatarUrls[other]} fallback={title(item).slice(0, 1).toUpperCase()} /> : title(item).slice(0, 1).toUpperCase(); })()}</span>
               <span className="chat-inbox-content"><span className="chat-inbox-title"><strong>{title(item)}</strong>{item.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</span><small>{item.lastMessage === 'sound' ? t('nav.soundboard') : item.lastMessage ?? t('chat.noMessages')}</small></span>
               {unread && <span className="chat-unread-badge" aria-label={t('chat.unreadMessages', { count: unreadCount })}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
             </button>;
@@ -1417,7 +1416,7 @@ export function ChatPage() {
           {hasMoreConversations && <div ref={inboxLoadMoreSentinel} className="chat-inbox-pagination">{loadingMoreConversations && <LoadingIndicator label={t('common.loading')} compact/>}</div>}
         </> : <p className="chat-empty-inbox">{t('chat.emptyInbox')}</p>}
       </div>
-    </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={() => returnToInbox()} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : (() => { const other = current.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <img src={playerAvatarUrls[other]} alt="" aria-hidden="true"/> : title(current).slice(0, 1).toUpperCase(); })()}</span><div className="chat-thread-title"><div className="chat-thread-title-row"><h2>{title(current)}</h2>{current.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</div><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><div className="chat-header-actions"><button type="button" className="chat-icon chat-header-action" onClick={() => void toggleMute()} aria-label={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')} title={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')}>{current.muted ? <BellOff size={18}/> : <Bell size={18}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-icon chat-header-action" onClick={() => { setMembersError(''); setMembersOpen(true); }} aria-label={t('chat.manageMembers')} title={t('chat.manageMembers')}><UsersRound size={18}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-icon chat-header-action" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')} title={t('chat.reportConversation')}><Flag size={18}/><span>{t('chat.actionReport')}</span></button></div><div className="chat-actions-mobile" ref={chatActionsMenu}><button type="button" className="chat-icon" aria-label={t('chat.moreActions')} ref={chatActionsTrigger} aria-expanded={chatActionsOpen} aria-controls="chat-actions-menu" onClick={() => setChatActionsOpen(open => !open)}><MoreHorizontal size={19}/></button><div className="chat-actions-menu" id="chat-actions-menu" role="group" aria-label={t('chat.moreActions')} aria-hidden={!chatActionsOpen} data-open={chatActionsOpen}><button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); void toggleMute(); }}>{current.muted ? <BellOff size={17}/> : <Bell size={17}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setMembersError(''); setMembersOpen(true); }}><UsersRound size={17}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setReportOpen(true); }}><Flag size={17}/><span>{t('chat.actionReport')}</span></button></div></div></header><div className="chat-message-scroll-area"><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; const isNearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; stickToBottom.current = isNearBottom; setShowJumpToLatest(!isNearBottom); if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map((message, index) => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${(message.kind === 'image' || message.kind === 'gif' || message.kind === 'video') ? 'media-bubble' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={getChatMessageRenderKey(message, index)} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (message.messageKey && !isMessageControl(event.target)) { event.preventDefault(); setRevealedReactionMessageKey(message.messageKey); if (reactionToolbarMessageKey !== message.messageKey) toggleReactionToolbar(message.messageKey); } }}>{current.group && (() => {
+    </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={() => returnToInbox()} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : (() => { const other = current.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <ChatAvatarImage key={playerAvatarUrls[other]} src={playerAvatarUrls[other]} fallback={title(current).slice(0, 1).toUpperCase()} /> : title(current).slice(0, 1).toUpperCase(); })()}</span><div className="chat-thread-title"><div className="chat-thread-title-row"><h2>{title(current)}</h2>{current.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</div><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><div className="chat-header-actions"><button type="button" className="chat-icon chat-header-action" onClick={() => void toggleMute()} aria-label={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')} title={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')}>{current.muted ? <BellOff size={18}/> : <Bell size={18}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-icon chat-header-action" onClick={() => { setMembersError(''); setMembersOpen(true); }} aria-label={t('chat.manageMembers')} title={t('chat.manageMembers')}><UsersRound size={18}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-icon chat-header-action" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')} title={t('chat.reportConversation')}><Flag size={18}/><span>{t('chat.actionReport')}</span></button></div><div className="chat-actions-mobile" ref={chatActionsMenu}><button type="button" className="chat-icon" aria-label={t('chat.moreActions')} ref={chatActionsTrigger} aria-expanded={chatActionsOpen} aria-controls="chat-actions-menu" onClick={() => setChatActionsOpen(open => !open)}><MoreHorizontal size={19}/></button><div className="chat-actions-menu" id="chat-actions-menu" role="group" aria-label={t('chat.moreActions')} aria-hidden={!chatActionsOpen} data-open={chatActionsOpen}><button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); void toggleMute(); }}>{current.muted ? <BellOff size={17}/> : <Bell size={17}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setMembersError(''); setMembersOpen(true); }}><UsersRound size={17}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setReportOpen(true); }}><Flag size={17}/><span>{t('chat.actionReport')}</span></button></div></div></header><div className="chat-message-scroll-area"><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; const isNearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; stickToBottom.current = isNearBottom; setShowJumpToLatest(!isNearBottom); if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map((message, index) => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${(message.kind === 'image' || message.kind === 'gif' || message.kind === 'video') ? 'media-bubble' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={getChatMessageRenderKey(message, index)} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (message.messageKey && !isMessageControl(event.target)) { event.preventDefault(); setRevealedReactionMessageKey(message.messageKey); if (reactionToolbarMessageKey !== message.messageKey) toggleReactionToolbar(message.messageKey); } }}>{current.group && (() => {
   const senderName = getChatMessageSenderName(message.senderId, current.names, user.id, user.name, t('lore.anonymous'));
   const senderAvatarUrl = typeof message.senderId === 'string' ? playerAvatarUrls[message.senderId] : undefined;
   return <small>{senderAvatarUrl ? <img className="chat-message-avatar" src={senderAvatarUrl} alt="" aria-hidden="true"/> : <span className="chat-message-avatar fallback" aria-hidden="true">{senderName.slice(0, 1).toUpperCase()}</span>}{senderName}</small>;

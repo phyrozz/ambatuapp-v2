@@ -1,14 +1,16 @@
 import type { ChatConversation, ChatMessage } from './chat';
 
 const databaseName = 'ambatuchat-cache';
-const databaseVersion = 1;
+const databaseVersion = 2;
 const conversationStoreName = 'conversations';
 const messageStoreName = 'messages';
+const avatarStoreName = 'avatars';
 const maxCachedMessagesPerConversation = 300;
 const mediaUrlLifetimeMs = 55 * 60 * 1000;
 
 type CachedConversation = ChatConversation & { userId: string };
 type CachedMessage = ChatMessage & { userId: string; cacheKey: string; mediaUrlExpiresAt?: number };
+export type CachedChatAvatar = { id: string; url: string; expiresAt: number };
 
 let databasePromise: Promise<IDBDatabase | null> | null = null;
 
@@ -28,10 +30,14 @@ function openDatabase() {
         const messages = database.createObjectStore(messageStoreName, { keyPath: ['userId', 'conversationId', 'cacheKey'] });
         messages.createIndex('by-user-conversation', ['userId', 'conversationId']);
       }
+      if (!database.objectStoreNames.contains(avatarStoreName)) {
+        const avatars = database.createObjectStore(avatarStoreName, { keyPath: ['userId', 'id'] });
+        avatars.createIndex('by-user', 'userId');
+      }
     };
     request.onsuccess = () => {
       const database = request.result;
-      database.onversionchange = () => database.close();
+      database.onversionchange = () => { database.close(); databasePromise = null; };
       resolve(database);
     };
     request.onerror = () => resolve(null);
@@ -39,6 +45,55 @@ function openDatabase() {
   });
 
   return databasePromise;
+}
+
+export function avatarUrlExpiresAt(url: string, now = Date.now()) {
+  try {
+    const parsed = new URL(url);
+    const date = parsed.searchParams.get('X-Amz-Date');
+    const seconds = Number(parsed.searchParams.get('X-Amz-Expires'));
+    const match = date?.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/);
+    if (match && Number.isFinite(seconds) && seconds > 0) {
+      const signedAt = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]), Number(match[5]), Number(match[6]));
+      return Math.min(now + mediaUrlLifetimeMs, signedAt + seconds * 1000 - 60_000);
+    }
+  } catch { /* An invalid URL is discarded below. */ }
+  return now;
+}
+
+export function selectChatAvatar(id: string, url: string, previous: CachedChatAvatar | undefined, now = Date.now()): CachedChatAvatar | null {
+  const expiresAt = avatarUrlExpiresAt(url, now);
+  try {
+    const next = new URL(url);
+    if (next.protocol !== 'https:' && next.protocol !== 'http:') return null;
+    if (previous && previous.expiresAt > now + 60_000) {
+      const old = new URL(previous.url);
+      if (old.origin === next.origin && old.pathname === next.pathname) return previous;
+    }
+    return expiresAt > now ? { id, url, expiresAt } : null;
+  } catch { return null; }
+}
+
+export async function loadCachedChatAvatars(userId: string) {
+  const database = await openDatabase();
+  if (!database) return [];
+  const transaction = database.transaction(avatarStoreName, 'readonly');
+  const records = await requestResult(transaction.objectStore(avatarStoreName).index('by-user').getAll(IDBKeyRange.only(userId))) as (CachedChatAvatar & { userId: string })[];
+  return records.filter(record => record.expiresAt > Date.now()).map(stripUserId);
+}
+
+export async function saveCachedChatAvatars(userId: string, ids: string[], avatars: Record<string, CachedChatAvatar>) {
+  if (!ids.length) return;
+  const database = await openDatabase();
+  if (!database) return;
+  const transaction = database.transaction(avatarStoreName, 'readwrite');
+  const store = transaction.objectStore(avatarStoreName);
+  for (const id of ids) {
+    const avatar = avatars[id];
+    if (avatar) store.put({ ...avatar, userId });
+    else store.delete([userId, id]);
+  }
+  await transactionFinished(transaction);
 }
 
 function transactionFinished(transaction: IDBTransaction) {
@@ -83,6 +138,24 @@ export async function saveCachedConversations(userId: string, conversations: Cha
   if (!database) return;
   const transaction = database.transaction(conversationStoreName, 'readwrite');
   const store = transaction.objectStore(conversationStoreName);
+  conversations.forEach(conversation => store.put({ ...conversation, userId } satisfies CachedConversation));
+  await transactionFinished(transaction);
+}
+
+// A cursorless first page is the complete inbox and can remove stale entries.
+export async function replaceCachedConversations(userId: string, conversations: ChatConversation[]) {
+  const database = await openDatabase();
+  if (!database) return;
+  const transaction = database.transaction(conversationStoreName, 'readwrite');
+  const store = transaction.objectStore(conversationStoreName);
+  const retained = new Set(conversations.map(conversation => conversation.id));
+  const request = store.index('by-user').openCursor(IDBKeyRange.only(userId));
+  request.onsuccess = () => {
+    const cursor = request.result;
+    if (!cursor) return;
+    if (!retained.has((cursor.value as CachedConversation).id)) cursor.delete();
+    cursor.continue();
+  };
   conversations.forEach(conversation => store.put({ ...conversation, userId } satisfies CachedConversation));
   await transactionFinished(transaction);
 }

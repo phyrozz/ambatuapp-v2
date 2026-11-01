@@ -8,6 +8,16 @@ export function withCurrentNames(item: ChatConversation, resolved: Record<string
   return { ...item, names };
 }
 
+export function cachedConversationNames(conversations: ChatConversation[]): Record<string, string> {
+  const names: Record<string, string> = {};
+  for (const conversation of conversations) {
+    for (const [id, name] of Object.entries(conversation.names ?? {})) {
+      if (!names[id] && typeof name === 'string' && name.trim()) names[id] = name;
+    }
+  }
+  return names;
+}
+
 type ResponseBody = { event: 'response'; requestId: string; data?: Record<string, unknown>; error?: string };
 type MessageBody = { event: 'message'; message: ChatMessage };
 type ConversationBody = { event: 'conversation'; conversationId: string };
