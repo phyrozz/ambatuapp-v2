@@ -40,7 +40,6 @@ export function AuthCallback() {
         <div className={`auth-callback-icon${error ? ' is-error' : ''}`} aria-hidden="true">
           {error ? <AlertCircle size={34} /> : <LockKeyhole size={34} />}
         </div>
-        <p className="eyebrow">AMBATUAPP</p>
         {error ? (
           <>
             <h1>{error}</h1>
@@ -51,7 +50,7 @@ export function AuthCallback() {
           </>
         ) : (
           <>
-            <h1>{t('profile.wait')}</h1>
+            {/* <h1>{t('profile.wait')}</h1> */}
             <LoadingIndicator label={t('profile.signingIn')} />
           </>
         )}
