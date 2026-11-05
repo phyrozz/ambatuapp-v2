@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -15,6 +15,8 @@ import { publicAppUrl } from '@/lib/share-links';
 import { creatorHref } from '@/lib/creator-profile';
 import { CreatorSearch } from './creator-search';
 import { VideoManageDialog } from './video-manage-dialog';
+import { useScrollWatch, type ReportScrollWatch } from './use-scroll-watch';
+import { getValidSession } from '@/lib/cognito';
 
 type Clip = { id: string; title: string; description: string; uploader: string; uploaderId: string | null; uploaderAvatarUrl: string | null; videoUrl: string; downloadUrl?: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote: number };
 type VoteResult = { value: number; upvotes: number; downvotes: number };
@@ -24,7 +26,7 @@ function ScrollProfileAvatar({ src }: { src?: string | null }) {
   return <span className="scroll-profile-icon">{src && !failed ? <img src={src} alt="" decoding="async" onError={() => setFailed(true)} /> : <CircleUserRound size={16} aria-hidden="true" />}</span>;
 }
 
-function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, onShare, onVote, isOwner, onManage, singleClip = false }: { clip: Clip; root: HTMLDivElement | null; muted: boolean; dialogOpen: boolean; toggleMute: () => void; openComments: () => void; onShare: () => void; onVote: (value: 1 | -1) => Promise<void>; isOwner: boolean; onManage: () => void; singleClip?: boolean }) {
+function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, onShare, onVote, isOwner, onManage, reportWatch, singleClip = false }: { clip: Clip; root: HTMLDivElement | null; muted: boolean; dialogOpen: boolean; toggleMute: () => void; openComments: () => void; onShare: () => void; onVote: (value: 1 | -1) => Promise<void>; isOwner: boolean; onManage: () => void; reportWatch: ReportScrollWatch; singleClip?: boolean }) {
   const { t } = useI18n();
   const article = useRef<HTMLElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -50,6 +52,7 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
   const [voteError, setVoteError] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  useScrollWatch(clip.id, video, active && !dialogOpen && !videoMenu, reportWatch);
   useEffect(() => () => {
     if (votePulseTimer.current !== null) window.clearTimeout(votePulseTimer.current);
     if (videoTapTimer.current !== null) window.clearTimeout(videoTapTimer.current);
@@ -265,8 +268,31 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
 }
 
 export function Ambatuscroll() {
+  const { user } = useAuth();
+  const params = useSearchParams();
+  return <AmbatuscrollFeed key={`${user?.id ?? ''}:${params.get('clip') ?? ''}`} />;
+}
+
+function AmbatuscrollFeed() {
   const { t } = useI18n();
-  const { getIdToken, user } = useAuth();
+  const { user } = useAuth();
+  const currentPlayer = useRef(user?.id);
+  const playerId = user?.id;
+  const getIdToken = useCallback(async () => {
+    const session = await getValidSession();
+    if (!session || session.user.id !== playerId || currentPlayer.current !== playerId) throw new Error('SCROLL_SESSION_CHANGED');
+    return session.tokens.idToken;
+  }, [playerId]);
+  useLayoutEffect(() => {
+    currentPlayer.current = playerId;
+    return () => { currentPlayer.current = undefined; };
+  }, [playerId]);
+  const reportWatch = useCallback<ReportScrollWatch>(async (id, signal) => {
+    if (!playerId || currentPlayer.current !== playerId) return;
+    const token = await getIdToken();
+    if (currentPlayer.current !== playerId) return;
+    await memberApi(`/scroll/${encodeURIComponent(id)}/watch`, token, undefined, signal);
+  }, [getIdToken, playerId]);
   const params = useSearchParams();
   const router = useRouter();
   const singleClipId = params.get('clip') ?? '';
@@ -295,6 +321,7 @@ export function Ambatuscroll() {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
+    if (!playerId) return () => controller.abort();
     let cursor: string | null = null, pending = false, done = false, firstBatch = true;
     const next = async () => {
       if (pending || done || controller.signal.aborted) return;
@@ -321,10 +348,10 @@ export function Ambatuscroll() {
     load.current = () => { void next(); };
     void next();
     return () => controller.abort();
-  }, [getIdToken, singleClipId]);
+  }, [getIdToken, singleClipId, playerId]);
   useEffect(() => {
     if (singleClipId || !root || !sentinel.current || loading || error || ended) return;
-    const observer = new IntersectionObserver(entries => { if (entries[0].isIntersecting) load.current(); }, { root });
+    const observer = new IntersectionObserver(entries => { if (entries[0].isIntersecting) load.current(); }, { root, rootMargin: '100% 0px' });
     observer.observe(sentinel.current);
     return () => observer.disconnect();
   }, [root, clips, loading, error, ended, singleClipId]);
@@ -351,7 +378,23 @@ export function Ambatuscroll() {
   return <section className={`ambatuscroll has-creator-search${singleClipId ? ' is-single' : ''}`}><AmbatuscrollHeader backHref={singleClipId ? returnHref : undefined} backLabel={validReturnCreator ? 'creator.backToProfile' : undefined} onUpload={singleClipId ? undefined : () => setUploadOpen(true)} />
     {!singleClipId && <CreatorSearch onActiveChange={setSearchActive}/>}
     <div className={`scroll-feed${singleClipId ? ' is-single' : ''}`} ref={setFeed} tabIndex={singleClipId ? undefined : 0} aria-label={t('nav.scroll')}>
-      {clips.map(clip => <ScrollClip key={clip.id} clip={clip} root={root} muted={muted} dialogOpen={!!shareClip || !!commentClipId || !!managingClip || uploadOpen || searchActive} toggleMute={() => setMuted(value => !value)} openComments={() => setCommentClipId(clip.id)} onShare={() => setShareClip(clip)} onVote={value => vote(clip.id, value)} isOwner={clip.uploaderId === user?.id} onManage={() => setManagingClip(clip)} singleClip={!!singleClipId} />)}
+      {clips.map(clip => (
+        <ScrollClip
+          key={`${playerId}:${clip.id}`}
+          clip={clip}
+          root={root}
+          muted={muted}
+          dialogOpen={!!shareClip || !!commentClipId || !!managingClip || uploadOpen || searchActive}
+          toggleMute={() => setMuted(value => !value)}
+          openComments={() => setCommentClipId(clip.id)}
+          onShare={() => setShareClip(clip)}
+          onVote={value => vote(clip.id, value)}
+          isOwner={clip.uploaderId === user?.id}
+          onManage={() => setManagingClip(clip)}
+          reportWatch={reportWatch}
+          singleClip={!!singleClipId}
+        />
+      ))}
       {singleClipId ? (loading || error) && <div className="scroll-status scroll-single-status" aria-live="polite">{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}</div> : <div ref={sentinel} className={`scroll-status${ended ? ' scroll-status-end' : ''}${ended && !clips.length ? ' scroll-status-empty' : ''}`}>{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}{ended && <p>{t(clips.length ? 'scroll.end' : 'scroll.empty')}</p>}</div>}
     </div>
     {currentClip && <ScrollComments clipId={currentClip.id} title={currentClip.title} count={currentClip.commentCount} onClose={() => setCommentClipId(null)} onCountChange={() => setClips(previous => previous.map(clip => clip.id === currentClip.id ? { ...clip, commentCount: clip.commentCount + 1 } : clip))} />}
