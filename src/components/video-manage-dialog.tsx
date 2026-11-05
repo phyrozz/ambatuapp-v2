@@ -2,11 +2,21 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Pencil, Trash2, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 
 type ManagedVideo = { id: string; title: string; description: string };
-const api = () => `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/videos`;
+function api() {
+  // Web edits use the revamp rewrite to avoid cross-origin preflights.
+  if (
+    !Capacitor.isNativePlatform() &&
+    process.env.NEXT_PUBLIC_CHARACTER_API_URL
+  ) {
+    return '/api/public/videos';
+  }
+  return `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/videos`;
+}
 
 export function VideoManageDialog({ video, onClose, onSaved, onDeleted }: {
   video: ManagedVideo;
