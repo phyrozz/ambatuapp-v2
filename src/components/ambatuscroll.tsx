@@ -218,7 +218,24 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
     </div>
     <button type="button" className="scroll-play" onClick={togglePlay} aria-label={t(paused ? 'scroll.play' : 'scroll.pause')}>{paused ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}</button>
     <button type="button" className="scroll-mute" onClick={toggleMute} aria-label={t(muted ? 'scroll.unmute' : 'scroll.mute')}>{muted ? <VolumeX size={20}/> : <Volume2 size={20}/>}</button>
-    <div className="scroll-progress" aria-hidden="true"><span style={{ transform: `scaleX(${Math.max(0, Math.min(1, progress))})` }} /></div>
+    <div className="scroll-progress">
+      <span aria-hidden="true" style={{ transform: `scaleX(${Math.max(0, Math.min(1, progress))})` }} />
+      <input
+        type="range"
+        min="0"
+        max="1000"
+        step="1"
+        value={Math.round(Math.max(0, Math.min(1, progress)) * 1000)}
+        aria-label={t('media.seek')}
+        onChange={event => {
+          const player = video.current;
+          if (!player || !Number.isFinite(player.duration) || player.duration <= 0) return;
+          const nextProgress = Number(event.target.value) / 1000;
+          player.currentTime = nextProgress * player.duration;
+          setProgress(nextProgress);
+        }}
+      />
+    </div>
     {votePulse && <div key={votePulse.id} className={`scroll-vote-pulse${votePulse.size === 'large' ? ' is-large' : ''}`} aria-hidden="true"><ArrowBigUp size={votePulse.size === 'large' ? 104 : 64} fill="currentColor"/></div>}
     {videoMenu && createPortal(<div className="scroll-video-sheet-backdrop" onPointerDown={event => { if (event.target === event.currentTarget) setVideoMenu(false); }}>
       <div ref={contextMenuElement} className="scroll-video-context-menu" role="dialog" aria-modal="true" aria-labelledby={`scroll-video-options-${clip.id}`}>
@@ -366,5 +383,40 @@ export function Ambatuscroll() {
 export function AmbatuscrollHeader({ backHref, backLabel = 'chat.inbox', onUpload }: { backHref?: string; backLabel?: string; onUpload?: () => void }) {
   const { t } = useI18n();
   const { user } = useAuth();
-  return <header className="ambatuscroll-header">{backHref ? <Link className="scroll-chat-back" href={backHref}><ArrowLeft size={18}/>{t(backLabel)}</Link> : <div className="ambatuscroll-brand-group"><span className="ambatuscroll-brand">ambatu<span className="orange-text">app</span></span><h1>{t('nav.scroll')}<span className="orange-text">.</span></h1></div>}{backHref ? <span className="scroll-single-title">{t('nav.scroll')}</span> : <div className="ambatuscroll-header-actions">{onUpload && <button type="button" className="scroll-upload-button" onClick={onUpload} aria-label={t('watch.upload')}><span className="scroll-upload-icon"><Upload size={16} aria-hidden="true"/></span><span>{t('watch.upload')}</span></button>}<Link className="scroll-profile-button" href="/profile/" aria-label={t('nav.profile')} title={t('nav.profile')}><ScrollProfileAvatar key={user?.avatarUrl ?? 'default'} src={user?.avatarUrl} /></Link></div>}</header>;
+  return (
+    <header className="ambatuscroll-header">
+      {backHref ? (
+        <Link className="scroll-chat-back" href={backHref}>
+          <ArrowLeft size={18} />
+          {t(backLabel)}
+        </Link>
+      ) : (
+        <div className="ambatuscroll-brand-group">
+          <span className="ambatuscroll-brand scroll-header-brand">
+            ambatu<span className="orange-text">app</span>
+          </span>
+          <h1>
+            {t('nav.scroll')}<span className="orange-text">.</span>
+          </h1>
+        </div>
+      )}
+      {backHref ? (
+        <span className="scroll-single-title">{t('nav.scroll')}</span>
+      ) : (
+        <div className="ambatuscroll-header-actions">
+          {onUpload && (
+            <button type="button" className="scroll-upload-button" onClick={onUpload} aria-label={t('watch.upload')}>
+              <span className="scroll-upload-icon">
+                <Upload size={16} aria-hidden="true" />
+              </span>
+              <span>{t('watch.upload')}</span>
+            </button>
+          )}
+          <Link className="scroll-profile-button" href="/profile/" aria-label={t('nav.profile')} title={t('nav.profile')}>
+            <ScrollProfileAvatar key={user?.avatarUrl ?? 'default'} src={user?.avatarUrl} />
+          </Link>
+        </div>
+      )}
+    </header>
+  );
 }
