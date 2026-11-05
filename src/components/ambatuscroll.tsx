@@ -17,6 +17,7 @@ import { CreatorSearch } from './creator-search';
 import { VideoManageDialog } from './video-manage-dialog';
 import { useScrollWatch, type ReportScrollWatch } from './use-scroll-watch';
 import { getValidSession } from '@/lib/cognito';
+import { SCROLL_REFRESH_EVENT } from '@/lib/scroll-refresh';
 
 type Clip = { id: string; title: string; description: string; uploader: string; uploaderId: string | null; uploaderAvatarUrl: string | null; videoUrl: string; downloadUrl?: string; thumbnailUrl: string; upvotes: number; downvotes: number; commentCount: number; userVote: number };
 type VoteResult = { value: number; upvotes: number; downvotes: number };
@@ -270,10 +271,42 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
 export function Ambatuscroll() {
   const { user } = useAuth();
   const params = useSearchParams();
-  return <AmbatuscrollFeed key={`${user?.id ?? ''}:${params.get('clip') ?? ''}`} />;
+  const singleClipId = params.get('clip') ?? '';
+  const [session, setSession] = useState({ seed: '', exclude: [] as string[] });
+  const [muted, setMuted] = useState(false);
+  const recentClips = useRef<string[]>([]);
+  const rememberClips = useCallback((ids: string[]) => {
+    recentClips.current = [...new Set([...recentClips.current, ...ids])].slice(-100);
+  }, []);
+  const refresh = useCallback(() => {
+    const exclude = recentClips.current.slice(-32);
+    while (exclude.join(',').length > 1536) exclude.shift();
+    setSession({ seed: crypto.randomUUID(), exclude });
+  }, []);
+  useEffect(() => {
+    if (singleClipId) return;
+    window.addEventListener(SCROLL_REFRESH_EVENT, refresh);
+    return () => window.removeEventListener(SCROLL_REFRESH_EVENT, refresh);
+  }, [refresh, singleClipId]);
+  return (
+    <AmbatuscrollFeed
+      key={`${user?.id ?? ''}:${singleClipId}:${session.seed}`}
+      session={session}
+      onRefresh={refresh}
+      onClipsLoaded={rememberClips}
+      muted={muted}
+      toggleMute={() => setMuted(value => !value)}
+    />
+  );
 }
 
-function AmbatuscrollFeed() {
+function AmbatuscrollFeed({ session, onRefresh, onClipsLoaded, muted, toggleMute }: {
+  session: { seed: string; exclude: string[] };
+  onRefresh: () => void;
+  onClipsLoaded: (ids: string[]) => void;
+  muted: boolean;
+  toggleMute: () => void;
+}) {
   const { t } = useI18n();
   const { user } = useAuth();
   const currentPlayer = useRef(user?.id);
@@ -306,7 +339,6 @@ function AmbatuscrollFeed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [ended, setEnded] = useState(false);
-  const [muted, setMuted] = useState(false);
   const [commentClipId, setCommentClipId] = useState<string | null>(null);
   const [shareClip, setShareClip] = useState<Clip | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -334,8 +366,15 @@ function AmbatuscrollFeed() {
           setClips([clip]); setEnded(true);
           return;
         }
-        const data = await memberApi<{ videos: Clip[]; nextCursor: string | null }>(`/scroll${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, await getIdToken(), controller.signal);
+        const query = new URLSearchParams();
+        if (cursor) query.set('cursor', cursor);
+        else if (session.seed) {
+          query.set('seed', session.seed);
+          if (session.exclude.length) query.set('exclude', session.exclude.join(','));
+        }
+        const data = await memberApi<{ videos: Clip[]; nextCursor: string | null }>(`/scroll${query.size ? `?${query}` : ''}`, await getIdToken(), controller.signal);
         if (controller.signal.aborted) return;
+        onClipsLoaded(data.videos.map(clip => clip.id));
         setClips(previous => [...new Map([...previous, ...data.videos].map(clip => [clip.id, clip])).values()]);
         if (firstBatch) {
           firstBatch = false;
@@ -348,7 +387,7 @@ function AmbatuscrollFeed() {
     load.current = () => { void next(); };
     void next();
     return () => controller.abort();
-  }, [getIdToken, singleClipId, playerId]);
+  }, [getIdToken, singleClipId, playerId, session, onClipsLoaded]);
   useEffect(() => {
     if (singleClipId || !root || !sentinel.current || loading || error || ended) return;
     const observer = new IntersectionObserver(entries => { if (entries[0].isIntersecting) load.current(); }, { root, rootMargin: '100% 0px' });
@@ -375,7 +414,13 @@ function AmbatuscrollFeed() {
     }
   }, [getIdToken]);
   const currentClip = clips.find(clip => clip.id === commentClipId);
-  return <section className={`ambatuscroll has-creator-search${singleClipId ? ' is-single' : ''}`}><AmbatuscrollHeader backHref={singleClipId ? returnHref : undefined} backLabel={validReturnCreator ? 'creator.backToProfile' : undefined} onUpload={singleClipId ? undefined : () => setUploadOpen(true)} />
+  return <section className={`ambatuscroll has-creator-search${singleClipId ? ' is-single' : ''}`}>
+    <AmbatuscrollHeader
+      backHref={singleClipId ? returnHref : undefined}
+      backLabel={validReturnCreator ? 'creator.backToProfile' : undefined}
+      onUpload={singleClipId ? undefined : () => setUploadOpen(true)}
+      onRefresh={singleClipId ? undefined : onRefresh}
+    />
     {!singleClipId && <CreatorSearch onActiveChange={setSearchActive}/>}
     <div className={`scroll-feed${singleClipId ? ' is-single' : ''}`} ref={setFeed} tabIndex={singleClipId ? undefined : 0} aria-label={t('nav.scroll')}>
       {clips.map(clip => (
@@ -385,7 +430,7 @@ function AmbatuscrollFeed() {
           root={root}
           muted={muted}
           dialogOpen={!!shareClip || !!commentClipId || !!managingClip || uploadOpen || searchActive}
-          toggleMute={() => setMuted(value => !value)}
+          toggleMute={toggleMute}
           openComments={() => setCommentClipId(clip.id)}
           onShare={() => setShareClip(clip)}
           onVote={value => vote(clip.id, value)}
@@ -423,7 +468,7 @@ function AmbatuscrollFeed() {
   </section>;
 }
 
-export function AmbatuscrollHeader({ backHref, backLabel = 'chat.inbox', onUpload }: { backHref?: string; backLabel?: string; onUpload?: () => void }) {
+export function AmbatuscrollHeader({ backHref, backLabel = 'chat.inbox', onUpload, onRefresh }: { backHref?: string; backLabel?: string; onUpload?: () => void; onRefresh?: () => void }) {
   const { t } = useI18n();
   const { user } = useAuth();
   return (
@@ -439,7 +484,23 @@ export function AmbatuscrollHeader({ backHref, backLabel = 'chat.inbox', onUploa
             ambatu<span className="orange-text">app</span>
           </span>
           <h1>
-            {t('nav.scroll')}<span className="orange-text">.</span>
+            {onRefresh ? (
+              <button
+                type="button"
+                className="scroll-refresh-title"
+                onClick={onRefresh}
+                aria-label={`${t('friends.refresh')} ${t('nav.scroll')}`}
+                title={t('friends.refresh')}
+              >
+                {t('nav.scroll')}
+                <span className="orange-text">.</span>
+              </button>
+            ) : (
+              <>
+                {t('nav.scroll')}
+                <span className="orange-text">.</span>
+              </>
+            )}
           </h1>
         </div>
       )}

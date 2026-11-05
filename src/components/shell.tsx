@@ -31,6 +31,7 @@ import { useAuth } from './auth-provider';
 import { useFriendRequests } from './friend-request-provider';
 import { installPushNavigation } from '@/lib/push-notifications';
 import { isStandalonePwa, navigateLegalLinkInApp } from '@/lib/legal-navigation';
+import { SCROLL_REFRESH_EVENT } from '@/lib/scroll-refresh';
 const nav = [
   { href: '/', key: 'nav.discover', Icon: House },
   { href: '/scroll/', key: 'nav.scroll', Icon: Smartphone },
@@ -86,6 +87,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
   };
   const openPrivacyPolicy = (event: ReactMouseEvent<HTMLAnchorElement>) => {
     navigateLegalLinkInApp(event, '/privacy/', href => router.push(href));
+  };
+  const refreshAmbatuscroll = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (routePath !== '/scroll/' || new URLSearchParams(window.location.search).has('clip')) return;
+    event.preventDefault();
+    window.dispatchEvent(new Event(SCROLL_REFRESH_EVENT));
   };
   const openTerms = (event: ReactMouseEvent<HTMLAnchorElement>) => {
     navigateLegalLinkInApp(event, '/terms/', href => router.push(href));
@@ -190,7 +197,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Link
               key={href}
               href={href}
-              onClick={href === '/' ? openPwaHomepage : undefined}
+              onClick={href === '/' ? openPwaHomepage : href === '/scroll/' ? refreshAmbatuscroll : undefined}
               className={`nav-item ${routePath === href || (href !== '/' && routePath.startsWith(href)) ? 'active' : ''}`}
               aria-current={routePath === href || (href !== '/' && routePath.startsWith(href)) ? 'page' : undefined}
             >
@@ -276,7 +283,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         {mobileNav.map(({ href, key, Icon }) => (
           <Link
             href={href}
-            onClick={href === '/' ? openPwaHomepage : undefined}
+            onClick={href === '/' ? openPwaHomepage : href === '/scroll/' ? refreshAmbatuscroll : undefined}
             key={href}
             aria-current={routePath === href || (href !== '/' && routePath.startsWith(href)) ? 'page' : undefined}
             className={`${href === '/scroll/' ? 'chat-featured' : ''} ${routePath === href || (href !== '/' && routePath.startsWith(href)) ? 'active' : ''}`}

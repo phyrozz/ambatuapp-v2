@@ -5211,6 +5211,10 @@ html[data-theme='dark'] .lore-reader-comments > .comment-compose button:disabled
 .ambatuscroll { max-width:900px; margin:auto; padding:16px 20px 0; }
 .ambatuscroll-header { display:flex; align-items:end; justify-content:space-between; gap:12px; padding:0 4px 16px; animation:social-rise-in .32s cubic-bezier(.2,.75,.3,1) both; }
 .ambatuscroll-brand-group { display:flex; align-items:baseline; gap:12px; }
+.scroll-refresh-title { display:inline-flex; align-items:center; min-height:44px; padding:0; border:0; border-radius:8px; background:transparent; color:inherit; font:inherit; letter-spacing:inherit; cursor:pointer; transition:color .18s ease; }
+.scroll-refresh-title:hover { color:var(--orange); }
+.scroll-refresh-title:focus-visible { outline:3px solid #f2ab91; outline-offset:4px; }
+@media(prefers-reduced-motion:reduce) { .scroll-refresh-title { transition:none; } }
 .ambatuscroll-brand { font-family:Kanit,Arial,sans-serif; font-size:18px; font-weight:500; letter-spacing:-.5px; }
 @media(min-width:761px) { .scroll-header-brand { display:none; } }
 .scroll-profile-button { display:none; }
