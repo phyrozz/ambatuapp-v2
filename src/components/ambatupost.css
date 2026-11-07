@@ -1,0 +1,335 @@
+.dream-page {
+  max-width: 1160px;
+  padding-bottom: 110px;
+}
+.dream-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+.dream-hero h1 {
+  font-size: clamp(40px, 6vw, 68px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+.dream-hero-mark {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  flex: none;
+  color: var(--orange);
+  background: #fce6d8;
+}
+.dream-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(245px, 1fr);
+  gap: 26px;
+  align-items: start;
+}
+.dream-main,
+.dream-history {
+  min-width: 0;
+}
+.dream-composer,
+.dream-detail,
+.dream-signin {
+  background: var(--surface, #fffdf8);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 26px;
+  box-shadow: 0 12px 35px #2d241008;
+}
+.dream-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.dream-section-heading h2 {
+  margin: 0;
+  font-size: 25px;
+}
+.dream-composer label {
+  display: block;
+  margin: 14px 0 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.dream-composer textarea,
+.dream-composer select {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  padding: 13px 15px;
+}
+.dream-composer textarea {
+  min-height: 240px;
+  resize: vertical;
+  line-height: 1.65;
+}
+.dream-character-count {
+  margin: 6px 0 18px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}
+.dream-character-count.is-invalid {
+  color: #bb3828;
+}
+.dream-helper {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+.dream-composer-actions,
+.dream-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.dream-composer-actions .button {
+  min-height: 44px;
+}
+.dream-history-list {
+  display: grid;
+  gap: 12px;
+}
+.dream-history-card {
+  display: block;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--ink);
+  background: var(--surface, #fffdf8);
+  text-decoration: none;
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+.dream-history-card:hover {
+  border-color: var(--orange);
+  transform: translateY(-2px);
+}
+.dream-history-card p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  margin: 14px 0 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.dream-history-meta,
+.dream-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.dream-history-meta > svg {
+  margin-left: auto;
+  color: var(--muted);
+}
+.dream-audience {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.dream-draft {
+  color: #8a4a24;
+  background: #fae9d9;
+  border-radius: 99px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+.dream-detail-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.dream-author-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+  background: #fae5d5;
+  color: #a94e29;
+  display: grid;
+  place-items: center;
+  flex: none;
+  font-size: 19px;
+}
+.dream-detail-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.dream-text {
+  margin: 25px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.85;
+  font-size: 18px;
+  user-select: text;
+}
+.dream-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 22px;
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.dream-signin {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.dream-signin > svg {
+  color: var(--orange);
+}
+.dream-signin h2,
+.dream-signin p {
+  margin: 0;
+}
+.dream-signin p,
+.dream-empty {
+  color: var(--muted);
+  line-height: 1.7;
+}
+.dream-empty {
+  padding: 25px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+}
+.dream-notice {
+  margin: 0 0 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 20px;
+  border: 1px solid #e8be9e;
+  background: #fff1e7;
+  color: #7d4024;
+  border-radius: 15px;
+}
+.dream-notice p {
+  margin: 0;
+  line-height: 1.6;
+}
+.dream-sentinel {
+  min-height: 30px;
+}
+.dream-page :focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 4px;
+}
+.dream-hero,
+.dream-composer,
+.dream-detail,
+.dream-history-card,
+.dream-signin {
+  animation: dream-arrive 0.24s ease both;
+}
+@keyframes dream-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+html[data-theme='dark'] .dream-composer,
+html[data-theme='dark'] .dream-detail,
+html[data-theme='dark'] .dream-history-card,
+html[data-theme='dark'] .dream-signin {
+  background: #252621;
+}
+html[data-theme='dark'] .dream-hero-mark,
+html[data-theme='dark'] .dream-author-mark {
+  background: #443027;
+  color: #ffad76;
+}
+html[data-theme='dark'] .dream-notice {
+  background: #382b23;
+  border-color: #765139;
+  color: #ffd0ae;
+}
+html[data-theme='dark'] .dream-draft {
+  background: #443027;
+  color: #ffc497;
+}
+html[data-theme='dark'] .dream-composer select {
+  color-scheme: dark;
+}
+html[data-theme='dark'] .dream-character-count.is-invalid {
+  color: #ffab9c;
+}
+@media (max-width: 900px) {
+  .dream-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dream-history-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 520px) {
+  .dream-hero {
+    gap: 14px;
+  }
+  .dream-hero-mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+  .dream-hero-mark > svg {
+    width: 28px;
+  }
+  .dream-composer,
+  .dream-detail,
+  .dream-signin {
+    padding: 20px;
+    border-radius: 18px;
+  }
+  .dream-history-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dream-composer-actions .button {
+    flex: 1 1 auto;
+  }
+  .dream-text {
+    font-size: 17px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dream-page *,
+  .dream-page *::before,
+  .dream-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

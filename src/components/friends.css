@@ -950,3 +950,9 @@ html[data-theme='dark'] .friends-dialog.clip-share-dialog .clip-share-link-panel
   .clip-share-dialog::before { content: ''; width: 34px; height: 4px; border-radius: 999px; background: var(--line); align-self: center; margin-top: -12px; }
   .clip-share-dialog .friends-dialog-actions .button { flex: 0 1 auto; min-width: 94px; }
 }
+.blocked-player-list {
+  max-height: min(60dvh, 480px);
+  overflow-y: auto;
+  display: grid;
+  gap: 12px;
+}

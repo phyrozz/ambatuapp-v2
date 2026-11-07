@@ -2,11 +2,43 @@
 import './chat.css';
 import Link from 'next/link';
 
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeft, ArrowUpRight, AudioLines, Bell, BellOff, Camera, Flag, ImagePlus, LogIn, MessageCircle, MoreHorizontal, Play, Plus, Search, Send, UsersRound, Video, X } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUpRight,
+  AudioLines,
+  Bell,
+  BellOff,
+  Camera,
+  Flag,
+  ImagePlus,
+  LogIn,
+  MessageCircle,
+  MoreHorizontal,
+  Play,
+  Plus,
+  Search,
+  Send,
+  UsersRound,
+  Video,
+  X,
+} from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
@@ -17,8 +49,26 @@ import { CustomCheckbox } from './custom-checkbox';
 import { ChatGroupMembers } from './chat-group-members';
 import { ChatImagePreview } from './chat-image-preview';
 import { ChatShareDialog, publicChatUrl } from './chat-share-dialog';
-import { cachedConversationNames, ChatSocket, withCurrentNames, type ChatConversation, type ChatMessage } from '@/lib/chat';
-import { deleteCachedConversation, loadCachedChatAvatars, loadCachedChatMedia, loadCachedConversations, loadCachedMessages, replaceCachedConversations, saveCachedChatAvatars, saveCachedConversations, saveCachedMessages, selectChatAvatar, type CachedChatAvatar } from '@/lib/chat-cache';
+import {
+  cachedConversationNames,
+  ChatSocket,
+  withCurrentNames,
+  type ChatConversation,
+  type ChatMessage,
+} from '@/lib/chat';
+import {
+  deleteCachedConversation,
+  loadCachedChatAvatars,
+  loadCachedChatMedia,
+  loadCachedConversations,
+  loadCachedMessages,
+  replaceCachedConversations,
+  saveCachedChatAvatars,
+  saveCachedConversations,
+  saveCachedMessages,
+  selectChatAvatar,
+  type CachedChatAvatar,
+} from '@/lib/chat-cache';
 import { downloadChatMedia } from '@/lib/chat-media-cache';
 import { initializePlayerProfile } from '@/lib/player-profile';
 import { enableChatPush, installPushNavigation, syncChatPush } from '@/lib/push-notifications';
@@ -26,7 +76,12 @@ import { useFriendRequests } from './friend-request-provider';
 import { FriendPickerDialog } from './friend-picker-dialog';
 
 type Player = { id: string; username: string; avatarUrl?: string | null };
-type InviteDetails = { conversation: string; title: string; memberCount: number; alreadyMember: boolean };
+type InviteDetails = {
+  conversation: string;
+  title: string;
+  memberCount: number;
+  alreadyMember: boolean;
+};
 type ConversationCursor = { pk: string; sk: string; updatedAt: number };
 const wsUrl = process.env.NEXT_PUBLIC_CHAT_WS_URL;
 const playersApi = `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/players`;
@@ -38,33 +93,44 @@ const ChatEmojiPicker = lazy(() => import('./chat-emoji-picker'));
 function isConversationCursor(value: unknown): value is ConversationCursor {
   if (!value || typeof value !== 'object') return false;
   const cursor = value as Partial<ConversationCursor>;
-  return typeof cursor.pk === 'string' && typeof cursor.sk === 'string' && typeof cursor.updatedAt === 'number';
+  return (
+    typeof cursor.pk === 'string' &&
+    typeof cursor.sk === 'string' &&
+    typeof cursor.updatedAt === 'number'
+  );
 }
 
 function mergeConversations(existing: ChatConversation[], incoming: ChatConversation[]) {
-  const merged = new Map(existing.map(item => [item.id, item]));
-  incoming.forEach(item => merged.set(item.id, item));
+  const merged = new Map(existing.map((item) => [item.id, item]));
+  incoming.forEach((item) => merged.set(item.id, item));
   return [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 function ChatAvatarImage({ src, fallback }: { src: string; fallback: string }) {
   const [failed, setFailed] = useState(false);
-  return failed ? fallback : (
+  return failed ? (
+    fallback
+  ) : (
     <img src={src} alt="" aria-hidden="true" onError={() => setFailed(true)} />
   );
 }
 
 function mergeMessages(existing: ChatMessage[], incoming: ChatMessage[]) {
-  const merged = new Map(existing.map(item => [getChatMessageIdentity(item), item]));
-  incoming.forEach(item => merged.set(getChatMessageIdentity(item), item));
-  return [...merged.values()].sort((a, b) => a.createdAt - b.createdAt || getChatMessageIdentity(a).localeCompare(getChatMessageIdentity(b)));
+  const merged = new Map(existing.map((item) => [getChatMessageIdentity(item), item]));
+  incoming.forEach((item) => merged.set(getChatMessageIdentity(item), item));
+  return [...merged.values()].sort(
+    (a, b) =>
+      a.createdAt - b.createdAt ||
+      getChatMessageIdentity(a).localeCompare(getChatMessageIdentity(b)),
+  );
 }
 
 function formatChatMessageTime(timestamp: number, locale: 'en' | 'id') {
   const date = new Date(timestamp);
   const age = Date.now() - date.getTime();
   const day = 24 * 60 * 60 * 1000;
-  if (age <= day) return date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12: true });
+  if (age <= day)
+    return date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12: true });
 
   const units: { unit: Intl.RelativeTimeFormatUnit; milliseconds: number }[] = [
     { unit: 'year', milliseconds: 365 * day },
@@ -72,12 +138,16 @@ function formatChatMessageTime(timestamp: number, locale: 'en' | 'id') {
     { unit: 'week', milliseconds: 7 * day },
     { unit: 'day', milliseconds: day },
   ];
-  const selected = units.find(item => age >= item.milliseconds) ?? units[3];
-  return new Intl.RelativeTimeFormat(locale, { numeric: 'always' }).format(-Math.floor(age / selected.milliseconds), selected.unit);
+  const selected = units.find((item) => age >= item.milliseconds) ?? units[3];
+  return new Intl.RelativeTimeFormat(locale, { numeric: 'always' }).format(
+    -Math.floor(age / selected.milliseconds),
+    selected.unit,
+  );
 }
 
 function getChatMessageIdentity(message: ChatMessage) {
-  if (typeof message.messageKey === 'string' && message.messageKey.trim()) return `message-key:${message.messageKey}`;
+  if (typeof message.messageKey === 'string' && message.messageKey.trim())
+    return `message-key:${message.messageKey}`;
   if (typeof message.id === 'string' && message.id.trim()) return `message-id:${message.id}`;
   return `message-fallback:${message.conversationId}:${message.createdAt}:${message.senderId}:${message.kind}:${message.text}`;
 }
@@ -87,11 +157,18 @@ function getChatMessageRenderKey(message: ChatMessage, index: number) {
   return identity.startsWith('message-fallback:') ? `${identity}:${index}` : identity;
 }
 
-function getChatMessageSenderName(senderId: unknown, names: Record<string, string> | undefined, currentUserId: string, currentUserName: unknown, missingName: string) {
+function getChatMessageSenderName(
+  senderId: unknown,
+  names: Record<string, string> | undefined,
+  currentUserId: string,
+  currentUserName: unknown,
+  missingName: string,
+) {
   if (typeof senderId !== 'string' || !senderId) return missingName;
   const resolvedName = names?.[senderId];
   if (typeof resolvedName === 'string' && resolvedName.trim()) return resolvedName.trim();
-  if (senderId === currentUserId && typeof currentUserName === 'string' && currentUserName.trim()) return currentUserName.trim();
+  if (senderId === currentUserId && typeof currentUserName === 'string' && currentUserName.trim())
+    return currentUserName.trim();
   if (senderId === currentUserId) return missingName;
   return senderId;
 }
@@ -130,12 +207,17 @@ async function compressPhotoToJpeg(file: File): Promise<File> {
       context.drawImage(source, 0, 0, canvas.width, canvas.height);
 
       for (const quality of qualities) {
-        const jpeg = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+        const jpeg = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, 'image/jpeg', quality),
+        );
         if (!jpeg) throw new Error('Could not compress camera photo.');
         smallestJpeg = jpeg;
         if (jpeg.size <= chatMediaSizeLimit) {
           const baseName = file.name.replace(/\.[^.]+$/, '') || 'photo';
-          return new File([jpeg], `${baseName}.jpg`, { type: 'image/jpeg', lastModified: file.lastModified });
+          return new File([jpeg], `${baseName}.jpg`, {
+            type: 'image/jpeg',
+            lastModified: file.lastModified,
+          });
         }
       }
       scale *= 0.75;
@@ -143,7 +225,10 @@ async function compressPhotoToJpeg(file: File): Promise<File> {
 
     if (!smallestJpeg) throw new Error('Could not compress camera photo.');
     const baseName = file.name.replace(/\.[^.]+$/, '') || 'photo';
-    return new File([smallestJpeg], `${baseName}.jpg`, { type: 'image/jpeg', lastModified: file.lastModified });
+    return new File([smallestJpeg], `${baseName}.jpg`, {
+      type: 'image/jpeg',
+      lastModified: file.lastModified,
+    });
   } finally {
     bitmap?.close();
     if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -152,16 +237,21 @@ async function compressPhotoToJpeg(file: File): Promise<File> {
 
 function ensureChatHistoryEntry(conversationId: string) {
   if (!window.matchMedia('(max-width: 760px)').matches) return;
-  const current = window.history.state && typeof window.history.state === 'object'
-    ? window.history.state as Record<string, unknown>
-    : {};
+  const current =
+    window.history.state && typeof window.history.state === 'object'
+      ? (window.history.state as Record<string, unknown>)
+      : {};
   if (current[chatHistoryKey] === conversationId) return;
   const next = { ...current, [chatHistoryKey]: conversationId };
   window.history.pushState(next, '', window.location.href);
 }
 
 function hasChatHistoryEntry(conversationId: string, state: unknown = window.history.state) {
-  return Boolean(state && typeof state === 'object' && (state as Record<string, unknown>)[chatHistoryKey] === conversationId);
+  return Boolean(
+    state &&
+    typeof state === 'object' &&
+    (state as Record<string, unknown>)[chatHistoryKey] === conversationId,
+  );
 }
 
 function advanceConversationReadVersion(versions: Map<string, number>, conversationId: string) {
@@ -174,14 +264,25 @@ function sharedVideoIdFromUrl(rawUrl: string) {
   if (typeof window === 'undefined') return null;
   try {
     const url = new URL(rawUrl.startsWith('www.') ? `https://${rawUrl}` : rawUrl);
-    const trustedOrigins = new Set(['https://www.ambatu.fun', 'https://ambatu.fun', window.location.origin]);
+    const trustedOrigins = new Set([
+      'https://www.ambatu.fun',
+      'https://ambatu.fun',
+      window.location.origin,
+    ]);
     const configuredShareOrigin = process.env.NEXT_PUBLIC_SHARE_BASE_URL;
     if (configuredShareOrigin) trustedOrigins.add(new URL(configuredShareOrigin).origin);
     const localHosts = ['localhost', '127.0.0.1', '[::1]'];
-    const isLocalDevelopmentLink = localHosts.includes(url.hostname) && localHosts.includes(window.location.hostname);
-    if ((!trustedOrigins.has(url.origin) && !isLocalDevelopmentLink) || !['https:', 'http:'].includes(url.protocol)) return null;
+    const isLocalDevelopmentLink =
+      localHosts.includes(url.hostname) && localHosts.includes(window.location.hostname);
+    if (
+      (!trustedOrigins.has(url.origin) && !isLocalDevelopmentLink) ||
+      !['https:', 'http:'].includes(url.protocol)
+    )
+      return null;
     return url.pathname.match(/^\/watch\/([\w-]{1,128})\/?$/)?.[1] ?? null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function sharedVideoIdFromText(text: unknown) {
@@ -197,10 +298,15 @@ function sharedVideoIdFromText(text: unknown) {
 function isMobileVideoExperience() {
   if (typeof window === 'undefined') return false;
   const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
-  return Capacitor.isNativePlatform() || window.matchMedia('(max-width: 760px)').matches ||
-    window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(display-mode: standalone)').matches ||
-    navigatorWithStandalone.standalone === true || /iPad|iPhone|iPod|Android|Tablet/i.test(navigator.userAgent) ||
-    (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  return (
+    Capacitor.isNativePlatform() ||
+    window.matchMedia('(max-width: 760px)').matches ||
+    window.matchMedia('(pointer: coarse)').matches ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    navigatorWithStandalone.standalone === true ||
+    /iPad|iPhone|iPod|Android|Tablet/i.test(navigator.userAgent) ||
+    (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+  );
 }
 
 function sharedVideoHref(id: string, conversation: string) {
@@ -220,11 +326,28 @@ function ChatMessageText({ text, conversation }: { text: unknown; conversation: 
     const url = rawUrl.replace(/[.,!?;:)\]}]+$/, '');
     const start = match.index ?? 0;
     if (start > cursor) content.push(safeText.slice(cursor, start));
-    if (!url) { content.push(rawUrl); cursor = start + rawUrl.length; continue; }
+    if (!url) {
+      content.push(rawUrl);
+      cursor = start + rawUrl.length;
+      continue;
+    }
     const clipId = sharedVideoIdFromUrl(url);
-    content.push(clipId
-      ? <Link key={start} href={sharedVideoHref(clipId, conversation)} prefetch={false}>{url}</Link>
-      : <a key={start} href={url.startsWith('www.') ? `https://${url}` : url} target="_blank" rel="noopener noreferrer">{url}</a>);
+    content.push(
+      clipId ? (
+        <Link key={start} href={sharedVideoHref(clipId, conversation)} prefetch={false}>
+          {url}
+        </Link>
+      ) : (
+        <a
+          key={start}
+          href={url.startsWith('www.') ? `https://${url}` : url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {url}
+        </a>
+      ),
+    );
     if (url.length < rawUrl.length) content.push(rawUrl.slice(url.length));
     cursor = start + rawUrl.length;
   }
@@ -244,14 +367,15 @@ function loadSharedVideoPreview(id: string) {
   const videosApi = `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/videos`;
   if (!videosApi.startsWith('http')) return Promise.reject(new Error('VIDEO_PREVIEW_UNAVAILABLE'));
   const request = fetch(`${videosApi}/${encodeURIComponent(id)}`, { cache: 'no-store' })
-    .then(async response => {
+    .then(async (response) => {
       const data = await response.json();
       if (!response.ok) throw new Error('VIDEO_PREVIEW_UNAVAILABLE');
       return data as SharedVideoPreview;
     })
-    .then(clip => {
+    .then((clip) => {
       sharedVideoPreviewCache.set(id, { clip, expiresAt: Date.now() + 50 * 60 * 1000 });
-      if (sharedVideoPreviewCache.size > 48) sharedVideoPreviewCache.delete(sharedVideoPreviewCache.keys().next().value!);
+      if (sharedVideoPreviewCache.size > 48)
+        sharedVideoPreviewCache.delete(sharedVideoPreviewCache.keys().next().value!);
       return clip;
     })
     .finally(() => sharedVideoPreviewRequests.delete(id));
@@ -259,50 +383,118 @@ function loadSharedVideoPreview(id: string) {
   return request;
 }
 
-function ChatSharedVideoPreview({ clipId, conversation }: { clipId: string; conversation: string }) {
+function ChatSharedVideoPreview({
+  clipId,
+  conversation,
+}: {
+  clipId: string;
+  conversation: string;
+}) {
   const { t } = useI18n();
   const [clip, setClip] = useState<SharedVideoPreview | null>(null);
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   useEffect(() => {
     let current = true;
-    void loadSharedVideoPreview(clipId).then(result => {
-      if (current) setClip(result);
-    }).catch(() => { if (current) setClip(null); });
-    return () => { current = false; };
+    void loadSharedVideoPreview(clipId)
+      .then((result) => {
+        if (current) setClip(result);
+      })
+      .catch(() => {
+        if (current) setClip(null);
+      });
+    return () => {
+      current = false;
+    };
   }, [clipId]);
-  return <Link className="chat-shared-video-preview" href={sharedVideoHref(clip?.id ?? clipId, conversation)} prefetch={false}>
-    <span className="chat-shared-video-thumbnail">
-      {clip?.thumbnailUrl && !thumbnailFailed ? <img src={clip.thumbnailUrl} alt="" onError={() => setThumbnailFailed(true)} /> : <span className="chat-shared-video-placeholder" aria-hidden="true"><Play size={26} fill="currentColor" /></span>}
-      <span className="chat-shared-video-play" aria-hidden="true"><Play size={17} fill="currentColor" /></span>
-    </span>
-    <span className="chat-shared-video-title">{clip?.title ?? t('nav.watch')}</span>
-    <span className="chat-shared-video-source">{t('nav.watch')}{clip?.uploader ? ` · ${clip.uploader}` : ''}</span>
-  </Link>;
+  return (
+    <Link
+      className="chat-shared-video-preview"
+      href={sharedVideoHref(clip?.id ?? clipId, conversation)}
+      prefetch={false}
+    >
+      <span className="chat-shared-video-thumbnail">
+        {clip?.thumbnailUrl && !thumbnailFailed ? (
+          <img src={clip.thumbnailUrl} alt="" onError={() => setThumbnailFailed(true)} />
+        ) : (
+          <span className="chat-shared-video-placeholder" aria-hidden="true">
+            <Play size={26} fill="currentColor" />
+          </span>
+        )}
+        <span className="chat-shared-video-play" aria-hidden="true">
+          <Play size={17} fill="currentColor" />
+        </span>
+      </span>
+      <span className="chat-shared-video-title">{clip?.title ?? t('nav.watch')}</span>
+      <span className="chat-shared-video-source">
+        {t('nav.watch')}
+        {clip?.uploader ? ` · ${clip.uploader}` : ''}
+      </span>
+    </Link>
+  );
 }
 
 function ChatMessageBody({ text, conversation }: { text: unknown; conversation: string }) {
   const clipId = sharedVideoIdFromText(text);
-  return clipId
-    ? <ChatSharedVideoPreview clipId={clipId} conversation={conversation} />
-    : <p><ChatMessageText text={text} conversation={conversation}/></p>;
+  return clipId ? (
+    <ChatSharedVideoPreview clipId={clipId} conversation={conversation} />
+  ) : (
+    <p>
+      <ChatMessageText text={text} conversation={conversation} />
+    </p>
+  );
 }
 
-function ChatMessageImage({ src, alt, onLoad }: { src?: string; alt: string; onLoad?: () => void }) {
+function ChatMessageImage({
+  src,
+  alt,
+  onLoad,
+}: {
+  src?: string;
+  alt: string;
+  onLoad?: () => void;
+}) {
   const { t } = useI18n();
   const [loaded, setLoaded] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   return (
     <>
-      <button type="button" className="chat-message-image" data-loaded={loaded || undefined} data-message-control="" aria-label={t('chat.openImagePreview')} disabled={!loaded || !src} onClick={() => setPreviewOpen(true)}>
+      <button
+        type="button"
+        className="chat-message-image"
+        data-loaded={loaded || undefined}
+        data-message-control=""
+        aria-label={t('chat.openImagePreview')}
+        disabled={!loaded || !src}
+        onClick={() => setPreviewOpen(true)}
+      >
         <span className="chat-message-image-placeholder" aria-hidden="true" />
-        <img src={src} alt={alt} onLoad={() => { setLoaded(true); onLoad?.(); }} />
+        <img
+          src={src}
+          alt={alt}
+          onLoad={() => {
+            setLoaded(true);
+            onLoad?.();
+          }}
+        />
       </button>
-      {previewOpen && src && <ChatImagePreview src={src} alt={alt} onClose={() => setPreviewOpen(false)} />}
+      {previewOpen && src && (
+        <ChatImagePreview src={src} alt={alt} onClose={() => setPreviewOpen(false)} />
+      )}
     </>
   );
 }
 
-function ChatCachedMedia({ message, userId, alt, onLoad }: { message: ChatMessage; userId: string; alt: string; onLoad: () => void }) {
+function ChatCachedMedia({
+  message,
+  userId,
+  alt,
+  onLoad,
+}: {
+  message: ChatMessage;
+  userId: string;
+  alt: string;
+  onLoad: () => void;
+}) {
   const [cachedUrl, setCachedUrl] = useState('');
   const [checked, setChecked] = useState(!message.key);
   const [failedUrl, setFailedUrl] = useState('');
@@ -314,14 +506,16 @@ function ChatCachedMedia({ message, userId, alt, onLoad }: { message: ChatMessag
   useEffect(() => {
     let cancelled = false;
     if (!key) return;
-    void loadCachedChatMedia(userId, message.conversationId, key).catch(() => null).then(blob => {
-      if (cancelled) return;
-      if (blob) {
-        objectUrl.current = URL.createObjectURL(blob);
-        setCachedUrl(objectUrl.current);
-      }
-      setChecked(true);
-    });
+    void loadCachedChatMedia(userId, message.conversationId, key)
+      .catch(() => null)
+      .then((blob) => {
+        if (cancelled) return;
+        if (blob) {
+          objectUrl.current = URL.createObjectURL(blob);
+          setCachedUrl(objectUrl.current);
+        }
+        setChecked(true);
+      });
     return () => {
       cancelled = true;
       if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
@@ -330,19 +524,34 @@ function ChatCachedMedia({ message, userId, alt, onLoad }: { message: ChatMessag
   }, [userId, message.conversationId, key]);
 
   useEffect(() => {
-    if (!checked || cachedUrl || kind !== 'image' || !key || !message.url || failedUrl === message.url) return;
+    if (
+      !checked ||
+      cachedUrl ||
+      kind !== 'image' ||
+      !key ||
+      !message.url ||
+      failedUrl === message.url
+    )
+      return;
     let cancelled = false;
     const url = message.url;
-    void downloadChatMedia(userId, message.conversationId, key, url, kind).then(blob => {
+    void downloadChatMedia(userId, message.conversationId, key, url, kind).then((blob) => {
       if (cancelled) return;
-      if (!blob) { setFailedUrl(url); return; }
+      if (!blob) {
+        setFailedUrl(url);
+        return;
+      }
       objectUrl.current = URL.createObjectURL(blob);
       setCachedUrl(objectUrl.current);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [cachedUrl, checked, failedUrl, key, kind, message.conversationId, message.url, userId]);
 
-  const src = cachedUrl || (checked && (!key || kind === 'video' || failedUrl === message.url) ? message.url : undefined);
+  const src =
+    cachedUrl ||
+    (checked && (!key || kind === 'video' || failedUrl === message.url) ? message.url : undefined);
   if (kind === 'image') return <ChatMessageImage key={src} src={src} alt={alt} onLoad={onLoad} />;
   return src ? (
     <MediaPlayer
@@ -352,9 +561,11 @@ function ChatCachedMedia({ message, userId, alt, onLoad }: { message: ChatMessag
       onPlay={() => {
         if (!cachedUrl && !videoCachingStarted.current && key && message.url) {
           videoCachingStarted.current = true;
-          void downloadChatMedia(userId, message.conversationId, key, message.url, 'video').then(blob => {
-            if (!blob) videoCachingStarted.current = false;
-          });
+          void downloadChatMedia(userId, message.conversationId, key, message.url, 'video').then(
+            (blob) => {
+              if (!blob) videoCachingStarted.current = false;
+            },
+          );
         }
       }}
     />
@@ -364,7 +575,11 @@ function ChatCachedMedia({ message, userId, alt, onLoad }: { message: ChatMessag
 function mentionQueryAt(value: string, cursor: number) {
   const beforeCursor = value.slice(0, cursor);
   const start = beforeCursor.lastIndexOf('@');
-  if (start < 0 || (start > 0 && !/\s/.test(beforeCursor[start - 1]) && !'([{'.includes(beforeCursor[start - 1]))) return null;
+  if (
+    start < 0 ||
+    (start > 0 && !/\s/.test(beforeCursor[start - 1]) && !'([{'.includes(beforeCursor[start - 1]))
+  )
+    return null;
   const term = beforeCursor.slice(start + 1);
   return /\s/.test(term) ? null : { start, term };
 }
@@ -381,6 +596,7 @@ export function ChatPage() {
   const [error, setError] = useState('');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [playerAvatarUrls, setPlayerAvatarUrls] = useState<Record<string, string>>({});
+  const [blockedPlayers, setBlockedPlayers] = useState<Record<string, boolean>>({});
   const [initialChatsLoaded, setInitialChatsLoaded] = useState(false);
   const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
   const [hasMoreConversations, setHasMoreConversations] = useState(false);
@@ -529,7 +745,8 @@ export function ChatPage() {
   useEffect(() => {
     if (!recording) return;
     const stopWhenHidden = () => {
-      if (document.visibilityState === 'hidden' && recorder.current?.state === 'recording') recorder.current.stop();
+      if (document.visibilityState === 'hidden' && recorder.current?.state === 'recording')
+        recorder.current.stop();
     };
     recordingTimer.current = setInterval(() => {
       const elapsed = Math.floor((Date.now() - recordingStartedAt.current) / 1000);
@@ -544,11 +761,19 @@ export function ChatPage() {
     };
   }, [recording]);
 
-  useEffect(() => () => {
-    if (recordingTimer.current) clearInterval(recordingTimer.current);
-    cameraStreamRef.current?.getTracks().forEach(track => track.stop());
-  }, []);
-  useEffect(() => () => { if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl); }, [recordedVideoUrl]);
+  useEffect(
+    () => () => {
+      if (recordingTimer.current) clearInterval(recordingTimer.current);
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    },
+    [],
+  );
+  useEffect(
+    () => () => {
+      if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
+    },
+    [recordedVideoUrl],
+  );
   useEffect(() => {
     if (active || !cameraOpenRef.current) return;
     cameraOpenRef.current = false;
@@ -556,7 +781,7 @@ export function ChatPage() {
       discardedRecorders.current.add(recorder.current);
       recorder.current.stop();
     }
-    cameraStreamRef.current?.getTracks().forEach(track => track.stop());
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
     cameraStreamRef.current = null;
     setCameraOpen(false);
     setCameraStream(null);
@@ -565,103 +790,195 @@ export function ChatPage() {
     setRecordedVideoUrl('');
   }, [active]);
 
-  useEffect(() => { installPushNavigation(() => socket.current, locale, user?.id ?? null, path => router.push(path)); }, [locale, router, user?.id]);
   useEffect(() => {
-    if (status === 'ready' && userId && socket.current) void syncChatPush(socket.current, locale, userId);
+    installPushNavigation(
+      () => socket.current,
+      locale,
+      user?.id ?? null,
+      (path) => router.push(path),
+    );
+  }, [locale, router, user?.id]);
+  useEffect(() => {
+    if (status === 'ready' && userId && socket.current)
+      void syncChatPush(socket.current, locale, userId);
   }, [locale, status, userId]);
 
-  const hydrateConversationPage = useCallback(async (client: ChatSocket, page: ChatConversation[], isCurrent: () => boolean) => {
-    if (client !== socket.current) return null;
-    const ids = [...new Set(page.flatMap(item => [...item.members, ...Object.keys(item.names)]))];
-    let fetchedNames: Record<string, string> = {};
-    let fetchedAvatarUrls: Record<string, string> = {};
-    let fetched = false;
-    const unresolvedProfiles = ids.some(id => !resolvedProfileIds.current.has(id));
-    if (ids.length && (unresolvedProfiles || Date.now() - lastNamesFetch.current >= 15000)) {
-      lastNamesFetch.current = Date.now();
-      try {
-        const token = await getIdToken();
-        if (!token) throw new Error('token');
-        const chunks = Array.from({ length: Math.ceil(ids.length / 100) }, (_, index) => ids.slice(index * 100, (index + 1) * 100));
-        const results = await Promise.all(chunks.map(async chunk => {
-          const response = await fetch(playerNamesApi, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ ids: chunk }), cache: 'no-store' });
-          if (!response.ok) throw new Error('names');
-          return await response.json() as { names: Record<string, string>; avatars?: Record<string, string> };
+  const hydrateConversationPage = useCallback(
+    async (client: ChatSocket, page: ChatConversation[], isCurrent: () => boolean) => {
+      if (client !== socket.current) return null;
+      const ids = [
+        ...new Set(page.flatMap((item) => [...item.members, ...Object.keys(item.names)])),
+      ];
+      let fetchedNames: Record<string, string> = {};
+      let fetchedAvatarUrls: Record<string, string> = {};
+      let fetchedBlocked: string[] = page.flatMap((item) => item.blockedIds ?? []);
+      let fetched = false;
+      const unresolvedProfiles = ids.some((id) => !resolvedProfileIds.current.has(id));
+      if (ids.length && (unresolvedProfiles || Date.now() - lastNamesFetch.current >= 15000)) {
+        lastNamesFetch.current = Date.now();
+        try {
+          const token = await getIdToken();
+          if (!token) throw new Error('token');
+          const chunks = Array.from({ length: Math.ceil(ids.length / 100) }, (_, index) =>
+            ids.slice(index * 100, (index + 1) * 100),
+          );
+          const results = await Promise.all(
+            chunks.map(async (chunk) => {
+              const response = await fetch(playerNamesApi, {
+                method: 'POST',
+                headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+                body: JSON.stringify({ ids: chunk }),
+                cache: 'no-store',
+              });
+              if (!response.ok) throw new Error('names');
+              return (await response.json()) as {
+                names: Record<string, string>;
+                avatars?: Record<string, string>;
+                blocked?: string[];
+              };
+            }),
+          );
+          fetchedNames = Object.assign({}, ...results.map((result) => result.names));
+          fetchedAvatarUrls = Object.assign({}, ...results.map((result) => result.avatars ?? {}));
+          fetchedBlocked = [
+            ...new Set([...fetchedBlocked, ...results.flatMap((result) => result.blocked ?? [])]),
+          ];
+          fetched = true;
+        } catch {
+          lastNamesFetch.current = 0;
+          return;
+        }
+      }
+      if (client !== socket.current || !isCurrent()) return;
+      const nextNames = { ...resolvedNames.current, ...fetchedNames };
+      const hidden = new Set(fetchedBlocked);
+      for (const id of fetchedBlocked) nextNames[id] = t('blocks.blockedThug');
+      if (fetched)
+        setBlockedPlayers((previous) => ({
+          ...previous,
+          ...Object.fromEntries(ids.map((id) => [id, hidden.has(id)])),
         }));
-        fetchedNames = Object.assign({}, ...results.map(result => result.names));
-        fetchedAvatarUrls = Object.assign({}, ...results.map(result => result.avatars ?? {}));
-        fetched = true;
-      } catch {
-        lastNamesFetch.current = 0;
-        return;
+      if (fetched) {
+        const nextCached = { ...cachedAvatars.current };
+        for (const id of ids) {
+          const url = hidden.has(id) ? undefined : fetchedAvatarUrls[id];
+          const avatar = url ? selectChatAvatar(id, url, nextCached[id]) : null;
+          if (avatar) nextCached[id] = avatar;
+          else delete nextCached[id];
+        }
+        cachedAvatars.current = nextCached;
+        resolvedAvatarUrls.current = Object.fromEntries(
+          Object.entries(nextCached).map(([id, avatar]) => [id, avatar.url]),
+        );
+        ids.forEach((id) => resolvedProfileIds.current.add(id));
+        setPlayerAvatarUrls(resolvedAvatarUrls.current);
+        if (userId) void saveCachedChatAvatars(userId, ids, nextCached).catch(() => {});
       }
-    }
-    if (client !== socket.current || !isCurrent()) return;
-    const nextNames = { ...resolvedNames.current, ...fetchedNames };
-    if (fetched) {
-      const nextCached = { ...cachedAvatars.current };
-      for (const id of ids) {
-        const url = fetchedAvatarUrls[id];
-        const avatar = url ? selectChatAvatar(id, url, nextCached[id]) : null;
-        if (avatar) nextCached[id] = avatar;
-        else delete nextCached[id];
-      }
-      cachedAvatars.current = nextCached;
-      resolvedAvatarUrls.current = Object.fromEntries(Object.entries(nextCached).map(([id, avatar]) => [id, avatar.url]));
-      ids.forEach(id => resolvedProfileIds.current.add(id));
-      setPlayerAvatarUrls(resolvedAvatarUrls.current);
-      if (userId) void saveCachedChatAvatars(userId, ids, nextCached).catch(() => {});
-    }
-    resolvedNames.current = nextNames;
-    setConversations(items => items.map(item => withCurrentNames(item, nextNames)));
-  }, [getIdToken, userId]);
+      resolvedNames.current = nextNames;
+      setConversations((items) =>
+        items.map((item) =>
+          withCurrentNames(
+            {
+              ...item,
+              blockedIds: item.members.filter(
+                (id) => hidden.has(id) || (!ids.includes(id) && item.blockedIds?.includes(id)),
+              ),
+            },
+            nextNames,
+          ),
+        ),
+      );
+    },
+    [getIdToken, userId, t],
+  );
 
-  const refresh = useCallback(async (client: ChatSocket) => {
-    if (client !== socket.current) return;
-    const requestVersion = ++conversationRefreshVersion.current;
-    const pageGeneration = ++conversationPageGeneration.current;
-    conversationPageLoading.current = false;
-    setLoadingMoreConversations(false);
-    conversationCursor.current = null;
-    setHasMoreConversations(false);
-    setConversationRetryBlocked(false);
-    try {
-      const requestedActive = activeRef.current;
-      const data = await client.request('conversations', requestedActive ? { activeConversation: requestedActive } : {});
-      if (client !== socket.current || requestVersion !== conversationRefreshVersion.current) return;
-      receivedConversationPage.current = true;
-      const page = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt)
-        .map(item => pendingReadConversations.current.has(item.id) ? { ...item, unreadCount: 0 } : item);
-      const activeConversation = data.activeConversation as ChatConversation | null | undefined;
-      const pageIds = new Set(page.map(item => item.id));
-      const hydrationPage = activeConversation && !pageIds.has(activeConversation.id) ? [...page, activeConversation] : page;
-      const next = hydrationPage.filter(item => pageIds.has(item.id) || item.id === requestedActive)
-        .map(item => withCurrentNames(item, resolvedNames.current));
-      const cursor = isConversationCursor(data.nextCursor) ? data.nextCursor : null;
-      if (!cursor && userId) void replaceCachedConversations(userId, next).catch(() => {});
-      conversationCursor.current = cursor;
-      setHasMoreConversations(Boolean(cursor));
-      const removedActive = requestedActive && data.activeConversation === null && activeRef.current === requestedActive;
-      if (removedActive || (!cursor && activeRef.current && !next.some(item => item.id === activeRef.current))) {
-        if (removedActive && userId) void deleteCachedConversation(userId, requestedActive).catch(() => {});
-        activeGeneration.current++;
-        activeRef.current = '';
-        setActive('');
-        setHistoryCursor(null);
-        setDraftMentions({}); setMentionQuery(null);
-        setMessages([]);
-        setMembersOpen(false);
+  const refresh = useCallback(
+    async (client: ChatSocket) => {
+      if (client !== socket.current) return;
+      const requestVersion = ++conversationRefreshVersion.current;
+      const pageGeneration = ++conversationPageGeneration.current;
+      conversationPageLoading.current = false;
+      setLoadingMoreConversations(false);
+      conversationCursor.current = null;
+      setHasMoreConversations(false);
+      setConversationRetryBlocked(false);
+      try {
+        const requestedActive = activeRef.current;
+        const data = await client.request(
+          'conversations',
+          requestedActive ? { activeConversation: requestedActive } : {},
+        );
+        if (client !== socket.current || requestVersion !== conversationRefreshVersion.current)
+          return;
+        receivedConversationPage.current = true;
+        const page = ((data.conversations as ChatConversation[]) ?? [])
+          .sort((a, b) => b.updatedAt - a.updatedAt)
+          .map((item) =>
+            pendingReadConversations.current.has(item.id) ? { ...item, unreadCount: 0 } : item,
+          );
+        const activeConversation = data.activeConversation as ChatConversation | null | undefined;
+        const pageIds = new Set(page.map((item) => item.id));
+        const hydrationPage =
+          activeConversation && !pageIds.has(activeConversation.id)
+            ? [...page, activeConversation]
+            : page;
+        const next = hydrationPage
+          .filter((item) => pageIds.has(item.id) || item.id === requestedActive)
+          .map((item) => withCurrentNames(item, resolvedNames.current));
+        const cursor = isConversationCursor(data.nextCursor) ? data.nextCursor : null;
+        if (!cursor && userId) void replaceCachedConversations(userId, next).catch(() => {});
+        conversationCursor.current = cursor;
+        setHasMoreConversations(Boolean(cursor));
+        const removedActive =
+          requestedActive &&
+          data.activeConversation === null &&
+          activeRef.current === requestedActive;
+        if (
+          removedActive ||
+          (!cursor && activeRef.current && !next.some((item) => item.id === activeRef.current))
+        ) {
+          if (removedActive && userId)
+            void deleteCachedConversation(userId, requestedActive).catch(() => {});
+          activeGeneration.current++;
+          activeRef.current = '';
+          setActive('');
+          setHistoryCursor(null);
+          setDraftMentions({});
+          setMentionQuery(null);
+          setMessages([]);
+          setMembersOpen(false);
+        }
+        setConversations((items) => {
+          const current = removedActive
+            ? items.filter((item) => item.id !== requestedActive)
+            : items;
+          return cursor ? mergeConversations(current, next) : next;
+        });
+        setInitialChatsLoaded(true);
+        void hydrateConversationPage(
+          client,
+          hydrationPage,
+          () =>
+            requestVersion === conversationRefreshVersion.current &&
+            pageGeneration === conversationPageGeneration.current,
+        );
+      } catch {
+        if (client === socket.current && requestVersion === conversationRefreshVersion.current)
+          lastNamesFetch.current = 0;
       }
-      setConversations(items => {
-        const current = removedActive ? items.filter(item => item.id !== requestedActive) : items;
-        return cursor ? mergeConversations(current, next) : next;
-      });
-      setInitialChatsLoaded(true);
-      void hydrateConversationPage(client, hydrationPage, () => requestVersion === conversationRefreshVersion.current && pageGeneration === conversationPageGeneration.current);
-    } catch {
-      if (client === socket.current && requestVersion === conversationRefreshVersion.current) lastNamesFetch.current = 0;
-    }
-  }, [hydrateConversationPage, userId]);
+    },
+    [hydrateConversationPage, userId],
+  );
+
+  useEffect(() => {
+    const changed = () => {
+      lastNamesFetch.current = 0;
+      resolvedProfileIds.current.clear();
+      if (socket.current) void refresh(socket.current);
+    };
+    window.addEventListener('ambatu:blocks-changed', changed);
+    return () => window.removeEventListener('ambatu:blocks-changed', changed);
+  }, [refresh]);
 
   const loadMoreConversations = useCallback(async () => {
     const client = socket.current;
@@ -672,15 +989,28 @@ export function ChatPage() {
     setLoadingMoreConversations(true);
     try {
       const data = await client.request('conversations', { cursor });
-      if (client !== socket.current || pageGeneration !== conversationPageGeneration.current) return;
-      const page = (data.conversations as ChatConversation[] ?? []).sort((a, b) => b.updatedAt - a.updatedAt)
-        .map(item => pendingReadConversations.current.has(item.id) ? { ...item, unreadCount: 0 } : item);
+      if (client !== socket.current || pageGeneration !== conversationPageGeneration.current)
+        return;
+      const page = ((data.conversations as ChatConversation[]) ?? [])
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map((item) =>
+          pendingReadConversations.current.has(item.id) ? { ...item, unreadCount: 0 } : item,
+        );
       const nextCursor = isConversationCursor(data.nextCursor) ? data.nextCursor : null;
       conversationCursor.current = nextCursor;
       setHasMoreConversations(Boolean(nextCursor));
       setConversationRetryBlocked(false);
-      setConversations(items => mergeConversations(items, page.map(item => withCurrentNames(item, resolvedNames.current))));
-      void hydrateConversationPage(client, page, () => pageGeneration === conversationPageGeneration.current);
+      setConversations((items) =>
+        mergeConversations(
+          items,
+          page.map((item) => withCurrentNames(item, resolvedNames.current)),
+        ),
+      );
+      void hydrateConversationPage(
+        client,
+        page,
+        () => pageGeneration === conversationPageGeneration.current,
+      );
     } catch {
       if (client === socket.current && pageGeneration === conversationPageGeneration.current) {
         setError(t('chat.connectionError'));
@@ -697,38 +1027,68 @@ export function ChatPage() {
   useEffect(() => {
     const root = inboxList.current;
     const sentinel = inboxLoadMoreSentinel.current;
-    if (!initialChatsLoaded || !hasMoreConversations || conversationRetryBlocked || !root || !sentinel) return;
-    const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) void loadMoreConversations();
-    }, { root, rootMargin: '100px 0px' });
+    if (
+      !initialChatsLoaded ||
+      !hasMoreConversations ||
+      conversationRetryBlocked ||
+      !root ||
+      !sentinel
+    )
+      return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadMoreConversations();
+      },
+      { root, rootMargin: '100px 0px' },
+    );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [conversations.length, conversationRetryBlocked, hasMoreConversations, initialChatsLoaded, loadingMoreConversations, loadMoreConversations]);
+  }, [
+    conversations.length,
+    conversationRetryBlocked,
+    hasMoreConversations,
+    initialChatsLoaded,
+    loadingMoreConversations,
+    loadMoreConversations,
+  ]);
 
-  const markConversationRead = useCallback(async (client: ChatSocket, conversation: string, seenThrough: string) => {
-    const requestVersion = conversationReadVersions.current.get(conversation) ?? 0;
-    const lastTarget = latestReadTargets.current.get(conversation) ?? '';
-    if (lastTarget && seenThrough < lastTarget) return false;
-    latestReadTargets.current.set(conversation, seenThrough);
-    const requestId = (readRequestIds.current.get(conversation) ?? 0) + 1;
-    readRequestIds.current.set(conversation, requestId);
-    try {
-      const data = await client.request('markRead', { conversation, seenThrough });
-      if (client !== socket.current || conversationReadVersions.current.get(conversation) !== requestVersion || readRequestIds.current.get(conversation) !== requestId) return false;
-      const unreadCount = typeof data.unreadCount === 'number' ? data.unreadCount : 0;
-      pendingReadConversations.current.delete(conversation);
-      conversationRefreshVersion.current++;
-      setConversations(items => items.map(item => item.id === conversation ? { ...item, unreadCount } : item));
-      return true;
-    } catch {
-      if (conversationReadVersions.current.get(conversation) === requestVersion && readRequestIds.current.get(conversation) === requestId) {
+  const markConversationRead = useCallback(
+    async (client: ChatSocket, conversation: string, seenThrough: string) => {
+      const requestVersion = conversationReadVersions.current.get(conversation) ?? 0;
+      const lastTarget = latestReadTargets.current.get(conversation) ?? '';
+      if (lastTarget && seenThrough < lastTarget) return false;
+      latestReadTargets.current.set(conversation, seenThrough);
+      const requestId = (readRequestIds.current.get(conversation) ?? 0) + 1;
+      readRequestIds.current.set(conversation, requestId);
+      try {
+        const data = await client.request('markRead', { conversation, seenThrough });
+        if (
+          client !== socket.current ||
+          conversationReadVersions.current.get(conversation) !== requestVersion ||
+          readRequestIds.current.get(conversation) !== requestId
+        )
+          return false;
+        const unreadCount = typeof data.unreadCount === 'number' ? data.unreadCount : 0;
         pendingReadConversations.current.delete(conversation);
-        latestReadTargets.current.delete(conversation);
-        void refresh(client).catch(() => {});
+        conversationRefreshVersion.current++;
+        setConversations((items) =>
+          items.map((item) => (item.id === conversation ? { ...item, unreadCount } : item)),
+        );
+        return true;
+      } catch {
+        if (
+          conversationReadVersions.current.get(conversation) === requestVersion &&
+          readRequestIds.current.get(conversation) === requestId
+        ) {
+          pendingReadConversations.current.delete(conversation);
+          latestReadTargets.current.delete(conversation);
+          void refresh(client).catch(() => {});
+        }
+        return false;
       }
-      return false;
-    }
-  }, [refresh]);
+    },
+    [refresh],
+  );
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -749,45 +1109,59 @@ export function ChatPage() {
     setHistoryCursor(null);
     setConversations([]);
     setPlayerAvatarUrls({});
+    setBlockedPlayers({});
     setInitialChatsLoaded(false);
     setLoadingMoreConversations(false);
     setHasMoreConversations(false);
     setConversationRetryBlocked(false);
     if (!user?.id) return;
     let cancelled = false;
-    void loadCachedConversations(user.id).then(cached => {
-      if (cancelled || receivedConversationPage.current) return;
-      if (cached.length) {
-        resolvedNames.current = { ...cachedConversationNames(cached), ...resolvedNames.current };
-        setConversations(items => mergeConversations(cached, items));
-        setInitialChatsLoaded(true);
-      }
-    }).catch(() => {});
-    void loadCachedChatAvatars(user.id).then(cached => {
-      if (cancelled) return;
-      const next = { ...cachedAvatars.current };
-      for (const avatar of cached) {
-        if (!resolvedProfileIds.current.has(avatar.id) && !next[avatar.id]) next[avatar.id] = avatar;
-      }
-      cachedAvatars.current = next;
-      resolvedAvatarUrls.current = Object.fromEntries(Object.entries(next).map(([id, avatar]) => [id, avatar.url]));
-      setPlayerAvatarUrls(resolvedAvatarUrls.current);
-    }).catch(() => {});
-    return () => { cancelled = true; };
+    void loadCachedConversations(user.id)
+      .then((cached) => {
+        if (cancelled || receivedConversationPage.current) return;
+        if (cached.length) {
+          resolvedNames.current = { ...cachedConversationNames(cached), ...resolvedNames.current };
+          setConversations((items) => mergeConversations(cached, items));
+          setInitialChatsLoaded(true);
+        }
+      })
+      .catch(() => {});
+    void loadCachedChatAvatars(user.id)
+      .then((cached) => {
+        if (cancelled) return;
+        const next = { ...cachedAvatars.current };
+        for (const avatar of cached) {
+          if (!resolvedProfileIds.current.has(avatar.id) && !next[avatar.id])
+            next[avatar.id] = avatar;
+        }
+        cachedAvatars.current = next;
+        resolvedAvatarUrls.current = Object.fromEntries(
+          Object.entries(next).map(([id, avatar]) => [id, avatar.url]),
+        );
+        setPlayerAvatarUrls(resolvedAvatarUrls.current);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!userId || !conversations.length) return;
-    const timer = window.setTimeout(() => { void saveCachedConversations(userId, conversations).catch(() => {}); }, 120);
+    const timer = window.setTimeout(() => {
+      void saveCachedConversations(userId, conversations).catch(() => {});
+    }, 120);
     return () => window.clearTimeout(timer);
   }, [conversations, userId]);
 
   useEffect(() => {
     if (!userId || !active) return;
-    const thread = messages.filter(message => message.conversationId === active);
+    const thread = messages.filter((message) => message.conversationId === active);
     if (!thread.length) return;
-    const timer = window.setTimeout(() => { void saveCachedMessages(userId, active, thread).catch(() => {}); }, 120);
+    const timer = window.setTimeout(() => {
+      void saveCachedMessages(userId, active, thread).catch(() => {});
+    }, 120);
     return () => window.clearTimeout(timer);
   }, [active, messages, userId]);
 
@@ -800,20 +1174,58 @@ export function ChatPage() {
     const retry = () => {
       if (cancelled || retryTimer) return;
       setStatus('unavailable');
-      retryTimer = setTimeout(() => setReconnect(value => value + 1), 2000);
+      retryTimer = setTimeout(() => setReconnect((value) => value + 1), 2000);
     };
     const run = async () => {
       try {
         const token = await getAccessToken();
-        if (!token || cancelled) { if (!cancelled) retry(); return; }
+        if (!token || cancelled) {
+          if (!cancelled) retry();
+          return;
+        }
         client = new ChatSocket();
         socket.current = client;
         client.onMessage = (message) => {
+          if (typeof message.senderBlocked === 'boolean') {
+            const sender = message.senderId;
+            const blocked = message.senderBlocked;
+            setBlockedPlayers((previous) => ({ ...previous, [sender]: blocked }));
+            setConversations((items) =>
+              items.map((item) =>
+                !item.members.includes(sender) && !(sender in item.names)
+                  ? item
+                  : {
+                      ...item,
+                      blockedIds: blocked
+                        ? [...new Set([...(item.blockedIds ?? []), sender])]
+                        : item.blockedIds?.filter((id) => id !== sender),
+                    },
+              ),
+            );
+            if (blocked) {
+              setPlayerAvatarUrls((previous) => {
+                const next = { ...previous };
+                delete next[sender];
+                return next;
+              });
+            } else if (
+              !resolvedNames.current[sender] ||
+              resolvedNames.current[sender] === t('blocks.blockedThug')
+            ) {
+              lastNamesFetch.current = 0;
+            }
+          }
           advanceConversationReadVersion(conversationReadVersions.current, message.conversationId);
           if (message.conversationId === activeRef.current) {
-            setMessages(items => items.some(item => item.id === message.id) ? items : [...items, message]);
+            setMessages((items) =>
+              items.some((item) => item.id === message.id) ? items : [...items, message],
+            );
             if (message.messageKey) {
-              void markConversationRead(client, message.conversationId, message.messageKey).then(applied => { if (applied) void refresh(client).catch(() => {}); });
+              void markConversationRead(client, message.conversationId, message.messageKey).then(
+                (applied) => {
+                  if (applied) void refresh(client).catch(() => {});
+                },
+              );
               return;
             }
           } else {
@@ -821,9 +1233,18 @@ export function ChatPage() {
           }
           void refresh(client).catch(() => {});
         };
-        client.onConversation = () => { void refresh(client).catch(() => {}); };
-        client.onReaction = reaction => {
-          if (reaction.conversationId === activeRef.current) setMessages(items => items.map(item => item.messageKey === reaction.messageKey ? { ...item, reactions: reaction.reactions } : item));
+        client.onConversation = () => {
+          void refresh(client).catch(() => {});
+        };
+        client.onReaction = (reaction) => {
+          if (reaction.conversationId === activeRef.current)
+            setMessages((items) =>
+              items.map((item) =>
+                item.messageKey === reaction.messageKey
+                  ? { ...item, reactions: reaction.reactions }
+                  : item,
+              ),
+            );
         };
         client.onClose = retry;
         await client.connect(wsUrl, token);
@@ -833,15 +1254,30 @@ export function ChatPage() {
         await refresh(client);
         const checkConnection = () => {
           if (document.hidden || cancelled) return;
-          if (!client.isOpen) { retry(); return; }
-          void refresh(client).catch(() => { client.close(); retry(); });
+          if (!client.isOpen) {
+            retry();
+            return;
+          }
+          void refresh(client).catch(() => {
+            client.close();
+            retry();
+          });
         };
         namesTimer = setInterval(checkConnection, 30000);
-        const onVisible = () => { if (!document.hidden) { lastNamesFetch.current = 0; checkConnection(); } };
+        const onVisible = () => {
+          if (!document.hidden) {
+            lastNamesFetch.current = 0;
+            checkConnection();
+          }
+        };
         document.addEventListener('visibilitychange', onVisible);
         window.addEventListener('pageshow', onVisible);
         window.addEventListener('online', onVisible);
-        visibilityCleanup = () => { document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('pageshow', onVisible); window.removeEventListener('online', onVisible); };
+        visibilityCleanup = () => {
+          document.removeEventListener('visibilitychange', onVisible);
+          window.removeEventListener('pageshow', onVisible);
+          window.removeEventListener('online', onVisible);
+        };
         const invite = params.get('invite');
         const target = params.get('user');
         if (invite && !initialInvite.current) {
@@ -851,14 +1287,24 @@ export function ChatPage() {
             const details = await client.request('previewGroupInvite', { token: invite });
             if (!cancelled) setInviteDetails(details as InviteDetails);
           } catch (reason) {
-            if (reason instanceof Error && ['socket', 'timeout'].includes(reason.message)) initialInvite.current = false;
-            if (!cancelled) setInviteError(reason instanceof Error && ['socket', 'timeout'].includes(reason.message) ? t('chat.connectionError') : t('chat.inviteInvalid'));
+            if (reason instanceof Error && ['socket', 'timeout'].includes(reason.message))
+              initialInvite.current = false;
+            if (!cancelled)
+              setInviteError(
+                reason instanceof Error && ['socket', 'timeout'].includes(reason.message)
+                  ? t('chat.connectionError')
+                  : t('chat.inviteInvalid'),
+              );
+          } finally {
+            if (!cancelled) setInviteLoading(false);
           }
-          finally { if (!cancelled) setInviteLoading(false); }
         } else if (target && target !== user.id && !initialUser.current) {
           initialUser.current = true;
           const name = params.get('name') ?? target;
-          const data = await client.request('createConversation', { members: [target], names: { [target]: name, [user.id]: user.name } });
+          const data = await client.request('createConversation', {
+            members: [target],
+            names: { [target]: name, [user.id]: user.name },
+          });
           const id = String(data.conversation);
           setLoadingHistoryFor(id);
           ensureChatHistoryEntry(id);
@@ -867,7 +1313,8 @@ export function ChatPage() {
           advanceConversationReadVersion(conversationReadVersions.current, id);
           activeRef.current = id;
           setHistoryCursor(null);
-          setDraftMentions({}); setMentionQuery(null);
+          setDraftMentions({});
+          setMentionQuery(null);
           setActive(id);
           await refresh(client);
         } else {
@@ -880,28 +1327,51 @@ export function ChatPage() {
             advanceConversationReadVersion(conversationReadVersions.current, conversation);
             activeRef.current = conversation;
             setHistoryCursor(null);
-            setDraftMentions({}); setMentionQuery(null);
+            setDraftMentions({});
+            setMentionQuery(null);
             setActive(conversation);
             await refresh(client);
           }
         }
-      } catch { if (!cancelled) { setError(t('chat.connectionError')); client?.close(); retry(); } }
+      } catch {
+        if (!cancelled) {
+          setError(t('chat.connectionError'));
+          client?.close();
+          retry();
+        }
+      }
     };
     let visibilityCleanup: (() => void) | undefined;
     void run();
-    return () => { cancelled = true; clearTimeout(retryTimer); clearInterval(namesTimer); visibilityCleanup?.(); client?.close(); socket.current = null; };
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+      clearInterval(namesTimer);
+      visibilityCleanup?.();
+      client?.close();
+      socket.current = null;
+    };
   }, [ready, user, getAccessToken, params, refresh, markConversationRead, reconnect, t]);
 
   useEffect(() => {
     if (!active || !userId) return;
     let cancelled = false;
-    void loadCachedMessages(userId, active).then(cached => {
-      if (cancelled || activeRef.current !== active || !cached.length) return;
-      setMessages(items => mergeMessages(cached, items.filter(item => item.conversationId === active)));
-      setHistoryCursor(cursor => cursor ?? cached[0]?.messageKey ?? null);
-      setLoadingHistoryFor(value => value === active ? '' : value);
-    }).catch(() => {});
-    return () => { cancelled = true; };
+    void loadCachedMessages(userId, active)
+      .then((cached) => {
+        if (cancelled || activeRef.current !== active || !cached.length) return;
+        setMessages((items) =>
+          mergeMessages(
+            cached,
+            items.filter((item) => item.conversationId === active),
+          ),
+        );
+        setHistoryCursor((cursor) => cursor ?? cached[0]?.messageKey ?? null);
+        setLoadingHistoryFor((value) => (value === active ? '' : value));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [active, userId]);
 
   useEffect(() => {
@@ -920,20 +1390,28 @@ export function ChatPage() {
     let cancelled = false;
     const generation = activeGeneration.current;
     const historyReadVersion = conversationReadVersions.current.get(active) ?? 0;
-    const isCurrent = () => !cancelled && activeRef.current === active && activeGeneration.current === generation;
+    const isCurrent = () =>
+      !cancelled && activeRef.current === active && activeGeneration.current === generation;
     const applyMediaUrls = (value: unknown) => {
       if (!value || typeof value !== 'object') return;
       const urls = value as Record<string, unknown>;
-      setMessages(items => items.map(message => {
-        if (message.conversationId !== active) return message;
-        const url = message.messageKey ? urls[message.messageKey] : undefined;
-        return typeof url === 'string' ? { ...message, url, mediaUrlExpiresAt: Date.now() + 55 * 60 * 1000 } : message;
-      }));
+      setMessages((items) =>
+        items.map((message) => {
+          if (message.conversationId !== active) return message;
+          const url = message.messageKey ? urls[message.messageKey] : undefined;
+          return typeof url === 'string'
+            ? { ...message, url, mediaUrlExpiresAt: Date.now() + 55 * 60 * 1000 }
+            : message;
+        }),
+      );
     };
     const refreshRemainingMedia = async (messageKeys: string[]) => {
       for (let start = 0; start < messageKeys.length; start += 100) {
         if (client !== socket.current) return;
-        const data = await client.request('history', { conversation: active, refreshMedia: messageKeys.slice(start, start + 100) });
+        const data = await client.request('history', {
+          conversation: active,
+          refreshMedia: messageKeys.slice(start, start + 100),
+        });
         if (isCurrent()) applyMediaUrls(data.mediaUrls);
       }
     };
@@ -941,15 +1419,27 @@ export function ChatPage() {
       let cached: ChatMessage[] = [];
       if (userId) cached = await loadCachedMessages(userId, active).catch(() => []);
       if (isCurrent() && cached.length) {
-        setMessages(items => mergeMessages(cached, items.filter(item => item.conversationId === active)));
-        setHistoryCursor(cursor => cursor ?? cached[0]?.messageKey ?? null);
-        setLoadingHistoryFor(value => value === active ? '' : value);
+        setMessages((items) =>
+          mergeMessages(
+            cached,
+            items.filter((item) => item.conversationId === active),
+          ),
+        );
+        setHistoryCursor((cursor) => cursor ?? cached[0]?.messageKey ?? null);
+        setLoadingHistoryFor((value) => (value === active ? '' : value));
       }
 
       const newestCached = cached.at(-1);
       const mediaToRefresh = cached
-        .filter(message => message.key && (message.kind === 'image' || message.kind === 'video') && (!message.url || !message.mediaUrlExpiresAt || message.mediaUrlExpiresAt <= Date.now() + 5 * 60 * 1000))
-        .map(message => message.messageKey)
+        .filter(
+          (message) =>
+            message.key &&
+            (message.kind === 'image' || message.kind === 'video') &&
+            (!message.url ||
+              !message.mediaUrlExpiresAt ||
+              message.mediaUrlExpiresAt <= Date.now() + 5 * 60 * 1000),
+        )
+        .map((message) => message.messageKey)
         .filter((key): key is string => Boolean(key));
       let latest = newestCached;
 
@@ -957,13 +1447,23 @@ export function ChatPage() {
         let after = newestCached.messageKey;
         for (let pageCount = 0; pageCount < 10; pageCount += 1) {
           const refreshMedia = pageCount === 0 ? mediaToRefresh.slice(0, 100) : [];
-          const data = await client.request('history', { conversation: active, after, ...(refreshMedia.length ? { refreshMedia } : {}) });
+          const data = await client.request('history', {
+            conversation: active,
+            after,
+            ...(refreshMedia.length ? { refreshMedia } : {}),
+          });
           if (isCurrent()) applyMediaUrls(data.mediaUrls);
-          const page = data.messages as ChatMessage[] ?? [];
+          const page = (data.messages as ChatMessage[]) ?? [];
           if (page.length) {
             latest = page.at(-1) ?? latest;
             after = latest?.messageKey ?? after;
-            if (isCurrent()) setMessages(items => mergeMessages(items.filter(item => item.conversationId === active), page));
+            if (isCurrent())
+              setMessages((items) =>
+                mergeMessages(
+                  items.filter((item) => item.conversationId === active),
+                  page,
+                ),
+              );
           }
           const newerCursor = typeof data.newerCursor === 'string' ? data.newerCursor : null;
           if (!newerCursor) break;
@@ -975,10 +1475,15 @@ export function ChatPage() {
           conversation: active,
           ...(mediaToRefresh.length ? { refreshMedia: mediaToRefresh.slice(0, 100) } : {}),
         });
-        const page = data.messages as ChatMessage[] ?? [];
+        const page = (data.messages as ChatMessage[]) ?? [];
         latest = page.at(-1) ?? latest;
         if (isCurrent()) {
-          setMessages(items => mergeMessages(items.filter(item => item.conversationId === active), page));
+          setMessages((items) =>
+            mergeMessages(
+              items.filter((item) => item.conversationId === active),
+              page,
+            ),
+          );
           setHistoryCursor(typeof data.nextCursor === 'string' ? data.nextCursor : null);
         }
         if (isCurrent()) applyMediaUrls(data.mediaUrls);
@@ -986,20 +1491,33 @@ export function ChatPage() {
       }
 
       // Finish the read acknowledgement even if the user backs out before history returns.
-      if (latest?.messageKey && client === socket.current) void markConversationRead(client, active, latest.messageKey);
-      else if (pendingReadConversations.current.has(active) && conversationReadVersions.current.get(active) === historyReadVersion) {
+      if (latest?.messageKey && client === socket.current)
+        void markConversationRead(client, active, latest.messageKey);
+      else if (
+        pendingReadConversations.current.has(active) &&
+        conversationReadVersions.current.get(active) === historyReadVersion
+      ) {
         pendingReadConversations.current.delete(active);
         if (client === socket.current) void refresh(client).catch(() => {});
       }
     };
-    void fetchHistory().catch(() => {
-      if (pendingReadConversations.current.has(active) && conversationReadVersions.current.get(active) === historyReadVersion) {
-        pendingReadConversations.current.delete(active);
-        if (client === socket.current) void refresh(client).catch(() => {});
-      }
-      if (isCurrent() && client.isOpen) setError(t('chat.historyError'));
-    }).finally(() => { if (isCurrent()) setLoadingHistoryFor(''); });
-    return () => { cancelled = true; };
+    void fetchHistory()
+      .catch(() => {
+        if (
+          pendingReadConversations.current.has(active) &&
+          conversationReadVersions.current.get(active) === historyReadVersion
+        ) {
+          pendingReadConversations.current.delete(active);
+          if (client === socket.current) void refresh(client).catch(() => {});
+        }
+        if (isCurrent() && client.isOpen) setError(t('chat.historyError'));
+      })
+      .finally(() => {
+        if (isCurrent()) setLoadingHistoryFor('');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [active, status, reconnect, userId, t, markConversationRead, refresh]);
   useLayoutEffect(() => {
     const pane = messagePane.current;
@@ -1021,29 +1539,55 @@ export function ChatPage() {
   }
 
   async function loadOlderMessages() {
-    if (!socket.current || !active || !historyCursor || historyRequest.current || loadingHistoryFor === active) return;
+    if (
+      !socket.current ||
+      !active ||
+      !historyCursor ||
+      historyRequest.current ||
+      loadingHistoryFor === active
+    )
+      return;
     const generation = activeGeneration.current;
     historyRequest.current = true;
     setLoadingOlder(true);
     try {
-      const data = await socket.current.request('history', { conversation: active, cursor: historyCursor });
+      const data = await socket.current.request('history', {
+        conversation: active,
+        cursor: historyCursor,
+      });
       if (activeRef.current !== active || activeGeneration.current !== generation) return;
       const pane = messagePane.current;
-      if (pane) restoreScroll.current = { conversation: active, height: pane.scrollHeight, top: pane.scrollTop };
-      const older = data.messages as ChatMessage[] ?? [];
-      setMessages(items => mergeMessages(items, older));
+      if (pane)
+        restoreScroll.current = {
+          conversation: active,
+          height: pane.scrollHeight,
+          top: pane.scrollTop,
+        };
+      const older = (data.messages as ChatMessage[]) ?? [];
+      setMessages((items) => mergeMessages(items, older));
       setHistoryCursor(typeof data.nextCursor === 'string' ? data.nextCursor : null);
-    } catch { if (activeRef.current === active && activeGeneration.current === generation) setError(t('chat.historyError')); }
-    finally { historyRequest.current = false; setLoadingOlder(false); }
+    } catch {
+      if (activeRef.current === active && activeGeneration.current === generation)
+        setError(t('chat.historyError'));
+    } finally {
+      historyRequest.current = false;
+      setLoadingOlder(false);
+    }
   }
   function closeReactionToolbar() {
     if (!reactionToolbarMessageKey || reactionToolbarClosing) return;
     setReactionToolbarClosing(true);
     if (reactionToolbarTimer.current) clearTimeout(reactionToolbarTimer.current);
-    reactionToolbarTimer.current = setTimeout(() => { setReactionToolbarMessageKey(''); setReactionToolbarClosing(false); }, 180);
+    reactionToolbarTimer.current = setTimeout(() => {
+      setReactionToolbarMessageKey('');
+      setReactionToolbarClosing(false);
+    }, 180);
   }
   function toggleReactionToolbar(messageKey: string) {
-    if (reactionToolbarMessageKey === messageKey && !reactionToolbarClosing) { closeReactionToolbar(); return; }
+    if (reactionToolbarMessageKey === messageKey && !reactionToolbarClosing) {
+      closeReactionToolbar();
+      return;
+    }
     if (reactionToolbarTimer.current) clearTimeout(reactionToolbarTimer.current);
     setReactionToolbarMessageKey(messageKey);
     setReactionToolbarClosing(false);
@@ -1054,14 +1598,24 @@ export function ChatPage() {
     reactionHoldStart.current = null;
   }
   function isMessageControl(target: EventTarget | null) {
-    return target instanceof Element && !!target.closest('button, a, input, textarea, select, video, audio, [role="button"], [data-message-control]');
+    return (
+      target instanceof Element &&
+      !!target.closest(
+        'button, a, input, textarea, select, video, audio, [role="button"], [data-message-control]',
+      )
+    );
   }
   function isReactionMediaTarget(target: EventTarget | null) {
     return target instanceof Element && !!target.closest('.chat-message-image, .chat-sound-card');
   }
   function handleMessagePointerDown(event: ReactPointerEvent<HTMLElement>, messageKey?: string) {
     const isVideo = event.target instanceof HTMLVideoElement;
-    if (event.pointerType !== 'touch' || !messageKey || (isMessageControl(event.target) && !isVideo && !isReactionMediaTarget(event.target))) return;
+    if (
+      event.pointerType !== 'touch' ||
+      !messageKey ||
+      (isMessageControl(event.target) && !isVideo && !isReactionMediaTarget(event.target))
+    )
+      return;
     clearReactionHold();
     reactionHoldTriggered.current = false;
     reactionHoldStart.current = { x: event.clientX, y: event.clientY };
@@ -1074,11 +1628,21 @@ export function ChatPage() {
   }
   function handleMessagePointerMove(event: ReactPointerEvent<HTMLElement>) {
     const start = reactionHoldStart.current;
-    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) clearReactionHold();
+    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10)
+      clearReactionHold();
   }
   function handleMessageClick(event: ReactMouseEvent<HTMLElement>, messageKey?: string) {
-    if (reactionHoldTriggered.current) { reactionHoldTriggered.current = false; return; }
-    if (Capacitor.isNativePlatform() || !messageKey || isMessageControl(event.target) || !window.matchMedia('(hover: none)').matches) return;
+    if (reactionHoldTriggered.current) {
+      reactionHoldTriggered.current = false;
+      return;
+    }
+    if (
+      Capacitor.isNativePlatform() ||
+      !messageKey ||
+      isMessageControl(event.target) ||
+      !window.matchMedia('(hover: none)').matches
+    )
+      return;
     setRevealedReactionMessageKey(messageKey);
   }
   function handleMessageClickCapture(event: ReactMouseEvent<HTMLElement>) {
@@ -1090,22 +1654,52 @@ export function ChatPage() {
   useEffect(() => {
     if (!revealedReactionMessageKey) return;
     const dismiss = (event: PointerEvent) => {
-      if (!(event.target instanceof Element) || !event.target.closest(`[data-reaction-message-key="${CSS.escape(revealedReactionMessageKey)}"]`)) setRevealedReactionMessageKey('');
+      if (
+        !(event.target instanceof Element) ||
+        !event.target.closest(
+          `[data-reaction-message-key="${CSS.escape(revealedReactionMessageKey)}"]`,
+        )
+      )
+        setRevealedReactionMessageKey('');
     };
     document.addEventListener('pointerdown', dismiss);
     return () => document.removeEventListener('pointerdown', dismiss);
   }, [revealedReactionMessageKey]);
-  useEffect(() => () => { if (reactionToolbarTimer.current) clearTimeout(reactionToolbarTimer.current); clearReactionHold(); }, []);
+  useEffect(
+    () => () => {
+      if (reactionToolbarTimer.current) clearTimeout(reactionToolbarTimer.current);
+      clearReactionHold();
+    },
+    [],
+  );
   async function reactToMessage(messageKey: string, emoji: string) {
     if (!socket.current || !active) return;
     closeReactionToolbar();
     setRevealedReactionMessageKey('');
-    setReactingMessageKey(messageKey); setError('');
+    setReactingMessageKey(messageKey);
+    setError('');
     try {
-      const data = await socket.current.request('react', { conversation: active, messageKey, emoji });
-      setMessages(items => items.map(item => item.messageKey === messageKey ? { ...item, reactions: data.reactions as Record<string, string> } : item));
-    } catch (reason) { setError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.reactionError')); }
-    finally { setReactingMessageKey(''); }
+      const data = await socket.current.request('react', {
+        conversation: active,
+        messageKey,
+        emoji,
+      });
+      setMessages((items) =>
+        items.map((item) =>
+          item.messageKey === messageKey
+            ? { ...item, reactions: data.reactions as Record<string, string> }
+            : item,
+        ),
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error && reason.message === 'CHAT_RESTRICTED'
+          ? t('chat.restricted')
+          : t('chat.reactionError'),
+      );
+    } finally {
+      setReactingMessageKey('');
+    }
   }
   useEffect(() => {
     if (query.trim().length < 2 || !user) return;
@@ -1113,72 +1707,174 @@ export function ChatPage() {
     const timer = setTimeout(async () => {
       try {
         const token = await getIdToken();
-        const response = await fetch(`${playersApi}?q=${encodeURIComponent(query.trim())}`, { headers: { authorization: `Bearer ${token}` }, signal: controller.signal });
+        const response = await fetch(`${playersApi}?q=${encodeURIComponent(query.trim())}`, {
+          headers: { authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
         const data = await response.json();
         if (!response.ok) throw new Error();
         setMatches(data.players ?? []);
-      } catch { if (!controller.signal.aborted) setError(t('chat.searchError')); }
-      finally { if (!controller.signal.aborted) setSearchLoading(false); }
+      } catch {
+        if (!controller.signal.aborted) setError(t('chat.searchError'));
+      } finally {
+        if (!controller.signal.aborted) setSearchLoading(false);
+      }
     }, 250);
-    return () => { clearTimeout(timer); controller.abort(); };
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query, user, getIdToken, t]);
 
-  async function createConversation(people = selected, asGroup = group || people.length > 1, title = groupTitle, propagate = false) {
-    if (!socket.current || !user || !people.length || people.length > 24 || (asGroup && !title.trim()) || busy || status !== 'ready') return;
-    setBusy(true); setError('');
+  async function createConversation(
+    people = selected,
+    asGroup = group || people.length > 1,
+    title = groupTitle,
+    propagate = false,
+  ) {
+    if (
+      !socket.current ||
+      !user ||
+      !people.length ||
+      people.length > 24 ||
+      (asGroup && !title.trim()) ||
+      busy ||
+      status !== 'ready'
+    )
+      return;
+    setBusy(true);
+    setError('');
     try {
-      const names = Object.fromEntries([...people, { id: user.id, username: user.name }].map(item => [item.id, item.username]));
-      const data = await socket.current.request('createConversation', { members: people.map(item => item.id), names, group: asGroup, title: title.trim() });
+      const names = Object.fromEntries(
+        [...people, { id: user.id, username: user.name }].map((item) => [item.id, item.username]),
+      );
+      const data = await socket.current.request('createConversation', {
+        members: people.map((item) => item.id),
+        names,
+        group: asGroup,
+        title: title.trim(),
+      });
       const id = String(data.conversation);
-      setConversations(items => mergeConversations(items, [{ id, group: asGroup, title: asGroup ? title.trim() : '', members: [user.id, ...people.map(item => item.id)], names, updatedAt: Date.now(), unreadCount: 0 }]));
+      setConversations((items) =>
+        mergeConversations(items, [
+          {
+            id,
+            group: asGroup,
+            title: asGroup ? title.trim() : '',
+            members: [user.id, ...people.map((item) => item.id)],
+            names,
+            updatedAt: Date.now(),
+            unreadCount: 0,
+          },
+        ]),
+      );
       ensureChatHistoryEntry(id);
       activeGeneration.current++;
       pendingReadConversations.current.add(id);
       advanceConversationReadVersion(conversationReadVersions.current, id);
-      setDraftMentions({}); setMentionQuery(null);
-      setMessages([]); setLoadingHistoryFor(id); activeRef.current = id; setHistoryCursor(null); setActive(id); setSelected([]); setQuery(''); setSearchLoading(false); setGroup(false); setGroupTitle('');
+      setDraftMentions({});
+      setMentionQuery(null);
+      setMessages([]);
+      setLoadingHistoryFor(id);
+      activeRef.current = id;
+      setHistoryCursor(null);
+      setActive(id);
+      setSelected([]);
+      setQuery('');
+      setSearchLoading(false);
+      setGroup(false);
+      setGroupTitle('');
       await refresh(socket.current).catch(() => {});
-    } catch (reason) { setError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.createError')); if (propagate) throw reason; } finally { setBusy(false); }
+    } catch (reason) {
+      setError(
+        reason instanceof Error && reason.message === 'CHAT_RESTRICTED'
+          ? t('chat.restricted')
+          : t('chat.createError'),
+      );
+      if (propagate) throw reason;
+    } finally {
+      setBusy(false);
+    }
   }
   async function updateGroupMember(conversation: string, target: Player, adding: boolean) {
     if (!socket.current || !user) return;
-    setMembersBusy(true); setMembersError('');
+    setMembersBusy(true);
+    setMembersError('');
     try {
-      const result = await socket.current.request(adding ? 'addGroupMember' : 'removeGroupMember', { conversation, userId: target.id, ...(adding ? { name: target.username } : {}) });
+      const result = await socket.current.request(adding ? 'addGroupMember' : 'removeGroupMember', {
+        conversation,
+        userId: target.id,
+        ...(adding ? { name: target.username } : {}),
+      });
       if (!adding && target.id === user.id) {
         if (activeRef.current === conversation) returnToInbox();
-        setConversations(items => items.filter(item => item.id !== conversation));
+        setConversations((items) => items.filter((item) => item.id !== conversation));
         void deleteCachedConversation(user.id, conversation).catch(() => {});
       } else {
-        setConversations(items => items.map(item => item.id === conversation ? { ...item, members: result.members as string[], names: result.names as Record<string, string> } : item));
+        setConversations((items) =>
+          items.map((item) =>
+            item.id === conversation
+              ? {
+                  ...item,
+                  members: result.members as string[],
+                  names: result.names as Record<string, string>,
+                }
+              : item,
+          ),
+        );
       }
       await refresh(socket.current);
-    } catch (reason) { setMembersError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.memberUpdateError')); }
-    finally { setMembersBusy(false); }
+    } catch (reason) {
+      setMembersError(
+        reason instanceof Error && reason.message === 'CHAT_RESTRICTED'
+          ? t('chat.restricted')
+          : t('chat.memberUpdateError'),
+      );
+    } finally {
+      setMembersBusy(false);
+    }
   }
   async function shareGroup(conversation: string) {
     if (!socket.current || sharing) return;
-    setSharing(true); setError('');
+    setSharing(true);
+    setError('');
     try {
       const result = await socket.current.request('createGroupInvite', { conversation });
       setShareUrl(publicChatUrl({ invite: String(result.token) }));
-    } catch (reason) { setError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.inviteCreateError')); }
-    finally { setSharing(false); }
+    } catch (reason) {
+      setError(
+        reason instanceof Error && reason.message === 'CHAT_RESTRICTED'
+          ? t('chat.restricted')
+          : t('chat.inviteCreateError'),
+      );
+    } finally {
+      setSharing(false);
+    }
   }
   function dismissInvite() {
-    setInviteDetails(null); setInviteError(''); setInviteLoading(false);
+    setInviteDetails(null);
+    setInviteError('');
+    setInviteLoading(false);
     const url = new URL(window.location.href);
     url.searchParams.delete('invite');
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   }
   async function acceptInvite() {
     if (!socket.current || !user || !inviteDetails) return;
-    setInviteBusy(true); setInviteError('');
+    setInviteBusy(true);
+    setInviteError('');
     try {
       if (!inviteDetails.alreadyMember) {
         const token = await getIdToken();
         const profile = token ? await initializePlayerProfile(token).catch(() => null) : null;
-        await socket.current.request('acceptGroupInvite', { token: params.get('invite'), name: profile?.username ?? user.name });
+        await socket.current.request('acceptGroupInvite', {
+          token: params.get('invite'),
+          name: profile?.username ?? user.name,
+        });
       }
       const id = inviteDetails.conversation;
       dismissInvite();
@@ -1186,36 +1882,72 @@ export function ChatPage() {
       activeGeneration.current++;
       pendingReadConversations.current.add(id);
       advanceConversationReadVersion(conversationReadVersions.current, id);
-      setDraftMentions({}); setMentionQuery(null);
-      setMessages([]); setLoadingHistoryFor(id); activeRef.current = id; setHistoryCursor(null); setActive(id);
+      setDraftMentions({});
+      setMentionQuery(null);
+      setMessages([]);
+      setLoadingHistoryFor(id);
+      activeRef.current = id;
+      setHistoryCursor(null);
+      setActive(id);
       await refresh(socket.current);
-    } catch (reason) { setInviteError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.inviteAcceptError')); }
-    finally { setInviteBusy(false); }
+    } catch (reason) {
+      setInviteError(
+        reason instanceof Error && reason.message === 'CHAT_RESTRICTED'
+          ? t('chat.restricted')
+          : t('chat.inviteAcceptError'),
+      );
+    } finally {
+      setInviteBusy(false);
+    }
   }
   async function send(kind: ChatMessage['kind'], text = '', key = '') {
     const client = socket.current;
     const conversation = active;
     const generation = activeGeneration.current;
     if (!client || !conversation) return;
-    setBusy(true); setError('');
+    setBusy(true);
+    setError('');
     try {
-      const result = await client.request('send', { conversation, kind, text, key, ...(kind === 'text' ? { mentions: Object.keys(draftMentions) } : {}) });
+      const result = await client.request('send', {
+        conversation,
+        kind,
+        text,
+        key,
+        ...(kind === 'text' ? { mentions: Object.keys(draftMentions) } : {}),
+      });
       const message = result.message as ChatMessage;
       void refresh(client).catch(() => {});
       if (activeRef.current === conversation && activeGeneration.current === generation) {
         stickToBottom.current = true;
-        setMessages(items => items.some(item => item.id === message.id) ? items : [...items, message]);
+        setMessages((items) =>
+          items.some((item) => item.id === message.id) ? items : [...items, message],
+        );
         queueScrollToBottom();
-        setDraft(''); setDraftMentions({}); setMentionQuery(null); setSoundPickerOpen(false);
+        setDraft('');
+        setDraftMentions({});
+        setMentionQuery(null);
+        setSoundPickerOpen(false);
       }
     } catch (reason) {
-      if (activeRef.current === conversation && activeGeneration.current === generation) setError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.sendError'));
-    } finally { setBusy(false); }
+      if (activeRef.current === conversation && activeGeneration.current === generation)
+        setError(
+          reason instanceof Error && reason.message === 'CHAT_RESTRICTED'
+            ? t('chat.restricted')
+            : t('chat.sendError'),
+        );
+    } finally {
+      setBusy(false);
+    }
   }
   function updateDraft(value: string, cursor: number) {
     setDraft(value);
-    setDraftMentions(current => Object.fromEntries(Object.entries(current).filter(([, name]) => value.includes(`@${name}`))));
-    if (!current?.group) { setMentionQuery(null); return; }
+    setDraftMentions((current) =>
+      Object.fromEntries(Object.entries(current).filter(([, name]) => value.includes(`@${name}`))),
+    );
+    if (!current?.group) {
+      setMentionQuery(null);
+      return;
+    }
     setMentionQuery(mentionQueryAt(value, cursor)?.term ?? null);
   }
   function insertMention(playerId: string, name: string) {
@@ -1228,32 +1960,53 @@ export function ChatPage() {
     const next = `${draft.slice(0, start)}${insertion}${draft.slice(cursor)}`;
     const nextCursor = start + insertion.length;
     setDraft(next);
-    setDraftMentions(current => ({ ...current, [playerId]: name }));
+    setDraftMentions((current) => ({ ...current, [playerId]: name }));
     setMentionQuery(null);
-    requestAnimationFrame(() => { input?.focus(); input?.setSelectionRange(nextCursor, nextCursor); });
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(nextCursor, nextCursor);
+    });
   }
   async function toggleMute() {
     if (!socket.current || !current) return;
     const muted = !current.muted;
     try {
       await socket.current.request('setMute', { conversation: current.id, muted });
-      setConversations(items => items.map(item => item.id === current.id ? { ...item, muted } : item));
-    } catch { setError(t('chat.muteError')); }
+      setConversations((items) =>
+        items.map((item) => (item.id === current.id ? { ...item, muted } : item)),
+      );
+    } catch {
+      setError(t('chat.muteError'));
+    }
   }
   async function upload(file?: File, compressCameraPhoto = false) {
     const client = socket.current;
     const conversation = active;
     const generation = activeGeneration.current;
     if (!file || !client || !conversation) return;
-    const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : '';
+    const kind = file.type.startsWith('image/')
+      ? 'image'
+      : file.type.startsWith('video/')
+        ? 'video'
+        : '';
     if (!kind) return setError(t('chat.invalidFile'));
-    setBusy(true); setError('');
+    setBusy(true);
+    setError('');
     try {
-      const uploadFile = compressCameraPhoto && kind === 'image' ? await compressPhotoToJpeg(file) : file;
-      if (uploadFile.size > chatMediaSizeLimit) { setError(t('chat.fileTooLarge')); return; }
-      const signed = await client.request('mediaUpload', { kind, contentType: uploadFile.type, size: uploadFile.size });
+      const uploadFile =
+        compressCameraPhoto && kind === 'image' ? await compressPhotoToJpeg(file) : file;
+      if (uploadFile.size > chatMediaSizeLimit) {
+        setError(t('chat.fileTooLarge'));
+        return;
+      }
+      const signed = await client.request('mediaUpload', {
+        kind,
+        contentType: uploadFile.type,
+        size: uploadFile.size,
+      });
       const form = new FormData();
-      for (const [name, value] of Object.entries(signed.uploadFields as Record<string, string>)) form.append(name, value);
+      for (const [name, value] of Object.entries(signed.uploadFields as Record<string, string>))
+        form.append(name, value);
       form.append('file', uploadFile);
       const response = await fetch(String(signed.uploadUrl), { method: 'POST', body: form });
       if (!response.ok) throw new Error();
@@ -1262,12 +2015,21 @@ export function ChatPage() {
       void refresh(client).catch(() => {});
       if (activeRef.current === conversation && activeGeneration.current === generation) {
         stickToBottom.current = true;
-        setMessages(items => items.some(item => item.id === message.id) ? items : [...items, message]);
+        setMessages((items) =>
+          items.some((item) => item.id === message.id) ? items : [...items, message],
+        );
         queueScrollToBottom();
       }
     } catch (reason) {
-      if (activeRef.current === conversation && activeGeneration.current === generation) setError(reason instanceof Error && reason.message === 'CHAT_RESTRICTED' ? t('chat.restricted') : t('chat.uploadError'));
-    } finally { setBusy(false); }
+      if (activeRef.current === conversation && activeGeneration.current === generation)
+        setError(
+          reason instanceof Error && reason.message === 'CHAT_RESTRICTED'
+            ? t('chat.restricted')
+            : t('chat.uploadError'),
+        );
+    } finally {
+      setBusy(false);
+    }
   }
   async function openVideoRecorder() {
     setAttachmentsOpen(false);
@@ -1285,36 +2047,63 @@ export function ChatPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 24, max: 30 },
+        },
       });
-      if (!cameraOpenRef.current) { stream.getTracks().forEach(track => track.stop()); return; }
+      if (!cameraOpenRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       cameraStreamRef.current = stream;
       setCameraStream(stream);
     } catch (reason) {
-      setCameraError(reason instanceof DOMException && reason.name === 'NotAllowedError' ? t('chat.cameraPermissionError') : t('chat.cameraStartError'));
+      setCameraError(
+        reason instanceof DOMException && reason.name === 'NotAllowedError'
+          ? t('chat.cameraPermissionError')
+          : t('chat.cameraStartError'),
+      );
     }
   }
   function startVideoRecording() {
     if (!cameraStream || typeof MediaRecorder === 'undefined') return;
     try {
-      const mimeType = ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'].find(type => MediaRecorder.isTypeSupported(type));
+      const mimeType = ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'].find((type) =>
+        MediaRecorder.isTypeSupported(type),
+      );
       const nextRecorder = new MediaRecorder(cameraStream, {
         ...(mimeType ? { mimeType } : {}),
         videoBitsPerSecond: 360_000,
         audioBitsPerSecond: 48_000,
       });
       recordingChunks.current = [];
-      nextRecorder.ondataavailable = event => { if (event.data.size) recordingChunks.current.push(event.data); };
+      nextRecorder.ondataavailable = (event) => {
+        if (event.data.size) recordingChunks.current.push(event.data);
+      };
       nextRecorder.onerror = () => setCameraError(t('chat.recordingFailed'));
       nextRecorder.onstop = () => {
         setRecording(false);
         if (discardedRecorders.current.has(nextRecorder)) return;
-        const contentType = (nextRecorder.mimeType || recordingChunks.current[0]?.type || 'video/webm').split(';')[0];
+        const contentType = (
+          nextRecorder.mimeType ||
+          recordingChunks.current[0]?.type ||
+          'video/webm'
+        ).split(';')[0];
         const blob = new Blob(recordingChunks.current, { type: contentType });
-        if (!blob.size) { setCameraError(t('chat.recordingFailed')); return; }
-      if (blob.size > chatMediaSizeLimit) { setCameraError(t('chat.fileTooLarge')); return; }
+        if (!blob.size) {
+          setCameraError(t('chat.recordingFailed'));
+          return;
+        }
+        if (blob.size > chatMediaSizeLimit) {
+          setCameraError(t('chat.fileTooLarge'));
+          return;
+        }
         setCameraError('');
-        const extension = contentType === 'video/mp4' ? 'mp4' : contentType === 'video/quicktime' ? 'mov' : 'webm';
+        const extension =
+          contentType === 'video/mp4' ? 'mp4' : contentType === 'video/quicktime' ? 'mov' : 'webm';
         const file = new File([blob], `ambatu-video.${extension}`, { type: contentType });
         setRecordedVideo(file);
         setRecordedVideoUrl(URL.createObjectURL(blob));
@@ -1343,7 +2132,7 @@ export function ChatPage() {
     setCameraOpen(false);
     setRecording(false);
     setCameraError('');
-    cameraStreamRef.current?.getTracks().forEach(track => track.stop());
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
     cameraStreamRef.current = null;
     setCameraStream(null);
     setRecordedVideoUrl('');
@@ -1363,33 +2152,70 @@ export function ChatPage() {
     setBusy(true);
     try {
       await socket.current.request('report', { conversation: active, reason: reportReason });
-      setReportOpen(false); setReportReason(''); setError(t('chat.reportSent'));
-    } catch { setError(t('chat.reportError')); } finally { setBusy(false); }
+      setReportOpen(false);
+      setReportReason('');
+      setError(t('chat.reportSent'));
+    } catch {
+      setError(t('chat.reportError'));
+    } finally {
+      setBusy(false);
+    }
   }
   async function enableNotifications() {
     if (!socket.current || !user || status !== 'ready' || pushBusy) return;
-    setPushBusy(true); setError('');
+    setPushBusy(true);
+    setError('');
     try {
       await enableChatPush(socket.current, locale, user.id);
       setPushEnabled(true);
       setError(t('chat.notificationsEnabled'));
     } catch (reason) {
-      const key = reason instanceof Error && reason.message === 'not-configured' ? 'chat.notificationsNotConfigured' : 'chat.pushError';
+      const key =
+        reason instanceof Error && reason.message === 'not-configured'
+          ? 'chat.notificationsNotConfigured'
+          : 'chat.pushError';
       setError(t(key));
-    } finally { setPushBusy(false); }
+    } finally {
+      setPushBusy(false);
+    }
   }
-  const current = conversations.find(item => item.id === active);
-  const title = (item: ChatConversation) => item.group ? item.title : item.members.filter(id => id !== user?.id).map(id => item.names?.[id] ?? id).join(', ');
-  const mentionOptions = current?.group && mentionQuery !== null ? current.members.filter(id => id !== user?.id).map(id => ({ id, name: current.names?.[id] ?? id })).filter(player => player.name.toLocaleLowerCase().includes(mentionQuery.toLocaleLowerCase())).slice(0, 8) : [];
+  const current = conversations.find((item) => item.id === active);
+  const title = (item: ChatConversation) =>
+    item.group
+      ? item.title
+      : item.members
+          .filter((id) => id !== user?.id)
+          .map((id) =>
+            blockedPlayers[id] || item.blockedIds?.includes(id)
+              ? t('blocks.blockedThug')
+              : (item.names?.[id] ?? id),
+          )
+          .join(', ');
+  const mentionOptions =
+    current?.group && mentionQuery !== null
+      ? current.members
+          .filter(
+            (id) => id !== user?.id && !blockedPlayers[id] && !current.blockedIds?.includes(id),
+          )
+          .map((id) => ({ id, name: current.names?.[id] ?? id }))
+          .filter((player) =>
+            player.name.toLocaleLowerCase().includes(mentionQuery.toLocaleLowerCase()),
+          )
+          .slice(0, 8)
+      : [];
   function openConversation(conversation: string) {
     if (activeRef.current === conversation) return;
     activeGeneration.current++;
     pendingReadConversations.current.add(conversation);
     advanceConversationReadVersion(conversationReadVersions.current, conversation);
-    setConversations(items => items.map(item => item.id === conversation ? { ...item, unreadCount: 0 } : item));
+    setConversations((items) =>
+      items.map((item) => (item.id === conversation ? { ...item, unreadCount: 0 } : item)),
+    );
     ensureChatHistoryEntry(conversation);
-    setDraftMentions({}); setMentionQuery(null);
-    setMessages([]); setLoadingHistoryFor(conversation);
+    setDraftMentions({});
+    setMentionQuery(null);
+    setMessages([]);
+    setLoadingHistoryFor(conversation);
     activeRef.current = conversation;
     setHistoryCursor(null);
     setActive(conversation);
@@ -1400,7 +2226,8 @@ export function ChatPage() {
     activeGeneration.current++;
     activeRef.current = '';
     setActive('');
-    setDraftMentions({}); setMentionQuery(null);
+    setDraftMentions({});
+    setMentionQuery(null);
     setMessages([]);
     setLoadingHistoryFor('');
     setHistoryCursor(null);
@@ -1418,11 +2245,21 @@ export function ChatPage() {
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
       const conversation = activeRef.current;
-      if (conversation && window.matchMedia('(max-width: 760px)').matches && !hasChatHistoryEntry(conversation, event.state)) returnToInbox(true);
+      if (
+        conversation &&
+        window.matchMedia('(max-width: 760px)').matches &&
+        !hasChatHistoryEntry(conversation, event.state)
+      )
+        returnToInbox(true);
     };
     const onPageShow = () => {
       const conversation = activeRef.current;
-      if (conversation && window.matchMedia('(max-width: 760px)').matches && !hasChatHistoryEntry(conversation)) returnToInbox(true);
+      if (
+        conversation &&
+        window.matchMedia('(max-width: 760px)').matches &&
+        !hasChatHistoryEntry(conversation)
+      )
+        returnToInbox(true);
     };
     window.addEventListener('popstate', onPopState);
     window.addEventListener('pageshow', onPageShow);
@@ -1431,78 +2268,1008 @@ export function ChatPage() {
       window.removeEventListener('pageshow', onPageShow);
     };
   }, [returnToInbox]);
-  if (!ready) return <div className="page chat-gate"><LoadingIndicator label={t('common.loading')} /></div>;
-  if (!user) return <div className="page chat-gate chat-signin-page">
-    <div className="chat-signin-card">
-      <div className="chat-signin-art" aria-hidden="true">
-        <span className="chat-signin-orbit chat-signin-orbit-one" />
-        <span className="chat-signin-orbit chat-signin-orbit-two" />
-        <span className="chat-signin-bubble chat-signin-bubble-left"><i /><i /></span>
-        <span className="chat-signin-bubble chat-signin-bubble-right"><i /><i /></span>
-        <span className="chat-signin-center-icon"><MessageCircle size={35} /></span>
-        <span className="chat-signin-avatar"><UsersRound size={19} /></span>
-        <span className="chat-signin-spark chat-signin-spark-one" />
-        <span className="chat-signin-spark chat-signin-spark-two" />
+  if (!ready)
+    return (
+      <div className="page chat-gate">
+        <LoadingIndicator label={t('common.loading')} />
       </div>
-      <div className="chat-signin-copy">
-        {/* <span className="chat-signin-kicker">{t('nav.chat')}</span> */}
-        <h1>{t('chat.title')}</h1>
-        <p>{params.get('invite') ? t('chat.inviteSignIn') : t('chat.signInHint')}</p>
-        <button className="button dark" onClick={() => void signInWithGoogle(`/chat/${params.toString() ? `?${params.toString()}` : ''}`)}><LogIn size={18} />{t('profile.googleSignIn')}</button>
-      </div>
-    </div>
-  </div>;
-  if (!wsUrl) return <div className="page chat-gate"><h1>{t('chat.title')}</h1><p>{t('chat.notConfigured')}</p></div>;
-  return <div className="page chat-page">
-    {(error || status === 'unavailable') && createPortal(
-      <div className="chat-notice-stack" data-thread={Boolean(current)}>
-        {status === 'unavailable' && error !== t('chat.connectionError') && (
-          <div className="chat-notice" role="status">
-            <span>{t('chat.connectionError')}</span>
+    );
+  if (!user)
+    return (
+      <div className="page chat-gate chat-signin-page">
+        <div className="chat-signin-card">
+          <div className="chat-signin-art" aria-hidden="true">
+            <span className="chat-signin-orbit chat-signin-orbit-one" />
+            <span className="chat-signin-orbit chat-signin-orbit-two" />
+            <span className="chat-signin-bubble chat-signin-bubble-left">
+              <i />
+              <i />
+            </span>
+            <span className="chat-signin-bubble chat-signin-bubble-right">
+              <i />
+              <i />
+            </span>
+            <span className="chat-signin-center-icon">
+              <MessageCircle size={35} />
+            </span>
+            <span className="chat-signin-avatar">
+              <UsersRound size={19} />
+            </span>
+            <span className="chat-signin-spark chat-signin-spark-one" />
+            <span className="chat-signin-spark chat-signin-spark-two" />
           </div>
-        )}
-        {error && (
-          <div className="chat-notice" role="status">
-            <span>{error}</span>
-            <button type="button" onClick={() => setError('')} aria-label={t('chat.dismiss')}>
-              <X size={18} />
+          <div className="chat-signin-copy">
+            {/* <span className="chat-signin-kicker">{t('nav.chat')}</span> */}
+            <h1>{t('chat.title')}</h1>
+            <p>{params.get('invite') ? t('chat.inviteSignIn') : t('chat.signInHint')}</p>
+            <button
+              className="button dark"
+              onClick={() =>
+                void signInWithGoogle(`/chat/${params.toString() ? `?${params.toString()}` : ''}`)
+              }
+            >
+              <LogIn size={18} />
+              {t('profile.googleSignIn')}
             </button>
           </div>
-        )}
-      </div>,
-      document.body,
-    )}
-    <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}><aside className="chat-inbox"><div className="chat-inbox-header"><div className="chat-inbox-brand"><span className="chat-inbox-brand-icon" aria-hidden="true"><MessageCircle size={21}/></span><div><span className="eyebrow">{t('nav.chat')}</span><h2>{t('chat.inbox')}</h2></div></div><button type="button" className="chat-icon" onClick={() => void enableNotifications()} disabled={pushBusy || pushEnabled || status !== 'ready'} aria-label={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')} title={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')}><Bell size={17}/></button></div>
-      <Link className="chat-friends-link" href="/friends/"><span className="chat-friends-icon"><UsersRound size={19}/></span><span><strong>{t('friends.title')}</strong><small>{incomingCount ? t('friends.requestCount', { count: incomingCount }) : t('')}</small></span>{incomingCount > 0 && <span className="chat-friend-count" aria-label={t('friends.requestCount', { count: incomingCount })}>{incomingCount > 99 ? '99+' : incomingCount}</span>}<ArrowUpRight size={18} aria-hidden="true"/></Link>
-      <button type="button" className="chat-friend-compose" onClick={() => setFriendPickerOpen(true)}><UsersRound size={17}/>{t('friends.newGroup')}<Plus size={15}/></button>
-      <div className="chat-search"><Search size={17}/><input value={query} onChange={event => { setQuery(event.target.value); setMatches([]); setSearchLoading(event.target.value.trim().length >= 2); }} placeholder={t('chat.searchUsername')} aria-label={t('chat.searchUsername')}/></div>
-      {searchLoading && <div className="chat-search-loading"><LoadingIndicator label={t('common.loading')} /></div>}
-      {matches.length > 0 && <div className="chat-results">{matches.map(player => <button key={player.id} disabled={selected.length >= 24 && !selected.some(item => item.id === player.id)} onClick={() => { setSelected(items => items.some(item => item.id === player.id) ? items : [...items, player]); if (selected.length > 0) setGroup(true); setQuery(''); setMatches([]); setSearchLoading(false); }}>{player.avatarUrl ? <img className="chat-result-avatar" src={player.avatarUrl} alt=""/> : <span className="chat-result-avatar">{player.username.slice(0, 1).toUpperCase()}</span>}<span>{player.username}</span><Plus size={15}/></button>)}</div>}
-      {selected.length > 0 && <div className="chat-compose-group"><div className="chat-selected">{selected.map(player => <button key={player.id} onClick={() => setSelected(items => items.filter(item => item.id !== player.id))}>{player.avatarUrl && <img src={player.avatarUrl} alt=""/>}{player.username}<X size={13}/></button>)}</div><CustomCheckbox checked={group} onChange={setGroup}>{t('chat.groupChat')}</CustomCheckbox>{group && <input value={groupTitle} maxLength={80} onChange={event => setGroupTitle(event.target.value)} placeholder={t('chat.groupName')}/>}<button className="button dark compact" disabled={busy || (group && !groupTitle.trim())} onClick={() => void createConversation()}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{group ? t('chat.createGroup') : t('chat.startChat')}</button></div>}
-      <div ref={inboxList} className="chat-inbox-list" aria-busy={!initialChatsLoaded || loadingMoreConversations} onScroll={() => { if (conversationRetryBlocked) setConversationRetryBlocked(false); }}>
-        {!initialChatsLoaded ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : conversations.length ? <>
-          {conversations.map(item => {
-            const unreadCount = Math.max(0, Number(item.unreadCount ?? 0));
-            const unread = item.id !== active && unreadCount > 0;
-            return <button key={item.id} className={`${active === item.id ? 'active' : ''} ${unread ? 'has-unread' : ''}`} onClick={() => openConversation(item.id)}>
-              <span className="chat-avatar">{item.group ? <UsersRound size={19}/> : (() => { const other = item.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <ChatAvatarImage key={playerAvatarUrls[other]} src={playerAvatarUrls[other]} fallback={title(item).slice(0, 1).toUpperCase()} /> : title(item).slice(0, 1).toUpperCase(); })()}</span>
-              <span className="chat-inbox-content"><span className="chat-inbox-title"><strong>{title(item)}</strong>{item.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</span><small>{item.lastMessage === 'sound' ? t('nav.soundboard') : item.lastMessage ?? t('chat.noMessages')}</small></span>
-              {unread && <span className="chat-unread-badge" aria-label={t('chat.unreadMessages', { count: unreadCount })}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
-            </button>;
-          })}
-          {hasMoreConversations && <div ref={inboxLoadMoreSentinel} className="chat-inbox-pagination">{loadingMoreConversations && <LoadingIndicator label={t('common.loading')} compact/>}</div>}
-        </> : <p className="chat-empty-inbox">{t('chat.emptyInbox')}</p>}
+        </div>
       </div>
-    </aside><section className="chat-thread">{current ? <><header><button type="button" className="chat-back" onClick={() => returnToInbox()} aria-label={t('chat.inbox')}><ArrowLeft size={19}/></button><span className="chat-avatar">{current.group ? <UsersRound size={19}/> : (() => { const other = current.members.find(id => id !== user.id); return other && playerAvatarUrls[other] ? <ChatAvatarImage key={playerAvatarUrls[other]} src={playerAvatarUrls[other]} fallback={title(current).slice(0, 1).toUpperCase()} /> : title(current).slice(0, 1).toUpperCase(); })()}</span><div className="chat-thread-title"><div className="chat-thread-title-row"><h2>{title(current)}</h2>{current.muted && <span className="chat-muted-indicator"><BellOff size={12}/>{t('chat.mutedIndicator')}</span>}</div><small>{current.group ? t('chat.memberCount', { count: current.members.length }) : t('chat.directMessage')}</small></div><div className="chat-header-actions"><button type="button" className="chat-icon chat-header-action" onClick={() => void toggleMute()} aria-label={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')} title={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')}>{current.muted ? <BellOff size={18}/> : <Bell size={18}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-icon chat-header-action" onClick={() => { setMembersError(''); setMembersOpen(true); }} aria-label={t('chat.manageMembers')} title={t('chat.manageMembers')}><UsersRound size={18}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-icon chat-header-action" onClick={() => setReportOpen(true)} aria-label={t('chat.reportConversation')} title={t('chat.reportConversation')}><Flag size={18}/><span>{t('chat.actionReport')}</span></button></div><div className="chat-actions-mobile" ref={chatActionsMenu}><button type="button" className="chat-icon" aria-label={t('chat.moreActions')} ref={chatActionsTrigger} aria-expanded={chatActionsOpen} aria-controls="chat-actions-menu" onClick={() => setChatActionsOpen(open => !open)}><MoreHorizontal size={19}/></button><div className="chat-actions-menu" id="chat-actions-menu" role="group" aria-label={t('chat.moreActions')} aria-hidden={!chatActionsOpen} data-open={chatActionsOpen}><button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); void toggleMute(); }}>{current.muted ? <BellOff size={17}/> : <Bell size={17}/>}<span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span></button>{current.group && <button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setMembersError(''); setMembersOpen(true); }}><UsersRound size={17}/><span>{t('chat.actionMembers')}</span></button>}<button type="button" className="chat-action-menu-item" onClick={() => { setChatActionsOpen(false); setReportOpen(true); }}><Flag size={17}/><span>{t('chat.actionReport')}</span></button></div></div></header><div className="chat-message-scroll-area"><div className="chat-messages" ref={messagePane} onScroll={event => { const pane = event.currentTarget; const isNearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80; stickToBottom.current = isNearBottom; setShowJumpToLatest(!isNearBottom); if (pane.scrollTop < 80) void loadOlderMessages(); }}>{loadingOlder && <div className="chat-older-loading"><LoadingIndicator label={t('chat.loadingOlder')} compact/></div>}{loadingHistoryFor === active ? <div className="chat-loading-area"><LoadingIndicator label={t('common.loading')} /></div> : messages.length ? messages.map((message, index) => <article className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${(message.kind === 'image' || message.kind === 'gif' || message.kind === 'video') ? 'media-bubble' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`} key={getChatMessageRenderKey(message, index)} data-reaction-message-key={message.messageKey} onPointerDown={event => handleMessagePointerDown(event, message.messageKey)} onPointerMove={handleMessagePointerMove} onPointerUp={clearReactionHold} onPointerCancel={clearReactionHold} onClickCapture={handleMessageClickCapture} onClick={event => handleMessageClick(event, message.messageKey)} onContextMenu={event => { if (message.messageKey && (!isMessageControl(event.target) || isReactionMediaTarget(event.target))) { event.preventDefault(); if (reactionHoldTriggered.current) return; setRevealedReactionMessageKey(message.messageKey); if (reactionToolbarMessageKey !== message.messageKey) toggleReactionToolbar(message.messageKey); } }}>{current.group && (() => {
-  const senderName = getChatMessageSenderName(message.senderId, current.names, user.id, user.name, t('lore.anonymous'));
-  const senderAvatarUrl = typeof message.senderId === 'string' ? playerAvatarUrls[message.senderId] : undefined;
-  return <small>{senderAvatarUrl ? <img className="chat-message-avatar" src={senderAvatarUrl} alt="" aria-hidden="true"/> : <span className="chat-message-avatar fallback" aria-hidden="true">{senderName.slice(0, 1).toUpperCase()}</span>}{senderName}</small>;
-})()}{message.kind === 'gif' ? <ChatMessageImage src={message.text} alt={t('chat.gif')} key={message.text} onLoad={() => { if (stickToBottom.current) scrollMessagesToBottom(); }}/> : message.kind === 'image' || message.kind === 'video' ? <ChatCachedMedia key={`${user.id}:${message.conversationId}:${message.key ?? message.id}`} message={message} userId={user.id} alt={t('chat.image')} onLoad={() => { if (stickToBottom.current) scrollMessagesToBottom(); }} /> : message.kind === 'sound' ? <ChatSoundCard soundId={message.text}/> : <ChatMessageBody text={message.text} conversation={active}/>}{message.messageKey && <ChatReactions message={message} userId={user.id} disabled={reactingMessageKey === message.messageKey} open={reactionToolbarMessageKey === message.messageKey} closing={reactionToolbarClosing} onReact={emoji => { void reactToMessage(message.messageKey!, emoji); }} onToggle={() => toggleReactionToolbar(message.messageKey!)} onClose={closeReactionToolbar} onOpenPicker={() => { closeReactionToolbar(); setReactionPickerMessageKey(message.messageKey!); }} />}<footer><time>{formatChatMessageTime(message.createdAt, locale)}</time></footer></article>) : <p className="chat-empty-thread">{t('chat.emptyThread')}</p>}</div>{showJumpToLatest && <button type="button" className="chat-jump-latest" onClick={queueScrollToBottom} aria-label={t('chat.jumpToLatest')}><ArrowDown size={20}/></button>}</div><form className="chat-composer" onSubmit={event => { event.preventDefault(); void send('text', draft); }}><div className="chat-attachment" ref={attachmentMenu}><button ref={attachmentTrigger} type="button" className="chat-icon chat-attachment-trigger" onClick={() => setAttachmentsOpen(open => !open)} aria-label={t('chat.attach')} aria-expanded={attachmentsOpen} aria-controls="chat-attachment-menu"><ImagePlus size={19}/></button><div className="chat-attachment-menu" id="chat-attachment-menu" role="menu" aria-label={t('chat.attach')} aria-hidden={!attachmentsOpen} data-open={attachmentsOpen}><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); photoInput.current?.click(); }}><Camera size={17}/><span>{t('chat.takePhoto')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { void openVideoRecorder(); }}><Video size={17}/><span>{t('chat.recordVideo')}</span></button><button type="button" role="menuitem" disabled={busy} onClick={() => { setAttachmentsOpen(false); mediaInput.current?.click(); }}><ImagePlus size={17}/><span>{t('chat.chooseMedia')}</span></button></div><input ref={photoInput} className="chat-file-input" type="file" accept="image/*" capture="environment" onChange={event => { void upload(event.target.files?.[0], true); event.target.value = ''; }}/><input ref={mediaInput} className="chat-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></div><button type="button" className="chat-icon chat-sound-toggle" onClick={() => { setAttachmentsOpen(false); setSoundPickerOpen(!soundPickerOpen); }} aria-label={t('chat.shareSound')} aria-expanded={soundPickerOpen} aria-controls="chat-sound-picker"><AudioLines size={19}/></button><div className="chat-message-field"><input ref={messageInput} value={draft} maxLength={2000} onChange={event => updateDraft(event.target.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)} onClick={event => updateDraft(draft, event.currentTarget.selectionStart ?? draft.length)} onKeyDown={event => { if (mentionOptions.length && event.key === 'Enter') { event.preventDefault(); insertMention(mentionOptions[0].id, mentionOptions[0].name); } else if (mentionOptions.length && event.key === 'ArrowDown') { event.preventDefault(); event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.chat-mention-menu button')?.focus(); } }} role="combobox" aria-autocomplete="list" aria-expanded={mentionOptions.length > 0} placeholder={t('chat.messagePlaceholder')} aria-label={t('chat.messagePlaceholder')} aria-controls={mentionOptions.length ? 'chat-mention-list' : undefined}/>{mentionOptions.length > 0 && <div className="chat-mention-menu" id="chat-mention-list" role="listbox">{mentionOptions.map(player => <button key={player.id} type="button" role="option" aria-selected={false} aria-label={t('chat.mentionUser', { name: player.name })} onPointerDown={event => event.preventDefault()} onClick={() => insertMention(player.id, player.name)}><span className="chat-mention-avatar">{player.name.slice(0, 1).toUpperCase()}</span><span>{player.name}</span></button>)}</div>}</div><button className="chat-send" disabled={busy || !draft.trim()} aria-label={t('chat.send')}>{busy ? <LoadingIndicator label={t('common.loading')} compact/> : <Send size={18}/>}</button></form><ChatSoundPicker busy={busy} open={soundPickerOpen} onClose={() => setSoundPickerOpen(false)} onSend={id => { void send('sound', id); }}/>{cameraOpen && createPortal(<div className="chat-modal-backdrop chat-camera-backdrop" role="presentation"><section className="chat-modal chat-camera-modal" role="dialog" aria-modal="true" aria-labelledby="chat-camera-title" onClick={event => event.stopPropagation()}><button type="button" className="chat-icon chat-camera-close" onClick={closeVideoRecorder} aria-label={t('chat.closeCamera')}><X size={18}/></button><Video size={24}/><h2 id="chat-camera-title">{t('chat.cameraTitle')}</h2><p>{t('chat.cameraInstructions')}</p>{cameraError && <p className="form-error" role="alert">{cameraError}</p>}<div className="chat-camera-preview">{recordedVideoUrl ? <MediaPlayer src={recordedVideoUrl} variant="chat" /> : <video ref={cameraVideo} autoPlay muted playsInline/>}</div><p className="chat-camera-timer" data-recording={recording} aria-live="polite">{t('chat.recordingTimer', { time: `0:${String(recordingSeconds).padStart(2, '0')}` })}</p><div className="chat-camera-actions">{recording ? <button type="button" className="button dark" onClick={stopVideoRecording}>{t('chat.stopRecording')}</button> : recordedVideo ? <><button type="button" className="button secondary" onClick={startVideoRecording}>{t('chat.recordAgain')}</button><button type="button" className="button dark" disabled={busy} onClick={sendRecordedVideo}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{t('chat.sendVideo')}</button></> : <button type="button" className="button dark" disabled={!cameraStream} onClick={startVideoRecording}>{t('chat.startRecording')}</button>}</div></section></div>, document.body)}</> : <div className="chat-welcome"><MessageCircle size={34}/><h2>{t('chat.selectConversation')}</h2><p>{t('chat.selectHint')}</p></div>}</section></div>
-    {membersOpen && current?.group && <ChatGroupMembers conversation={current} avatarUrls={playerAvatarUrls} userId={user.id} busy={membersBusy} sharing={sharing} actionError={membersError} getIdToken={getIdToken} onAdd={player => { void updateGroupMember(current.id, player, true); }} onRemove={id => { void updateGroupMember(current.id, { id, username: current.names?.[id] ?? id }, false); }} onShare={() => { void shareGroup(current.id); }} onClose={() => setMembersOpen(false)} />}
-    {shareUrl && <ChatShareDialog url={shareUrl} group onClose={() => setShareUrl('')}/>}
-    {friendPickerOpen && <FriendPickerDialog group title={t('friends.newGroup')} confirmLabel={t('chat.createGroup')} errorKey="chat.createError" disabled={status !== 'ready' || busy} onClose={() => setFriendPickerOpen(false)} onConfirm={async (friends, title) => { await createConversation(friends, true, title, true); setFriendPickerOpen(false); }}/>}
-    {(inviteLoading || inviteDetails || inviteError) && <div className="chat-modal-backdrop" role="presentation"><section className="chat-modal chat-invite-modal" role="dialog" aria-modal="true" aria-label={t('chat.inviteTitle')}><button type="button" className="chat-icon" onClick={dismissInvite} aria-label={t('chat.dismiss')}><X size={18}/></button><UsersRound size={27}/><h2>{t('chat.inviteTitle')}</h2>{inviteLoading ? <LoadingIndicator label={t('common.loading')}/> : inviteDetails ? <><h3>{inviteDetails.title}</h3><p>{t('chat.inviteMembers', { count: inviteDetails.memberCount })}</p>{inviteError && <p className="form-error" role="alert">{inviteError}</p>}<div className="chat-invite-actions"><button type="button" className="button secondary" onClick={dismissInvite}>{t('chat.declineInvite')}</button><button type="button" className="button dark" disabled={inviteBusy} onClick={() => void acceptInvite()}>{inviteBusy && <LoadingIndicator label={t('common.loading')} compact/>}{t(inviteDetails.alreadyMember ? 'chat.openGroup' : 'chat.acceptInvite')}</button></div></> : <><p className="form-error" role="alert">{inviteError}</p><button type="button" className="button secondary" onClick={dismissInvite}>{t('chat.dismiss')}</button></>}</section></div>}
-    {reportOpen && <div className="chat-modal-backdrop" role="presentation"><form className="chat-modal" onSubmit={report} role="dialog" aria-modal="true" aria-label={t('chat.reportTitle')}><button type="button" className="chat-icon" onClick={() => setReportOpen(false)} aria-label={t('chat.dismiss')}><X size={18}/></button><Flag size={23}/><h2>{t('chat.reportTitle')}</h2><p>{t('chat.reportHint')}</p><textarea value={reportReason} onChange={event => setReportReason(event.target.value)} minLength={3} maxLength={500} required placeholder={t('chat.reportPlaceholder')}/><button className="button dark" disabled={busy}>{busy && <LoadingIndicator label={t('common.loading')} compact/>}{t('chat.submitReport')}</button></form></div>}
-    {reactionPickerMessageKey && <Suspense fallback={<div className="chat-modal-backdrop"><LoadingIndicator label={t('common.loading')}/></div>}><ChatEmojiPicker onClose={() => setReactionPickerMessageKey('')} onSelect={emoji => { void reactToMessage(reactionPickerMessageKey, emoji); }}/></Suspense>}
-  </div>;
+    );
+  if (!wsUrl)
+    return (
+      <div className="page chat-gate">
+        <h1>{t('chat.title')}</h1>
+        <p>{t('chat.notConfigured')}</p>
+      </div>
+    );
+  return (
+    <div className="page chat-page">
+      {(error || status === 'unavailable') &&
+        createPortal(
+          <div className="chat-notice-stack" data-thread={Boolean(current)}>
+            {status === 'unavailable' && error !== t('chat.connectionError') && (
+              <div className="chat-notice" role="status">
+                <span>{t('chat.connectionError')}</span>
+              </div>
+            )}
+            {error && (
+              <div className="chat-notice" role="status">
+                <span>{error}</span>
+                <button type="button" onClick={() => setError('')} aria-label={t('chat.dismiss')}>
+                  <X size={18} />
+                </button>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
+      <div className={`chat-layout ${current ? 'chat-show-thread' : 'chat-show-inbox'}`}>
+        <aside className="chat-inbox">
+          <div className="chat-inbox-header">
+            <div className="chat-inbox-brand">
+              <span className="chat-inbox-brand-icon" aria-hidden="true">
+                <MessageCircle size={21} />
+              </span>
+              <div>
+                <span className="eyebrow">{t('nav.chat')}</span>
+                <h2>{t('chat.inbox')}</h2>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="chat-icon"
+              onClick={() => void enableNotifications()}
+              disabled={pushBusy || pushEnabled || status !== 'ready'}
+              aria-label={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')}
+              title={t(pushEnabled ? 'chat.notificationsEnabled' : 'chat.enableNotifications')}
+            >
+              <Bell size={17} />
+            </button>
+          </div>
+          <Link className="chat-friends-link" href="/friends/">
+            <span className="chat-friends-icon">
+              <UsersRound size={19} />
+            </span>
+            <span>
+              <strong>{t('friends.title')}</strong>
+              <small>
+                {incomingCount ? t('friends.requestCount', { count: incomingCount }) : t('')}
+              </small>
+            </span>
+            {incomingCount > 0 && (
+              <span
+                className="chat-friend-count"
+                aria-label={t('friends.requestCount', { count: incomingCount })}
+              >
+                {incomingCount > 99 ? '99+' : incomingCount}
+              </span>
+            )}
+            <ArrowUpRight size={18} aria-hidden="true" />
+          </Link>
+          <button
+            type="button"
+            className="chat-friend-compose"
+            onClick={() => setFriendPickerOpen(true)}
+          >
+            <UsersRound size={17} />
+            {t('friends.newGroup')}
+            <Plus size={15} />
+          </button>
+          <div className="chat-search">
+            <Search size={17} />
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setMatches([]);
+                setSearchLoading(event.target.value.trim().length >= 2);
+              }}
+              placeholder={t('chat.searchUsername')}
+              aria-label={t('chat.searchUsername')}
+            />
+          </div>
+          {searchLoading && (
+            <div className="chat-search-loading">
+              <LoadingIndicator label={t('common.loading')} />
+            </div>
+          )}
+          {matches.length > 0 && (
+            <div className="chat-results">
+              {matches.map((player) => (
+                <button
+                  key={player.id}
+                  disabled={
+                    selected.length >= 24 && !selected.some((item) => item.id === player.id)
+                  }
+                  onClick={() => {
+                    setSelected((items) =>
+                      items.some((item) => item.id === player.id) ? items : [...items, player],
+                    );
+                    if (selected.length > 0) setGroup(true);
+                    setQuery('');
+                    setMatches([]);
+                    setSearchLoading(false);
+                  }}
+                >
+                  {player.avatarUrl ? (
+                    <img className="chat-result-avatar" src={player.avatarUrl} alt="" />
+                  ) : (
+                    <span className="chat-result-avatar">
+                      {player.username.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <span>{player.username}</span>
+                  <Plus size={15} />
+                </button>
+              ))}
+            </div>
+          )}
+          {selected.length > 0 && (
+            <div className="chat-compose-group">
+              <div className="chat-selected">
+                {selected.map((player) => (
+                  <button
+                    key={player.id}
+                    onClick={() =>
+                      setSelected((items) => items.filter((item) => item.id !== player.id))
+                    }
+                  >
+                    {player.avatarUrl && <img src={player.avatarUrl} alt="" />}
+                    {player.username}
+                    <X size={13} />
+                  </button>
+                ))}
+              </div>
+              <CustomCheckbox checked={group} onChange={setGroup}>
+                {t('chat.groupChat')}
+              </CustomCheckbox>
+              {group && (
+                <input
+                  value={groupTitle}
+                  maxLength={80}
+                  onChange={(event) => setGroupTitle(event.target.value)}
+                  placeholder={t('chat.groupName')}
+                />
+              )}
+              <button
+                className="button dark compact"
+                disabled={busy || (group && !groupTitle.trim())}
+                onClick={() => void createConversation()}
+              >
+                {busy && <LoadingIndicator label={t('common.loading')} compact />}
+                {group ? t('chat.createGroup') : t('chat.startChat')}
+              </button>
+            </div>
+          )}
+          <div
+            ref={inboxList}
+            className="chat-inbox-list"
+            aria-busy={!initialChatsLoaded || loadingMoreConversations}
+            onScroll={() => {
+              if (conversationRetryBlocked) setConversationRetryBlocked(false);
+            }}
+          >
+            {!initialChatsLoaded ? (
+              <div className="chat-loading-area">
+                <LoadingIndicator label={t('common.loading')} />
+              </div>
+            ) : conversations.length ? (
+              <>
+                {conversations.map((item) => {
+                  const unreadCount = Math.max(0, Number(item.unreadCount ?? 0));
+                  const unread = item.id !== active && unreadCount > 0;
+                  return (
+                    <button
+                      key={item.id}
+                      className={`${active === item.id ? 'active' : ''} ${unread ? 'has-unread' : ''}`}
+                      onClick={() => openConversation(item.id)}
+                    >
+                      <span className="chat-avatar">
+                        {item.group ? (
+                          <UsersRound size={19} />
+                        ) : (
+                          (() => {
+                            const other = item.members.find((id) => id !== user.id);
+                            return other &&
+                              (blockedPlayers[other] ||
+                                item.blockedIds?.includes(other)) ? null : other &&
+                              playerAvatarUrls[other] ? (
+                              <ChatAvatarImage
+                                key={playerAvatarUrls[other]}
+                                src={playerAvatarUrls[other]}
+                                fallback={title(item).slice(0, 1).toUpperCase()}
+                              />
+                            ) : (
+                              title(item).slice(0, 1).toUpperCase()
+                            );
+                          })()
+                        )}
+                      </span>
+                      <span className="chat-inbox-content">
+                        <span className="chat-inbox-title">
+                          <strong>{title(item)}</strong>
+                          {item.muted && (
+                            <span className="chat-muted-indicator">
+                              <BellOff size={12} />
+                              {t('chat.mutedIndicator')}
+                            </span>
+                          )}
+                        </span>
+                        <small>
+                          {item.lastMessage === 'sound'
+                            ? t('nav.soundboard')
+                            : (item.lastMessage ?? t('chat.noMessages'))}
+                        </small>
+                      </span>
+                      {unread && (
+                        <span
+                          className="chat-unread-badge"
+                          aria-label={t('chat.unreadMessages', { count: unreadCount })}
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                {hasMoreConversations && (
+                  <div ref={inboxLoadMoreSentinel} className="chat-inbox-pagination">
+                    {loadingMoreConversations && (
+                      <LoadingIndicator label={t('common.loading')} compact />
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="chat-empty-inbox">{t('chat.emptyInbox')}</p>
+            )}
+          </div>
+        </aside>
+        <section className="chat-thread">
+          {current ? (
+            <>
+              <header>
+                <button
+                  type="button"
+                  className="chat-back"
+                  onClick={() => returnToInbox()}
+                  aria-label={t('chat.inbox')}
+                >
+                  <ArrowLeft size={19} />
+                </button>
+                <span className="chat-avatar">
+                  {current.group ? (
+                    <UsersRound size={19} />
+                  ) : (
+                    (() => {
+                      const other = current.members.find((id) => id !== user.id);
+                      return other &&
+                        (blockedPlayers[other] ||
+                          current.blockedIds?.includes(other)) ? null : other &&
+                        playerAvatarUrls[other] ? (
+                        <ChatAvatarImage
+                          key={playerAvatarUrls[other]}
+                          src={playerAvatarUrls[other]}
+                          fallback={title(current).slice(0, 1).toUpperCase()}
+                        />
+                      ) : (
+                        title(current).slice(0, 1).toUpperCase()
+                      );
+                    })()
+                  )}
+                </span>
+                <div className="chat-thread-title">
+                  <div className="chat-thread-title-row">
+                    <h2>{title(current)}</h2>
+                    {current.muted && (
+                      <span className="chat-muted-indicator">
+                        <BellOff size={12} />
+                        {t('chat.mutedIndicator')}
+                      </span>
+                    )}
+                  </div>
+                  <small>
+                    {current.group
+                      ? t('chat.memberCount', { count: current.members.length })
+                      : t('chat.directMessage')}
+                  </small>
+                </div>
+                <div className="chat-header-actions">
+                  <button
+                    type="button"
+                    className="chat-icon chat-header-action"
+                    onClick={() => void toggleMute()}
+                    aria-label={t(
+                      current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation',
+                    )}
+                    title={t(current.muted ? 'chat.unmuteConversation' : 'chat.muteConversation')}
+                  >
+                    {current.muted ? <BellOff size={18} /> : <Bell size={18} />}
+                    <span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span>
+                  </button>
+                  {current.group && (
+                    <button
+                      type="button"
+                      className="chat-icon chat-header-action"
+                      onClick={() => {
+                        setMembersError('');
+                        setMembersOpen(true);
+                      }}
+                      aria-label={t('chat.manageMembers')}
+                      title={t('chat.manageMembers')}
+                    >
+                      <UsersRound size={18} />
+                      <span>{t('chat.actionMembers')}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="chat-icon chat-header-action"
+                    onClick={() => setReportOpen(true)}
+                    aria-label={t('chat.reportConversation')}
+                    title={t('chat.reportConversation')}
+                  >
+                    <Flag size={18} />
+                    <span>{t('chat.actionReport')}</span>
+                  </button>
+                </div>
+                <div className="chat-actions-mobile" ref={chatActionsMenu}>
+                  <button
+                    type="button"
+                    className="chat-icon"
+                    aria-label={t('chat.moreActions')}
+                    ref={chatActionsTrigger}
+                    aria-expanded={chatActionsOpen}
+                    aria-controls="chat-actions-menu"
+                    onClick={() => setChatActionsOpen((open) => !open)}
+                  >
+                    <MoreHorizontal size={19} />
+                  </button>
+                  <div
+                    className="chat-actions-menu"
+                    id="chat-actions-menu"
+                    role="group"
+                    aria-label={t('chat.moreActions')}
+                    aria-hidden={!chatActionsOpen}
+                    data-open={chatActionsOpen}
+                  >
+                    <button
+                      type="button"
+                      className="chat-action-menu-item"
+                      onClick={() => {
+                        setChatActionsOpen(false);
+                        void toggleMute();
+                      }}
+                    >
+                      {current.muted ? <BellOff size={17} /> : <Bell size={17} />}
+                      <span>{t(current.muted ? 'chat.actionUnmute' : 'chat.actionMute')}</span>
+                    </button>
+                    {current.group && (
+                      <button
+                        type="button"
+                        className="chat-action-menu-item"
+                        onClick={() => {
+                          setChatActionsOpen(false);
+                          setMembersError('');
+                          setMembersOpen(true);
+                        }}
+                      >
+                        <UsersRound size={17} />
+                        <span>{t('chat.actionMembers')}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="chat-action-menu-item"
+                      onClick={() => {
+                        setChatActionsOpen(false);
+                        setReportOpen(true);
+                      }}
+                    >
+                      <Flag size={17} />
+                      <span>{t('chat.actionReport')}</span>
+                    </button>
+                  </div>
+                </div>
+              </header>
+              <div className="chat-message-scroll-area">
+                <div
+                  className="chat-messages"
+                  ref={messagePane}
+                  onScroll={(event) => {
+                    const pane = event.currentTarget;
+                    const isNearBottom =
+                      pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80;
+                    stickToBottom.current = isNearBottom;
+                    setShowJumpToLatest(!isNearBottom);
+                    if (pane.scrollTop < 80) void loadOlderMessages();
+                  }}
+                >
+                  {loadingOlder && (
+                    <div className="chat-older-loading">
+                      <LoadingIndicator label={t('chat.loadingOlder')} compact />
+                    </div>
+                  )}
+                  {loadingHistoryFor === active ? (
+                    <div className="chat-loading-area">
+                      <LoadingIndicator label={t('common.loading')} />
+                    </div>
+                  ) : messages.length ? (
+                    messages.map((message, index) => (
+                      <article
+                        className={`chat-bubble ${message.senderId === user.id ? 'mine' : ''} ${message.kind === 'image' || message.kind === 'gif' || message.kind === 'video' ? 'media-bubble' : ''} ${reactionToolbarMessageKey === message.messageKey ? 'reaction-open' : ''} ${revealedReactionMessageKey === message.messageKey ? 'reaction-button-visible' : ''}`}
+                        key={getChatMessageRenderKey(message, index)}
+                        data-reaction-message-key={message.messageKey}
+                        onPointerDown={(event) =>
+                          handleMessagePointerDown(event, message.messageKey)
+                        }
+                        onPointerMove={handleMessagePointerMove}
+                        onPointerUp={clearReactionHold}
+                        onPointerCancel={clearReactionHold}
+                        onClickCapture={handleMessageClickCapture}
+                        onClick={(event) => handleMessageClick(event, message.messageKey)}
+                        onContextMenu={(event) => {
+                          if (
+                            message.messageKey &&
+                            (!isMessageControl(event.target) || isReactionMediaTarget(event.target))
+                          ) {
+                            event.preventDefault();
+                            if (reactionHoldTriggered.current) return;
+                            setRevealedReactionMessageKey(message.messageKey);
+                            if (reactionToolbarMessageKey !== message.messageKey)
+                              toggleReactionToolbar(message.messageKey);
+                          }
+                        }}
+                      >
+                        {current.group &&
+                          (() => {
+                            const blocked =
+                              blockedPlayers[message.senderId] ??
+                              (message.senderBlocked ||
+                                current.blockedIds?.includes(message.senderId));
+                            const senderName = blocked
+                              ? t('blocks.blockedThug')
+                              : getChatMessageSenderName(
+                                  message.senderId,
+                                  current.names,
+                                  user.id,
+                                  user.name,
+                                  t('lore.anonymous'),
+                                );
+                            const senderAvatarUrl =
+                              !blocked && typeof message.senderId === 'string'
+                                ? playerAvatarUrls[message.senderId]
+                                : undefined;
+                            return (
+                              <small>
+                                {senderAvatarUrl ? (
+                                  <img
+                                    className="chat-message-avatar"
+                                    src={senderAvatarUrl}
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                ) : (
+                                  <span className="chat-message-avatar fallback" aria-hidden="true">
+                                    {blocked ? '' : senderName.slice(0, 1).toUpperCase()}
+                                  </span>
+                                )}
+                                {senderName}
+                              </small>
+                            );
+                          })()}
+                        {message.kind === 'gif' ? (
+                          <ChatMessageImage
+                            src={message.text}
+                            alt={t('chat.gif')}
+                            key={message.text}
+                            onLoad={() => {
+                              if (stickToBottom.current) scrollMessagesToBottom();
+                            }}
+                          />
+                        ) : message.kind === 'image' || message.kind === 'video' ? (
+                          <ChatCachedMedia
+                            key={`${user.id}:${message.conversationId}:${message.key ?? message.id}`}
+                            message={message}
+                            userId={user.id}
+                            alt={t('chat.image')}
+                            onLoad={() => {
+                              if (stickToBottom.current) scrollMessagesToBottom();
+                            }}
+                          />
+                        ) : message.kind === 'sound' ? (
+                          <ChatSoundCard soundId={message.text} />
+                        ) : (
+                          <ChatMessageBody text={message.text} conversation={active} />
+                        )}
+                        {message.messageKey && (
+                          <ChatReactions
+                            message={message}
+                            userId={user.id}
+                            disabled={reactingMessageKey === message.messageKey}
+                            open={reactionToolbarMessageKey === message.messageKey}
+                            closing={reactionToolbarClosing}
+                            onReact={(emoji) => {
+                              void reactToMessage(message.messageKey!, emoji);
+                            }}
+                            onToggle={() => toggleReactionToolbar(message.messageKey!)}
+                            onClose={closeReactionToolbar}
+                            onOpenPicker={() => {
+                              closeReactionToolbar();
+                              setReactionPickerMessageKey(message.messageKey!);
+                            }}
+                          />
+                        )}
+                        <footer>
+                          <time>{formatChatMessageTime(message.createdAt, locale)}</time>
+                        </footer>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="chat-empty-thread">{t('chat.emptyThread')}</p>
+                  )}
+                </div>
+                {showJumpToLatest && (
+                  <button
+                    type="button"
+                    className="chat-jump-latest"
+                    onClick={queueScrollToBottom}
+                    aria-label={t('chat.jumpToLatest')}
+                  >
+                    <ArrowDown size={20} />
+                  </button>
+                )}
+              </div>
+              <form
+                className="chat-composer"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void send('text', draft);
+                }}
+              >
+                <div className="chat-attachment" ref={attachmentMenu}>
+                  <button
+                    ref={attachmentTrigger}
+                    type="button"
+                    className="chat-icon chat-attachment-trigger"
+                    onClick={() => setAttachmentsOpen((open) => !open)}
+                    aria-label={t('chat.attach')}
+                    aria-expanded={attachmentsOpen}
+                    aria-controls="chat-attachment-menu"
+                  >
+                    <ImagePlus size={19} />
+                  </button>
+                  <div
+                    className="chat-attachment-menu"
+                    id="chat-attachment-menu"
+                    role="menu"
+                    aria-label={t('chat.attach')}
+                    aria-hidden={!attachmentsOpen}
+                    data-open={attachmentsOpen}
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={busy}
+                      onClick={() => {
+                        setAttachmentsOpen(false);
+                        photoInput.current?.click();
+                      }}
+                    >
+                      <Camera size={17} />
+                      <span>{t('chat.takePhoto')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={busy}
+                      onClick={() => {
+                        void openVideoRecorder();
+                      }}
+                    >
+                      <Video size={17} />
+                      <span>{t('chat.recordVideo')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={busy}
+                      onClick={() => {
+                        setAttachmentsOpen(false);
+                        mediaInput.current?.click();
+                      }}
+                    >
+                      <ImagePlus size={17} />
+                      <span>{t('chat.chooseMedia')}</span>
+                    </button>
+                  </div>
+                  <input
+                    ref={photoInput}
+                    className="chat-file-input"
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(event) => {
+                      void upload(event.target.files?.[0], true);
+                      event.target.value = '';
+                    }}
+                  />
+                  <input
+                    ref={mediaInput}
+                    className="chat-file-input"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                    onChange={(event) => {
+                      void upload(event.target.files?.[0]);
+                      event.target.value = '';
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="chat-icon chat-sound-toggle"
+                  onClick={() => {
+                    setAttachmentsOpen(false);
+                    setSoundPickerOpen(!soundPickerOpen);
+                  }}
+                  aria-label={t('chat.shareSound')}
+                  aria-expanded={soundPickerOpen}
+                  aria-controls="chat-sound-picker"
+                >
+                  <AudioLines size={19} />
+                </button>
+                <div className="chat-message-field">
+                  <input
+                    ref={messageInput}
+                    value={draft}
+                    maxLength={2000}
+                    onChange={(event) =>
+                      updateDraft(
+                        event.target.value,
+                        event.currentTarget.selectionStart ?? event.currentTarget.value.length,
+                      )
+                    }
+                    onClick={(event) =>
+                      updateDraft(draft, event.currentTarget.selectionStart ?? draft.length)
+                    }
+                    onKeyDown={(event) => {
+                      if (mentionOptions.length && event.key === 'Enter') {
+                        event.preventDefault();
+                        insertMention(mentionOptions[0].id, mentionOptions[0].name);
+                      } else if (mentionOptions.length && event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        event.currentTarget.parentElement
+                          ?.querySelector<HTMLButtonElement>('.chat-mention-menu button')
+                          ?.focus();
+                      }
+                    }}
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={mentionOptions.length > 0}
+                    placeholder={t('chat.messagePlaceholder')}
+                    aria-label={t('chat.messagePlaceholder')}
+                    aria-controls={mentionOptions.length ? 'chat-mention-list' : undefined}
+                  />
+                  {mentionOptions.length > 0 && (
+                    <div className="chat-mention-menu" id="chat-mention-list" role="listbox">
+                      {mentionOptions.map((player) => (
+                        <button
+                          key={player.id}
+                          type="button"
+                          role="option"
+                          aria-selected={false}
+                          aria-label={t('chat.mentionUser', { name: player.name })}
+                          onPointerDown={(event) => event.preventDefault()}
+                          onClick={() => insertMention(player.id, player.name)}
+                        >
+                          <span className="chat-mention-avatar">
+                            {player.name.slice(0, 1).toUpperCase()}
+                          </span>
+                          <span>{player.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  className="chat-send"
+                  disabled={busy || !draft.trim()}
+                  aria-label={t('chat.send')}
+                >
+                  {busy ? (
+                    <LoadingIndicator label={t('common.loading')} compact />
+                  ) : (
+                    <Send size={18} />
+                  )}
+                </button>
+              </form>
+              <ChatSoundPicker
+                busy={busy}
+                open={soundPickerOpen}
+                onClose={() => setSoundPickerOpen(false)}
+                onSend={(id) => {
+                  void send('sound', id);
+                }}
+              />
+              {cameraOpen &&
+                createPortal(
+                  <div className="chat-modal-backdrop chat-camera-backdrop" role="presentation">
+                    <section
+                      className="chat-modal chat-camera-modal"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="chat-camera-title"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="chat-icon chat-camera-close"
+                        onClick={closeVideoRecorder}
+                        aria-label={t('chat.closeCamera')}
+                      >
+                        <X size={18} />
+                      </button>
+                      <Video size={24} />
+                      <h2 id="chat-camera-title">{t('chat.cameraTitle')}</h2>
+                      <p>{t('chat.cameraInstructions')}</p>
+                      {cameraError && (
+                        <p className="form-error" role="alert">
+                          {cameraError}
+                        </p>
+                      )}
+                      <div className="chat-camera-preview">
+                        {recordedVideoUrl ? (
+                          <MediaPlayer src={recordedVideoUrl} variant="chat" />
+                        ) : (
+                          <video ref={cameraVideo} autoPlay muted playsInline />
+                        )}
+                      </div>
+                      <p
+                        className="chat-camera-timer"
+                        data-recording={recording}
+                        aria-live="polite"
+                      >
+                        {t('chat.recordingTimer', {
+                          time: `0:${String(recordingSeconds).padStart(2, '0')}`,
+                        })}
+                      </p>
+                      <div className="chat-camera-actions">
+                        {recording ? (
+                          <button
+                            type="button"
+                            className="button dark"
+                            onClick={stopVideoRecording}
+                          >
+                            {t('chat.stopRecording')}
+                          </button>
+                        ) : recordedVideo ? (
+                          <>
+                            <button
+                              type="button"
+                              className="button secondary"
+                              onClick={startVideoRecording}
+                            >
+                              {t('chat.recordAgain')}
+                            </button>
+                            <button
+                              type="button"
+                              className="button dark"
+                              disabled={busy}
+                              onClick={sendRecordedVideo}
+                            >
+                              {busy && <LoadingIndicator label={t('common.loading')} compact />}
+                              {t('chat.sendVideo')}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className="button dark"
+                            disabled={!cameraStream}
+                            onClick={startVideoRecording}
+                          >
+                            {t('chat.startRecording')}
+                          </button>
+                        )}
+                      </div>
+                    </section>
+                  </div>,
+                  document.body,
+                )}
+            </>
+          ) : (
+            <div className="chat-welcome">
+              <MessageCircle size={34} />
+              <h2>{t('chat.selectConversation')}</h2>
+              <p>{t('chat.selectHint')}</p>
+            </div>
+          )}
+        </section>
+      </div>
+      {membersOpen && current?.group && (
+        <ChatGroupMembers
+          conversation={current}
+          avatarUrls={playerAvatarUrls}
+          userId={user.id}
+          busy={membersBusy}
+          sharing={sharing}
+          actionError={membersError}
+          getIdToken={getIdToken}
+          onAdd={(player) => {
+            void updateGroupMember(current.id, player, true);
+          }}
+          onRemove={(id) => {
+            void updateGroupMember(current.id, { id, username: current.names?.[id] ?? id }, false);
+          }}
+          onShare={() => {
+            void shareGroup(current.id);
+          }}
+          onClose={() => setMembersOpen(false)}
+        />
+      )}
+      {shareUrl && <ChatShareDialog url={shareUrl} group onClose={() => setShareUrl('')} />}
+      {friendPickerOpen && (
+        <FriendPickerDialog
+          group
+          title={t('friends.newGroup')}
+          confirmLabel={t('chat.createGroup')}
+          errorKey="chat.createError"
+          disabled={status !== 'ready' || busy}
+          onClose={() => setFriendPickerOpen(false)}
+          onConfirm={async (friends, title) => {
+            await createConversation(friends, true, title, true);
+            setFriendPickerOpen(false);
+          }}
+        />
+      )}
+      {(inviteLoading || inviteDetails || inviteError) && (
+        <div className="chat-modal-backdrop" role="presentation">
+          <section
+            className="chat-modal chat-invite-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('chat.inviteTitle')}
+          >
+            <button
+              type="button"
+              className="chat-icon"
+              onClick={dismissInvite}
+              aria-label={t('chat.dismiss')}
+            >
+              <X size={18} />
+            </button>
+            <UsersRound size={27} />
+            <h2>{t('chat.inviteTitle')}</h2>
+            {inviteLoading ? (
+              <LoadingIndicator label={t('common.loading')} />
+            ) : inviteDetails ? (
+              <>
+                <h3>{inviteDetails.title}</h3>
+                <p>{t('chat.inviteMembers', { count: inviteDetails.memberCount })}</p>
+                {inviteError && (
+                  <p className="form-error" role="alert">
+                    {inviteError}
+                  </p>
+                )}
+                <div className="chat-invite-actions">
+                  <button type="button" className="button secondary" onClick={dismissInvite}>
+                    {t('chat.declineInvite')}
+                  </button>
+                  <button
+                    type="button"
+                    className="button dark"
+                    disabled={inviteBusy}
+                    onClick={() => void acceptInvite()}
+                  >
+                    {inviteBusy && <LoadingIndicator label={t('common.loading')} compact />}
+                    {t(inviteDetails.alreadyMember ? 'chat.openGroup' : 'chat.acceptInvite')}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="form-error" role="alert">
+                  {inviteError}
+                </p>
+                <button type="button" className="button secondary" onClick={dismissInvite}>
+                  {t('chat.dismiss')}
+                </button>
+              </>
+            )}
+          </section>
+        </div>
+      )}
+      {reportOpen && (
+        <div className="chat-modal-backdrop" role="presentation">
+          <form
+            className="chat-modal"
+            onSubmit={report}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('chat.reportTitle')}
+          >
+            <button
+              type="button"
+              className="chat-icon"
+              onClick={() => setReportOpen(false)}
+              aria-label={t('chat.dismiss')}
+            >
+              <X size={18} />
+            </button>
+            <Flag size={23} />
+            <h2>{t('chat.reportTitle')}</h2>
+            <p>{t('chat.reportHint')}</p>
+            <textarea
+              value={reportReason}
+              onChange={(event) => setReportReason(event.target.value)}
+              minLength={3}
+              maxLength={500}
+              required
+              placeholder={t('chat.reportPlaceholder')}
+            />
+            <button className="button dark" disabled={busy}>
+              {busy && <LoadingIndicator label={t('common.loading')} compact />}
+              {t('chat.submitReport')}
+            </button>
+          </form>
+        </div>
+      )}
+      {reactionPickerMessageKey && (
+        <Suspense
+          fallback={
+            <div className="chat-modal-backdrop">
+              <LoadingIndicator label={t('common.loading')} />
+            </div>
+          }
+        >
+          <ChatEmojiPicker
+            onClose={() => setReactionPickerMessageKey('')}
+            onSelect={(emoji) => {
+              void reactToMessage(reactionPickerMessageKey, emoji);
+            }}
+          />
+        </Suspense>
+      )}
+    </div>
+  );
 }

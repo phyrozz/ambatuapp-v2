@@ -22,6 +22,10 @@ const config: NextConfig = {
               source: '/api/public/videos/:id',
               destination: `${characterApi}/videos/:id`,
             },
+            {
+              source: '/api/public/ambatupost/:path*',
+              destination: `${characterApi}/ambatupost/:path*`,
+            },
           ];
         },
       }

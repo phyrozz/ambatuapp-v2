@@ -12,6 +12,7 @@ import { LoadingIndicator } from './loading-indicator';
 import { useCreatorProfile } from './use-creator-profile';
 import { CreatorClips } from './creator-clips';
 import './creator-profile.css';
+import { PlayerBlockButton } from './player-block-controls';
 
 export function CreatorProfile({ id, embedded = false }: { id: string; embedded?: boolean }) {
   const { t, locale } = useI18n();
@@ -121,6 +122,14 @@ export function CreatorProfile({ id, embedded = false }: { id: string; embedded?
                 </Link>
               ) : (
                 <>
+                  <PlayerBlockButton
+                    playerId={id}
+                    name={profile.username}
+                    onBlocked={() => {
+                      setProfile(null);
+                      refresh();
+                    }}
+                  />
                   <button
                     className={`button ${profile.following ? 'secondary' : 'dark'}`}
                     type="button"

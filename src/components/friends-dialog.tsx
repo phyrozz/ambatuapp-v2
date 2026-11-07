@@ -36,6 +36,9 @@ export function FriendsDialog({
     document.body.style.overflow = 'hidden';
     close.current?.focus();
     const keydown = (event: KeyboardEvent) => {
+      // Nested pickers have their own portal; only the top dialog handles keys.
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+      if (dialogs[dialogs.length - 1] !== pane.current) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         if (!action.current.busy) action.current.onClose();

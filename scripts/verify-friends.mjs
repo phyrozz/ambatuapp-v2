@@ -308,13 +308,14 @@ try {
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.goto(`${base}/scroll/`);
   await page.getByRole('button', { name: 'Send to friends', exact: true }).click();
-  const share = page.getByRole('dialog', { name: 'Send to friends' });
+  const share = page.getByRole('dialog', { name: messages['chat.share'], exact: true });
   await share.getByRole('searchbox').fill('Empty');
+  await expect.poll(() => reads.some((query) => new URLSearchParams(query).get('cursor') === 'empty-batch')).toBe(true);
   await share.getByRole('button', { name: 'Dreamer', exact: true }).waitFor();
   assert(reads.some((query) => new URLSearchParams(query).get('cursor') === 'empty-batch'));
   await share.getByRole('button', { name: 'Dreamer', exact: true }).click();
   await share.getByRole('button', { name: 'Send', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Sent to 1 friend' }).waitFor();
+  await page.getByRole('dialog', { name: messages['chat.sharedOneRecipient'] }).waitFor();
   assert.match(sent.at(-1).text, /\/watch\/clip-a\//);
   assert(!/fixture.invalid/.test(sent.at(-1).text), 'Share permanent app URLs, not signed media');
   await page.getByRole('button', { name: 'Done', exact: true }).click();

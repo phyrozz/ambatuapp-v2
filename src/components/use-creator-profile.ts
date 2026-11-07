@@ -30,7 +30,10 @@ export function useCreatorProfile(id: string) {
         if (!controller.signal.aborted) setProfile(value);
       })
       .catch(() => {
-        if (!controller.signal.aborted) setError(true);
+        if (!controller.signal.aborted) {
+          setProfile(null);
+          setError(true);
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);

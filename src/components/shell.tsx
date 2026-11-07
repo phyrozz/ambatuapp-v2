@@ -16,7 +16,7 @@ import {
   ArrowRight,
   Volume2,
   Square,
-  Sparkles,
+  Newspaper,
   UserRound,
   MessageCircle,
   Smartphone,
@@ -35,6 +35,7 @@ import { SCROLL_REFRESH_EVENT } from '@/lib/scroll-refresh';
 const nav = [
   { href: '/', key: 'nav.discover', Icon: House },
   { href: '/scroll/', key: 'nav.scroll', Icon: Smartphone },
+  ...(process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED === 'true' ? [{ href: '/ambatupost/', key: 'post.nav', Icon: Newspaper }] : []),
   { href: '/explore/', key: 'nav.explore', Icon: LayoutGrid },
   { href: '/watch/', key: 'nav.watch', shortKey: 'nav.watchShort', Icon: Play },
   { href: '/lores/', key: 'nav.lore', Icon: BookOpen },

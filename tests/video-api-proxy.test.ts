@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-test('video API rewrites exist in development and production web builds, with native exports excluded', async () => {
+test('video and Dream API rewrites exist in development and production web builds, with native exports excluded', async () => {
   const original = { ...process.env };
   try {
     for (const [index, scenario] of [
@@ -21,6 +21,9 @@ test('video API rewrites exist in development and production web builds, with na
       const videoRule = rules.find((rule: { source: string }) => rule.source === '/api/public/videos/:id');
       assert.equal(Boolean(videoRule), scenario.expected, JSON.stringify(scenario));
       if (videoRule) assert.equal(videoRule.destination, 'https://api.example.test/api/public/videos/:id');
+      const dreamRule = rules.find((rule: { source: string }) => rule.source === '/api/public/ambatupost/:path*');
+      assert.equal(Boolean(dreamRule), scenario.expected, JSON.stringify(scenario));
+      if (dreamRule) assert.equal(dreamRule.destination, 'https://api.example.test/api/public/ambatupost/:path*');
       assert.equal(config.output === 'export', scenario.native === '1');
       if (scenario.mode === 'production') {
         assert.equal(rules.some((rule: { source: string }) => rule.source.includes('/contributions/')), false);

@@ -25,6 +25,7 @@ import { FriendAvatar } from './friend-picker-dialog';
 import { FriendsDialog } from './friends-dialog';
 import { useFriends, type Friend } from './use-friends';
 import './friends.css';
+import { BlockedPlayersDialog, PlayerBlockButton } from './player-block-controls';
 
 type Tab = 'friends' | 'requests' | 'find';
 
@@ -43,6 +44,7 @@ export function Friends() {
   const [actionError, setActionError] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [removing, setRemoving] = useState<Friend | null>(null);
+  const [blocksOpen, setBlocksOpen] = useState(false);
   const [linked, setLinked] = useState<Friend | null>(null);
   const [linkLoading, setLinkLoading] = useState(false);
   const [linkError, setLinkError] = useState(false);
@@ -138,6 +140,15 @@ export function Friends() {
         {friend.state && <small>{t(`friends.${friend.state}`)}</small>}
       </div>
       <div className="friend-card-actions">
+        <PlayerBlockButton
+          playerId={friend.id}
+          name={friend.username}
+          onBlocked={() => {
+            list.setItems((items) => items.filter((item) => item.id !== friend.id));
+            setLinked((item) => (item?.id === friend.id ? null : item));
+            refresh();
+          }}
+        />
         {friend.state === 'accepted' && (
           <>
             <Link
@@ -216,6 +227,9 @@ export function Friends() {
           </h1>
           <p>{t('friends.connectionHint')}</p>
           <div className="friends-hero-actions">
+            <button type="button" className="button secondary" onClick={() => setBlocksOpen(true)}>
+              {t('blocks.manage')}
+            </button>
             <button
               type="button"
               className="button dark"
@@ -244,6 +258,14 @@ export function Friends() {
           </i>
         </div>
       </header>
+      {blocksOpen && (
+        <BlockedPlayersDialog
+          onClose={() => {
+            setBlocksOpen(false);
+            list.refresh();
+          }}
+        />
+      )}
       {target && (
         <section className="friends-link-card" aria-live="polite">
           {target === user?.id ? (

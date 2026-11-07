@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, AudioLines, BookOpen, Gamepad2, House, LayoutGrid, MessageCircle, Play, Smartphone, UserRound, UsersRound, Heart, Sparkles } from 'lucide-react';
+import { ArrowUpRight, AudioLines, BookOpen, Gamepad2, House, LayoutGrid, MessageCircle, Newspaper, Play, Smartphone, UserRound, UsersRound, Heart, Sparkles } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';
 import { useFriendRequests } from '@/components/friend-request-provider';
 import { openExternal } from '@/lib/native';
@@ -30,6 +30,7 @@ const primaryPages = [
   },
 ];
 const pages = [
+  ...(process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED === 'true' ? [{ href: '/ambatupost/', key: 'post.nav', Icon: Newspaper }] : []),
   { href: '/friends/', key: 'friends.title', Icon: UsersRound },
   { href: '/profile/', key: 'nav.profile', Icon: UserRound },
   { href: '/watch/', key: 'nav.watch', Icon: Play },

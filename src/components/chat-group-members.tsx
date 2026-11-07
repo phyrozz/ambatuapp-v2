@@ -1,16 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Search, Share2, UserMinus, UsersRound, X } from 'lucide-react';
+import { Plus, Search, Share2, UserMinus, UsersRound } from 'lucide-react';
 import type { ChatConversation } from '@/lib/chat';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
 import { FriendPickerDialog } from './friend-picker-dialog';
+import { FriendsDialog } from './friends-dialog';
 
 type Player = { id: string; username: string };
 const playersApi = `${process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '') ?? ''}/players`;
 
-export function ChatGroupMembers({ conversation, avatarUrls, userId, busy, sharing, actionError, getIdToken, onAdd, onRemove, onShare, onClose }: {
+export function ChatGroupMembers({
+  conversation,
+  avatarUrls,
+  userId,
+  busy,
+  sharing,
+  actionError,
+  getIdToken,
+  onAdd,
+  onRemove,
+  onShare,
+  onClose,
+}: {
   conversation: ChatConversation;
   avatarUrls: Record<string, string>;
   userId: string;
@@ -36,35 +49,151 @@ export function ChatGroupMembers({ conversation, avatarUrls, userId, busy, shari
     if (search.length < 2 || full) return;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
-      setLoading(true); setError('');
+      setLoading(true);
+      setError('');
       try {
         const token = await getIdToken();
         if (!token) throw new Error('token');
-        const response = await fetch(`${playersApi}?q=${encodeURIComponent(search)}`, { headers: { authorization: `Bearer ${token}` }, signal: controller.signal });
+        const response = await fetch(`${playersApi}?q=${encodeURIComponent(search)}`, {
+          headers: { authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
         if (!response.ok) throw new Error('search');
-        const data = await response.json() as { players?: Player[] };
-        setMatches((data.players ?? []).filter(player => !conversation.members.includes(player.id)));
-      } catch { if (!controller.signal.aborted) setError(t('chat.searchError')); }
-      finally { if (!controller.signal.aborted) setLoading(false); }
+        const data = (await response.json()) as { players?: Player[] };
+        setMatches(
+          (data.players ?? []).filter((player) => !conversation.members.includes(player.id)),
+        );
+      } catch {
+        if (!controller.signal.aborted) setError(t('chat.searchError'));
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
     }, 250);
-    return () => { clearTimeout(timer); controller.abort(); };
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query, full, getIdToken, conversation.members, t]);
 
-  return <div className="chat-modal-backdrop chat-member-backdrop" role="presentation" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="chat-modal chat-member-modal" role="dialog" aria-modal="true" aria-label={t('chat.manageMembers')}>
-      <header><h2><UsersRound size={21}/>{t('chat.manageMembers')}</h2><button type="button" className="chat-icon" onClick={onClose} aria-label={t('chat.dismiss')}><X size={18}/></button></header>
-      <button type="button" className="button secondary chat-group-share" disabled={sharing} onClick={onShare}><Share2 size={17}/>{t('chat.shareGroup')}</button>
-      {!full ? <>
-        <button type="button" className="button secondary" disabled={busy} onClick={() => setFriendPickerOpen(true)}><UsersRound size={17}/>{t('friends.addToGroup')}</button>
-        <div className="chat-search chat-member-search"><Search size={17}/><input value={query} onChange={event => { setQuery(event.target.value); setMatches([]); setLoading(event.target.value.trim().length >= 2); setError(''); }} placeholder={t('chat.searchUsername')} aria-label={t('chat.searchUsername')}/></div>
-        {loading && <LoadingIndicator label={t('common.loading')} compact/>}
-        {error && <p className="form-error" role="alert">{error}</p>}
-        {matches.length > 0 && <div className="chat-member-results">{matches.map(player => <button type="button" key={player.id} disabled={busy} onClick={() => onAdd(player)} aria-label={t('chat.addMember', { name: player.username })}><span>{player.username}</span><Plus size={16}/></button>)}</div>}
-        {query.trim().length >= 2 && !loading && !error && matches.length === 0 && <p className="chat-member-empty">{t('chat.noUsersFound')}</p>}
-      </> : <p className="chat-member-limit">{t('chat.memberLimit')}</p>}
-      {actionError && <p className="form-error" role="alert">{actionError}</p>}
-      <div className="chat-member-list">{conversation.members.map(id => <div className="chat-member-row" key={id}><span className="chat-avatar">{avatarUrls[id] ? <img src={avatarUrls[id]} alt="" aria-hidden="true"/> : (conversation.names?.[id] ?? id).slice(0, 1).toUpperCase()}</span><strong>{conversation.names?.[id] ?? id}</strong><button type="button" className="chat-member-remove" disabled={busy} onClick={() => onRemove(id)} aria-label={id === userId ? t('chat.leaveGroup') : t('chat.removeMember', { name: conversation.names?.[id] ?? id })}><UserMinus size={17}/><span>{id === userId ? t('chat.leaveGroup') : t('chat.removeMember', { name: conversation.names?.[id] ?? id })}</span></button></div>)}</div>
-      {friendPickerOpen && <FriendPickerDialog title={t('friends.addToGroup')} confirmLabel={t('friends.addToGroup')} limit={1} exclude={conversation.members} disabled={busy || full} onClose={() => setFriendPickerOpen(false)} onConfirm={async friends => { onAdd(friends[0]); setFriendPickerOpen(false); }}/>}
-    </section>
-  </div>;
+  return (
+    <FriendsDialog
+      title={t('chat.manageMembers')}
+      onClose={onClose}
+      busy={busy || sharing}
+      className="chat-member-modal"
+    >
+      <button
+        type="button"
+        className="button secondary chat-group-share"
+        disabled={sharing}
+        onClick={onShare}
+      >
+        <Share2 size={17} />
+        {t('chat.shareGroup')}
+      </button>
+      {!full ? (
+        <>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy}
+            onClick={() => setFriendPickerOpen(true)}
+          >
+            <UsersRound size={17} />
+            {t('friends.addToGroup')}
+          </button>
+          <div className="chat-search chat-member-search">
+            <Search size={17} />
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setMatches([]);
+                setLoading(event.target.value.trim().length >= 2);
+                setError('');
+              }}
+              placeholder={t('chat.searchUsername')}
+              aria-label={t('chat.searchUsername')}
+            />
+          </div>
+          {loading && <LoadingIndicator label={t('common.loading')} compact />}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          {matches.length > 0 && (
+            <div className="chat-member-results">
+              {matches.map((player) => (
+                <button
+                  type="button"
+                  key={player.id}
+                  disabled={busy}
+                  onClick={() => onAdd(player)}
+                  aria-label={t('chat.addMember', { name: player.username })}
+                >
+                  <span>{player.username}</span>
+                  <Plus size={16} />
+                </button>
+              ))}
+            </div>
+          )}
+          {query.trim().length >= 2 && !loading && !error && matches.length === 0 && (
+            <p className="chat-member-empty">{t('chat.noUsersFound')}</p>
+          )}
+        </>
+      ) : (
+        <p className="chat-member-limit">{t('chat.memberLimit')}</p>
+      )}
+      {actionError && (
+        <p className="form-error" role="alert">
+          {actionError}
+        </p>
+      )}
+      <div className="chat-member-list">
+        {conversation.members.map((id) => {
+          const blocked = conversation.blockedIds?.includes(id);
+          const name = blocked ? t('blocks.blockedThug') : (conversation.names?.[id] ?? id);
+          return (
+            <div className="chat-member-row" key={id}>
+              <span className="chat-avatar">
+                {!blocked && avatarUrls[id] ? (
+                  <img src={avatarUrls[id]} alt="" aria-hidden="true" />
+                ) : blocked ? null : (
+                  name.slice(0, 1).toUpperCase()
+                )}
+              </span>
+              <strong>{name}</strong>
+              <button
+                type="button"
+                className="chat-member-remove"
+                disabled={busy}
+                onClick={() => onRemove(id)}
+                aria-label={id === userId ? t('chat.leaveGroup') : t('chat.removeMember', { name })}
+              >
+                <UserMinus size={17} />
+                <span>
+                  {id === userId ? t('chat.leaveGroup') : t('chat.removeMember', { name })}
+                </span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      {friendPickerOpen && (
+        <FriendPickerDialog
+          title={t('friends.addToGroup')}
+          confirmLabel={t('friends.addToGroup')}
+          limit={1}
+          exclude={conversation.members}
+          disabled={busy || full}
+          onClose={() => setFriendPickerOpen(false)}
+          onConfirm={async (friends) => {
+            onAdd(friends[0]);
+            setFriendPickerOpen(false);
+          }}
+        />
+      )}
+    </FriendsDialog>
+  );
 }

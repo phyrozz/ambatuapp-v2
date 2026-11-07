@@ -100,6 +100,10 @@ export function useFriends({
     return () => observer.disconnect();
   }, [enabled, items, error, loading, ended, root, sentinel]);
   const refresh = useCallback(() => setVersion((value) => value + 1), []);
+  useEffect(() => {
+    window.addEventListener('ambatu:blocks-changed', refresh);
+    return () => window.removeEventListener('ambatu:blocks-changed', refresh);
+  }, [refresh]);
   const retry = useCallback(() => load.current(), []);
   return { items, setItems, loading, error, ended, sentinel: setSentinel, refresh, retry };
 }
