@@ -9,6 +9,7 @@ import {
   LogIn,
   LogOut,
   Music2,
+  Newspaper,
   Pencil,
   Save,
   Share2,
@@ -41,11 +42,15 @@ import { publicAppUrl } from '@/lib/share-links';
 import { MyCharacters } from './my-characters';
 import { MyContributions } from './my-contributions';
 import { CreatorInsights } from './creator-insights';
+import { MyDreams } from './my-dreams';
 import { MyDreamyTour, type MyDreamyTourTab } from './my-dreamy-tour';
 import './my-dreamy.css';
 
 type ProfileTab = MyDreamyTourTab;
 const profileTabs = [
+  ...(process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED === 'true'
+    ? [{ id: 'dreams', label: 'post.myDreams', icon: Newspaper } as const]
+    : []),
   { id: 'videos', label: 'profile.tabVideos', icon: Film },
   { id: 'characters', label: 'profile.tabCharacters', icon: Users },
   { id: 'lores', label: 'profile.tabLore', icon: BookOpen },
@@ -118,7 +123,12 @@ export function ProfilePanel() {
 
   useEffect(() => {
     const syncTab = () => {
-      if (window.location.hash === '#my-profile-editor') setActiveTab('profile');
+      if (
+        window.location.hash === '#my-dreams' &&
+        process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED === 'true'
+      )
+        setActiveTab('dreams');
+      else if (window.location.hash === '#my-profile-editor') setActiveTab('profile');
       else if (window.location.hash === '#my-activity') setActiveTab('activity');
       else if (window.location.hash === '#my-insights') setActiveTab('insights');
       else if (window.location.hash === '#my-characters') setActiveTab('characters');
@@ -134,6 +144,7 @@ export function ProfilePanel() {
   function selectTab(tab: ProfileTab) {
     setActiveTab(tab);
     const hash = {
+      dreams: 'my-dreams',
       videos: 'my-videos',
       lores: 'my-lores',
       characters: 'my-characters',
@@ -365,10 +376,6 @@ export function ProfilePanel() {
                   <LogOut size={16} aria-hidden="true" />
                   {t('profile.signOut')}
                 </button>
-                {/* <Link className="dreamy-public-link" href={creatorHref(user.id)}>
-                {t('creator.profileLink')}
-                <ArrowUpRight size={15} aria-hidden="true" />
-              </Link> */}
               </div>
               <dl className="dreamy-social-counts">
                 {(
@@ -421,6 +428,7 @@ export function ProfilePanel() {
               aria-selected={activeTab === id}
               aria-controls={
                 {
+                  dreams: 'my-dreams',
                   videos: 'my-videos',
                   lores: 'my-lores',
                   characters: 'my-characters',
@@ -456,6 +464,17 @@ export function ProfilePanel() {
         </div>
       )}
 
+      {user && (
+        <section
+          id="my-dreams"
+          className="dreamy-tab-panel"
+          role="tabpanel"
+          aria-labelledby="dreamy-tab-dreams"
+          hidden={activeTab !== 'dreams'}
+        >
+          {activeTab === 'dreams' && <MyDreams getToken={getIdToken} version={0} />}
+        </section>
+      )}
       {user && (
         <section
           id="my-videos"

@@ -3,18 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import {
-  ArrowLeft,
-  ArrowUpRight,
-  Eye,
-  Globe2,
-  LockKeyhole,
-  Newspaper,
-  Pencil,
-  Send,
-  Trash2,
-  UsersRound,
-} from 'lucide-react';
+import { ArrowLeft, Eye, Newspaper, Pencil, Send, Trash2 } from 'lucide-react';
 import {
   dreamApi,
   DreamApiError,
@@ -29,6 +18,10 @@ import { useI18n } from './i18n-provider';
 import { FriendsDialog } from './friends-dialog';
 import { LoadingIndicator } from './loading-indicator';
 import { DreamActions } from './dream-actions';
+import { DreamAudienceLabel } from './dream-audience';
+import { DreamFeed } from './dream-feed';
+import { DreamAvatar } from './dream-avatar';
+import { creatorHref } from '@/lib/creator-profile';
 import {
   DreamAttachments,
   DreamMedia,
@@ -43,135 +36,14 @@ const audienceHints = {
   friends: 'post.friendsHint',
   only_me: 'post.onlyMeHint',
 };
-const audienceIcons = { public: Globe2, friends: UsersRound, only_me: LockKeyhole };
-
-function DreamAudienceLabel({ audience }: { audience: DreamAudience }) {
-  const { t } = useI18n();
-  const Icon = audienceIcons[audience];
-  return (
-    <span className="dream-audience">
-      <Icon size={14} aria-hidden="true" />
-      {t(audienceKeys[audience])}
-    </span>
-  );
-}
-
-function MyDreams({
-  getToken,
-  version,
-}: {
-  getToken: () => Promise<string | null>;
-  version: number;
-}) {
-  const { t } = useI18n();
-  const [items, setItems] = useState<Dream[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [ended, setEnded] = useState(false);
-  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
-  const load = useRef<() => void>(() => {});
-  useEffect(() => {
-    const controller = new AbortController();
-    let cursor: string | null = null,
-      pending = false,
-      done = false;
-    // Reset the account's subscription when a Dream is saved or removed.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setItems([]);
-    setEnded(false);
-    const next = async () => {
-      if (pending || done || controller.signal.aborted) return;
-      pending = true;
-      setLoading(true);
-      setError('');
-      try {
-        const page = await dreamApi<{ dreams: Dream[]; nextCursor: string | null }>(
-          `/mine${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
-          await getToken(),
-          { signal: controller.signal },
-        );
-        if (controller.signal.aborted) return;
-        setItems((previous) => [
-          ...new Map([...previous, ...page.dreams].map((item) => [item.id, item])).values(),
-        ]);
-        cursor = page.nextCursor;
-        done = !cursor;
-        setEnded(done);
-      } catch (reason) {
-        if (!controller.signal.aborted) setError(dreamErrorKey(reason));
-      } finally {
-        pending = false;
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    };
-    load.current = () => {
-      void next();
-    };
-    void next();
-    return () => controller.abort();
-  }, [getToken, version]);
-  useEffect(() => {
-    if (!sentinel || loading || error || ended) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) load.current();
-      },
-      { rootMargin: '200px' },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [sentinel, loading, error, ended, items.length]);
-  return (
-    <section className="dream-history" aria-labelledby="my-dreams-title">
-      <header className="dream-section-heading">
-        <h2 id="my-dreams-title">{t('post.myDreams')}</h2>
-      </header>
-      <div className="dream-history-list" aria-busy={loading}>
-        {items.map((dream) => (
-          <Link
-            className="dream-history-card"
-            key={dream.id}
-            href={dreamHref(dream.id)}
-            aria-label={`${t('post.read')}: ${dream.text.slice(0, 100) || t('post.mediaOnly', { count: dream.attachments?.length ?? 0 })}`}
-          >
-            <div className="dream-history-meta">
-              <DreamAudienceLabel audience={dream.audience} />
-              {dream.publication === 'draft' && (
-                <span className="dream-draft">{t('post.draft')}</span>
-              )}
-              {dream.publication === 'processing' && (
-                <span className="dream-draft">{t('post.processing')}</span>
-              )}
-              {dream.publication === 'failed' && (
-                <span className="dream-draft">{t('post.failed')}</span>
-              )}
-              <ArrowUpRight size={18} aria-hidden="true" />
-            </div>
-            <p>{dream.text || t('post.mediaOnly', { count: dream.attachments?.length ?? 0 })}</p>
-          </Link>
-        ))}
-      </div>
-      {!loading && !error && !items.length && <p className="dream-empty">{t('post.empty')}</p>}
-      {loading && <LoadingIndicator label={t('common.loading')} compact />}
-      {error && (
-        <div className="dream-notice" role="alert">
-          <p>{t(error)}</p>
-          <button className="button secondary compact" type="button" onClick={() => load.current()}>
-            {t('common.retry')}
-          </button>
-        </div>
-      )}
-      <div ref={setSentinel} className="dream-sentinel" />
-    </section>
-  );
-}
-
 export function Ambatupost({
   dreamId,
   cleanupId,
+  editRequested = false,
 }: {
   dreamId: string | null;
   cleanupId?: string | null;
+  editRequested?: boolean;
 }) {
   const { user, getIdToken, configured, signInWithGoogle } = useAuth();
   const { t, locale } = useI18n();
@@ -180,7 +52,7 @@ export function Ambatupost({
   const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dream, setDream] = useState<Dream | null>(null);
-  const [editing, setEditing] = useState(!dreamId);
+  const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
   const [audience, setAudience] = useState<DreamAudience>('public');
   const [attachmentsEnabled, setAttachmentsEnabled] = useState(false);
@@ -226,7 +98,7 @@ export function Ambatupost({
           setText(item.text);
           setAudience(item.audience);
           setAttachments(item.attachments ?? []);
-          setEditing(false);
+          setEditing(Boolean(editRequested && item.authorId === userId));
         }
       } catch (reason) {
         if (!request.signal.aborted) setError(dreamErrorKey(reason));
@@ -235,7 +107,7 @@ export function Ambatupost({
       }
     })();
     return () => request.abort();
-  }, [dreamId, getToken, version]);
+  }, [dreamId, getToken, version, editRequested, userId]);
   const processing =
     dream?.publication === 'processing' ||
     dream?.attachments?.some((item) => ['awaiting_upload', 'processing'].includes(item.state));
@@ -367,9 +239,6 @@ export function Ambatupost({
           {t('post.title')}
           <span className="orange-text">.</span>
         </h1>
-        <span className="dream-hero-mark" aria-hidden="true">
-          <Newspaper size={34} />
-        </span>
       </header>
       {cleanupId && user && (
         <DreamCleanup key={cleanupId} operationId={cleanupId} getToken={getToken} />
@@ -412,14 +281,37 @@ export function Ambatupost({
       {!loading && available && (!dreamId || dream) && (
         <div className="dream-layout">
           <div className="dream-main">
+            {!dreamId && !editing && (
+              <div className="dream-start">
+                <DreamAvatar name={user?.name ?? ''} src={user?.avatarUrl ?? null} />
+                <button
+                  type="button"
+                  className="dream-start-input"
+                  aria-label={t('post.create')}
+                  onClick={() => (user ? setEditing(true) : void signIn())}
+                  disabled={!user && !configured}
+                >
+                  {t('post.placeholder')}
+                </button>
+              </div>
+            )}
             {dream && !editing && (
               <article className="dream-detail">
                 <header className="dream-detail-header">
-                  <span className="dream-author-mark" aria-hidden="true">
-                    {(dream.authorName || t('post.dreamer')).slice(0, 1).toUpperCase()}
-                  </span>
+                  <Link
+                    href={`${creatorHref(dream.authorId)}&from=post`}
+                    prefetch={false}
+                    aria-label={t('creator.view', { name: dream.authorName || t('post.dreamer') })}
+                  >
+                    <DreamAvatar
+                      name={dream.authorName || t('post.dreamer')}
+                      src={dream.authorAvatarUrl ?? null}
+                    />
+                  </Link>
                   <div>
-                    <strong>{dream.authorName || t('post.dreamer')}</strong>
+                    <Link href={`${creatorHref(dream.authorId)}&from=post`} prefetch={false}>
+                      <strong>{dream.authorName || t('post.dreamer')}</strong>
+                    </Link>
                     <p>
                       <time dateTime={dream.createdAt}>
                         {t('post.created', {
@@ -485,7 +377,10 @@ export function Ambatupost({
                     key={`${dream.id}:${dream.updatedAt}`}
                     dream={dream}
                     getToken={getToken}
-                    onUnavailable={() => { setDream(null); setError('post.unavailable'); }}
+                    onUnavailable={() => {
+                      setDream(null);
+                      setError('post.unavailable');
+                    }}
                   />
                 )}
                 {own && (
@@ -583,7 +478,7 @@ export function Ambatupost({
                       {t('post.saveDraft')}
                     </button>
                   )}
-                  {dream && (
+                  {(dream || !dreamId) && (
                     <button
                       type="button"
                       className="button secondary"
@@ -599,7 +494,7 @@ export function Ambatupost({
                 </footer>
               </form>
             )}
-            {!user && (
+            {!user && dreamId && (
               <section className="dream-signin">
                 <Newspaper size={26} aria-hidden="true" />
                 <h2>{t('post.create')}</h2>
@@ -614,8 +509,8 @@ export function Ambatupost({
                 </button>
               </section>
             )}
+            {!dreamId && <DreamFeed getToken={getToken} />}
           </div>
-          {user && <MyDreams getToken={getToken} version={dream?.revision ?? 0} />}
         </div>
       )}
       {confirming && (

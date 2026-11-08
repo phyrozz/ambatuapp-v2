@@ -25,6 +25,28 @@ export type CreatorClip = {
 
 export const creatorHref = (id: string) => `/scroll/profile/?user=${encodeURIComponent(id)}`;
 
+export class CreatorReadError extends Error {
+  constructor(readonly status: number) {
+    super('PROFILE_UNAVAILABLE');
+  }
+}
+
+export async function creatorRead<T>(
+  path: string,
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<T> {
+  const base = process.env.NEXT_PUBLIC_CHARACTER_API_URL?.replace(/\/$/, '');
+  if (!base) throw new Error('PROFILE_UNAVAILABLE');
+  const response = await fetch(`${base}${path}`, {
+    cache: 'no-store',
+    signal,
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) throw new CreatorReadError(response.status);
+  return response.json() as Promise<T>;
+}
+
 export function creatorSearchIsReady(value: string) {
   const q = value.normalize('NFKC').trim();
   return q.includes('@')

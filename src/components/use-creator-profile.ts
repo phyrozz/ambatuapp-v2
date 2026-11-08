@@ -1,13 +1,14 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { memberApi } from '@/lib/member-api';
+import { creatorRead } from '@/lib/creator-profile';
 import type { CreatorProfile } from '@/lib/creator-profile';
 import { useAuth } from './auth-provider';
 
 export function useCreatorProfile(id: string) {
-  const { user, getIdToken } = useAuth();
+  const { user, ready, getIdToken } = useAuth();
   const userId = user?.id;
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
+  const [profileViewer, setProfileViewer] = useState<string | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [version, setVersion] = useState(0);
@@ -18,16 +19,24 @@ export function useCreatorProfile(id: string) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(false);
-    if (!userId || !id) {
+    if (!ready || !id) {
       setLoading(false);
       return;
     }
     void getIdToken()
-      .then((token) =>
-        memberApi<CreatorProfile>(`/creators/${encodeURIComponent(id)}`, token, controller.signal),
-      )
+      .then((token) => {
+        if (userId && !token) throw new Error('SESSION_EXPIRED');
+        return creatorRead<CreatorProfile>(
+          `/creators/${encodeURIComponent(id)}`,
+          token,
+          controller.signal,
+        );
+      })
       .then((value) => {
-        if (!controller.signal.aborted) setProfile(value);
+        if (!controller.signal.aborted) {
+          setProfile(value);
+          setProfileViewer(userId ?? null);
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) {
@@ -39,7 +48,7 @@ export function useCreatorProfile(id: string) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [id, userId, getIdToken, version]);
+  }, [id, userId, ready, getIdToken, version]);
   useEffect(() => {
     const visible = () => {
       if (!document.hidden) refresh();
@@ -57,5 +66,11 @@ export function useCreatorProfile(id: string) {
       window.removeEventListener('ambatu:clips-changed', refresh);
     };
   }, [refresh]);
-  return { profile: profile?.id === id ? profile : null, setProfile, loading, error, refresh };
+  return {
+    profile: profile?.id === id && profileViewer === (userId ?? null) ? profile : null,
+    setProfile,
+    loading,
+    error,
+    refresh,
+  };
 }

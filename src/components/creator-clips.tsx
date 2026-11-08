@@ -2,8 +2,7 @@
 import Link from 'next/link';
 import { ArrowBigUp, MessageCircle, Play, Video } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { memberApi } from '@/lib/member-api';
-import type { CreatorClip } from '@/lib/creator-profile';
+import { creatorRead, CreatorReadError, type CreatorClip } from '@/lib/creator-profile';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { LoadingIndicator } from './loading-indicator';
@@ -87,6 +86,15 @@ function ClipCard({
           {t('watch.manageVideo')}
         </button>
       )}
+      {clip.playable && (
+        <Link
+          className="button secondary compact creator-watch-link"
+          href={`/watch/${encodeURIComponent(clip.id)}/`}
+        >
+          <Play size={15} aria-hidden="true" />
+          {t('nav.watch')}
+        </Link>
+      )}
     </article>
   );
 }
@@ -105,7 +113,8 @@ export function CreatorClips({
   onUpload?: () => void;
 }) {
   const { t } = useI18n();
-  const { getIdToken, user } = useAuth();
+  const { getIdToken, user, ready } = useAuth();
+  const userId = user?.id;
   const [clips, setClips] = useState<CreatorClip[]>([]);
   const [managingClip, setManagingClip] = useState<CreatorClip | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,6 +130,7 @@ export function CreatorClips({
     return () => window.removeEventListener('ambatu:clips-changed', refresh);
   }, []);
   useEffect(() => {
+    if (!ready) return;
     const controller = new AbortController();
     let cursor: string | null = null,
       pending = false,
@@ -137,9 +147,11 @@ export function CreatorClips({
       setLoading(true);
       setError(false);
       try {
-        const data = await memberApi<{ clips: CreatorClip[]; nextCursor: string | null }>(
+        const token = await getIdToken();
+        if (userId && !token) throw new Error('SESSION_EXPIRED');
+        const data = await creatorRead<{ clips: CreatorClip[]; nextCursor: string | null }>(
           `/creators/${encodeURIComponent(id)}/clips${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
-          await getIdToken(),
+          token,
           controller.signal,
         );
         if (controller.signal.aborted) return;
@@ -149,8 +161,14 @@ export function CreatorClips({
         cursor = data.nextCursor;
         done = !cursor;
         setEnded(done);
-      } catch {
-        if (!controller.signal.aborted) setError(true);
+      } catch (reason) {
+        if (!controller.signal.aborted) {
+          if (reason instanceof CreatorReadError && [401, 403, 404].includes(reason.status)) {
+            setClips([]);
+            if (reason.status === 404) window.dispatchEvent(new Event('ambatu:profile-changed'));
+          }
+          setError(true);
+        }
       } finally {
         pending = false;
         if (!controller.signal.aborted) setLoading(false);
@@ -161,7 +179,7 @@ export function CreatorClips({
     };
     void next();
     return () => controller.abort();
-  }, [id, own, getIdToken, version]);
+  }, [id, own, getIdToken, userId, ready, version]);
   useEffect(() => {
     if (!active || !sentinel || loading || error || ended || (contained && !scrollRoot)) return;
     const observer = new IntersectionObserver(

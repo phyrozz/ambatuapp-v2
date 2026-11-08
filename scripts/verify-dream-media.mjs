@@ -44,6 +44,7 @@ try{
     if(path.includes('/api/public/ambatupost')){
       if(path.endsWith('/config'))return route.fulfill({json:{attachmentsEnabled:true}});
       if(path.endsWith('/mine'))return route.fulfill({json:{dreams:dream?[dream]:[],nextCursor:null}});
+      if(path.endsWith('/feed'))return route.fulfill({json:{dreams:[],nextCursor:null}});
       if(path.includes('/operations/'))return route.fulfill({json:{state:++operationReads>1?'complete':'pending',error:operationReads===1?'MEDIA_CLEANUP_FAILED':null}});
       if(path.endsWith('/uploads')&&method==='POST'){
         const body=request.postDataJSON(),id=randomUUID();uploads.set(id,{id,kind:body.kind,state:'processing',bytes:body.bytes,width:320,height:180,duration:null,error:null});
@@ -69,6 +70,7 @@ try{
   });
   await page.clock.install();
   await page.goto(`${base}/ambatupost/`);
+  await page.getByRole('button',{name:en['post.create'],exact:true}).click();
   const input=page.locator('input[type=file]');await expect(input).toBeAttached();
   await input.setInputFiles({name:'bad.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg/>')});
   await expect(page.getByText(en['post.invalidAttachment'],{exact:true})).toBeVisible();
@@ -140,6 +142,7 @@ try{
   await expect.poll(()=>galleryVideo.evaluate(video=>video.readyState)).toBeGreaterThan(1);
   await viewer.locator('.ambatu-video__center-play').click();
   await expect.poll(()=>galleryVideo.evaluate(video=>video.paused)).toBe(false);
+  await expect.poll(()=>galleryVideo.evaluate(video=>video.currentTime)).toBeGreaterThan(0.4);
   // Recover when playing fires, and when playback advances without another playing/canplay event.
   const galleryFigure=viewer.locator('.dream-media-attachment');
   const galleryPreview=viewer.locator('.dream-media-preview');

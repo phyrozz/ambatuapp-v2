@@ -16,6 +16,7 @@ export type Dream = {
   id: string;
   authorId: string;
   authorName: string | null;
+  authorAvatarUrl?: string | null;
   text: string;
   audience: DreamAudience;
   publication: 'draft' | 'processing' | 'published' | 'failed';
@@ -46,6 +47,8 @@ export function dreamRequestKey() {
 }
 export function dreamErrorKey(error: unknown) {
   if (!(error instanceof DreamApiError)) return 'post.error';
+  if (['INVALID_FEED_CURSOR', 'FEED_CURSOR_EXPIRED'].includes(error.code))
+    return 'post.feedExpired';
   if (error.code === 'UPLOAD_QUOTA') return 'post.uploadQuota';
   if (error.code === 'INVALID_ATTACHMENT' || error.code === 'INVALID_ATTACHMENTS')
     return 'post.invalidAttachment';

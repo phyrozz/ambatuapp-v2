@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { ArrowLeft, Check, MessageCircle, Pencil, UserCheck, UserPlus } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ArrowLeft, BookOpen, Check, Film, Gamepad2, MessageCircle, MoreHorizontal, Newspaper, Pencil, UserCheck, UserPlus } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { memberApi } from '@/lib/member-api';
 import type { CreatorProfile as Profile } from '@/lib/creator-profile';
 import { creatorHref } from '@/lib/creator-profile';
@@ -11,17 +11,66 @@ import { useFriendRequests } from './friend-request-provider';
 import { LoadingIndicator } from './loading-indicator';
 import { useCreatorProfile } from './use-creator-profile';
 import { CreatorClips } from './creator-clips';
+import { CreatorDreams, CreatorLores, CreatorScores } from './creator-activity';
 import './creator-profile.css';
 import { PlayerBlockButton } from './player-block-controls';
 
-export function CreatorProfile({ id, embedded = false }: { id: string; embedded?: boolean }) {
+export function CreatorProfile({
+  id,
+  embedded = false,
+  fromPost = false,
+}: {
+  id: string;
+  embedded?: boolean;
+  fromPost?: boolean;
+}) {
   const { t, locale } = useI18n();
-  const { user, getIdToken } = useAuth();
+  const { user, getIdToken, configured, signInWithGoogle } = useAuth();
   const { refresh: refreshRequests } = useFriendRequests();
   const { profile, setProfile, loading, error, refresh } = useCreatorProfile(id);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState('');
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsId = useId();
+  const actionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (!actionsRef.current?.contains(event.target as Node)) setActionsOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActionsOpen(false);
+        actionsRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [actionsOpen]);
+  const [tab, setTab] = useState<'dreams' | 'videos' | 'lores' | 'scores'>(
+    process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED === 'true' ? 'dreams' : 'videos',
+  );
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const profileId = profile?.id;
+  useEffect(() => {
+    const reveal = () => {
+      const container = tabsRef.current;
+      const current = container?.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (!container || !current) return;
+      const bounds = container.getBoundingClientRect(),
+        selected = current.getBoundingClientRect();
+      if (selected.right > bounds.right) container.scrollLeft += selected.right - bounds.right;
+      else if (selected.left < bounds.left) container.scrollLeft -= bounds.left - selected.left;
+    };
+    reveal();
+    window.addEventListener('resize', reveal);
+    return () => window.removeEventListener('resize', reveal);
+  }, [tab, profileId]);
   const pending = useRef(false);
   const own = user?.id === id;
   async function act(action: 'follow' | 'unfollow' | 'accept') {
@@ -47,12 +96,20 @@ export function CreatorProfile({ id, embedded = false }: { id: string; embedded?
     }
   }
   const Heading = embedded ? 'h2' : 'h1';
+  const contentTabs = [
+    ...(process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED === 'true'
+      ? [{ id: 'dreams', label: 'creator.tabDreams', icon: Newspaper } as const]
+      : []),
+    { id: 'videos', label: 'profile.tabVideos', icon: Film },
+    { id: 'lores', label: 'profile.tabLore', icon: BookOpen },
+    { id: 'scores', label: 'creator.tabScores', icon: Gamepad2 },
+  ] as const;
   return (
     <div className={`creator-content${embedded ? ' is-embedded' : ''}`}>
       {!embedded && (
-        <Link className="creator-back" href="/scroll/">
+        <Link className="creator-back" href={fromPost ? '/ambatupost/' : '/scroll/'}>
           <ArrowLeft size={18} />
-          {t('creator.back')}
+          {t(fromPost ? 'post.back' : 'creator.back')}
         </Link>
       )}
       {!profile && loading && (
@@ -71,6 +128,43 @@ export function CreatorProfile({ id, embedded = false }: { id: string; embedded?
       {profile && (
         <>
           <section className="creator-hero">
+            {!own && user && (
+              <div className="creator-more" ref={actionsRef}>
+                <button
+                  type="button"
+                  className="creator-more-trigger"
+                  aria-label={t('chat.moreActions')}
+                  aria-expanded={actionsOpen}
+                  aria-controls={actionsId}
+                  onClick={() => setActionsOpen((open) => !open)}
+                >
+                  <MoreHorizontal size={21} />
+                </button>
+                <div
+                  id={actionsId}
+                  className="creator-more-menu"
+                  data-open={actionsOpen}
+                  aria-hidden={!actionsOpen}
+                  inert={!actionsOpen}
+                >
+                  {profile.friendState === 'accepted' && (
+                    <Link href={`/chat/?user=${encodeURIComponent(id)}&name=${encodeURIComponent(profile.username)}`}>
+                      <MessageCircle size={17} />
+                      {t('chat.startChat')}
+                    </Link>
+                  )}
+                  <PlayerBlockButton
+                    playerId={id}
+                    name={profile.username}
+                    onOpen={() => setActionsOpen(false)}
+                    onBlocked={() => {
+                      setProfile(null);
+                      refresh();
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="creator-avatar" aria-hidden="true">
               {profile.avatarUrl && avatarFailed !== profile.avatarUrl ? (
                 <img
@@ -83,8 +177,7 @@ export function CreatorProfile({ id, embedded = false }: { id: string; embedded?
               )}
             </div>
             <div className="creator-hero-copy">
-              <p className="eyebrow">{t(own ? 'nav.profile' : 'creator.title')}</p>
-              <Heading>{profile.username || t('creator.title')}</Heading>
+              <Heading>{profile.username || t('lore.anonymous')}</Heading>
               {profile.bio && <p className="creator-bio">{profile.bio}</p>}
               {profile.joinedAt && (
                 <p className="creator-joined">
@@ -120,16 +213,8 @@ export function CreatorProfile({ id, embedded = false }: { id: string; embedded?
                   <Pencil size={17} />
                   {t('creator.editProfile')}
                 </Link>
-              ) : (
+              ) : user ? (
                 <>
-                  <PlayerBlockButton
-                    playerId={id}
-                    name={profile.username}
-                    onBlocked={() => {
-                      setProfile(null);
-                      refresh();
-                    }}
-                  />
                   <button
                     className={`button ${profile.following ? 'secondary' : 'dark'}`}
                     type="button"
@@ -162,24 +247,33 @@ export function CreatorProfile({ id, embedded = false }: { id: string; embedded?
                         <UserCheck size={16} />
                         {t('creator.friends')}
                       </span>
-                      <Link
-                        className="button secondary"
-                        href={`/chat/?user=${encodeURIComponent(id)}&name=${encodeURIComponent(profile.username)}`}
-                      >
-                        <MessageCircle size={17} />
-                        {t('chat.startChat')}
-                      </Link>
                     </>
                   )}
                 </>
+              ) : (
+                <button
+                  type="button"
+                  className="button dark"
+                  disabled={!configured}
+                  onClick={() =>
+                    void signInWithGoogle(creatorHref(id)).catch(() => setActionError(true))
+                  }
+                >
+                  {t('profile.googleSignIn')}
+                </button>
+              )}
+              {!user && actionError && (
+                <p className="form-error" role="alert">
+                  {t('profile.connectionError')}
+                </p>
               )}
               {own && embedded && (
                 <Link className="button secondary" href={creatorHref(id)}>
-                  {t('creator.profileLink')}
+                  {t('creator.view', { name: profile.username })}
                 </Link>
               )}
             </div>
-            {!own && (
+            {!own && user && (
               <div className="creator-connection-note" aria-live="polite">
                 {profile.friendState === 'outgoing' ? (
                   <p>
@@ -199,7 +293,65 @@ export function CreatorProfile({ id, embedded = false }: { id: string; embedded?
               </div>
             )}
           </section>
-          <CreatorClips key={id} id={id} own={own} />
+          <div
+            ref={tabsRef}
+            className="creator-content-tabs"
+            role="tablist"
+            aria-label={profile.username || t('lore.anonymous')}
+          >
+            {contentTabs.map((item, index, all) => (
+              <button
+                key={item.id}
+                id={`creator-tab-${item.id}`}
+                type="button"
+                role="tab"
+                aria-selected={tab === item.id}
+                aria-controls={`creator-panel-${item.id}`}
+                tabIndex={tab === item.id ? 0 : -1}
+                onClick={(event) => {
+                  setTab(item.id);
+                  event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }}
+                onKeyDown={(event) => {
+                  let next: number;
+                  if (event.key === 'ArrowRight') next = (index + 1) % all.length;
+                  else if (event.key === 'ArrowLeft') next = (index + all.length - 1) % all.length;
+                  else if (event.key === 'Home') next = 0;
+                  else if (event.key === 'End') next = all.length - 1;
+                  else return;
+                  event.preventDefault();
+                  setTab(all[next].id);
+                  document.getElementById(`creator-tab-${all[next].id}`)?.focus();
+                }}
+              >
+                <item.icon size={17} aria-hidden="true" />
+                {t(item.label)}
+              </button>
+            ))}
+          </div>
+          {contentTabs.map((item) => (
+            <section
+              key={item.id}
+              id={`creator-panel-${item.id}`}
+              className="creator-tab-panel"
+              role="tabpanel"
+              aria-labelledby={`creator-tab-${item.id}`}
+              hidden={tab !== item.id}
+            >
+              {tab === item.id && tab === 'dreams' && (
+                <CreatorDreams key={`${id}:${user?.id ?? 'guest'}`} id={id} />
+              )}
+              {tab === item.id && tab === 'videos' && (
+                <CreatorClips key={`${id}:${user?.id ?? 'guest'}`} id={id} own={own} />
+              )}
+              {tab === item.id && tab === 'lores' && (
+                <CreatorLores key={`${id}:${user?.id ?? 'guest'}`} id={id} />
+              )}
+              {tab === item.id && tab === 'scores' && (
+                <CreatorScores key={`${id}:${user?.id ?? 'guest'}`} id={id} />
+              )}
+            </section>
+          ))}
         </>
       )}
     </div>

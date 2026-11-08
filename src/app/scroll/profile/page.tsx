@@ -3,10 +3,8 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { CreatorProfile } from '@/components/creator-profile';
-import { MemberGate } from '@/components/member-gate';
 import { LoadingIndicator } from '@/components/loading-indicator';
 import { useI18n } from '@/components/i18n-provider';
-import { creatorHref } from '@/lib/creator-profile';
 
 function ProfileRoute() {
   const params = useSearchParams();
@@ -22,11 +20,9 @@ function ProfileRoute() {
       </div>
     );
   return (
-    <MemberGate scrollStyle title="creator.title" returnTo={creatorHref(id)}>
-      <div className="page creator-page">
-        <CreatorProfile key={id} id={id} />
-      </div>
-    </MemberGate>
+    <div className="page creator-page">
+      <CreatorProfile key={id} id={id} fromPost={params.get('from') === 'post'} />
+    </div>
   );
 }
 

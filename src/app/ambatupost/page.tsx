@@ -30,9 +30,10 @@ function Content() {
   if (!ready) return <DreamLoading />;
   return (
     <Ambatupost
-      key={`${user?.id ?? 'guest'}:${id ?? 'new'}`}
+      key={`${user?.id ?? 'guest'}:${id ?? 'new'}:${params.get('edit') ?? ''}`}
       dreamId={id}
       cleanupId={params.get('cleanup')}
+      editRequested={params.get('edit') === '1'}
     />
   );
 }

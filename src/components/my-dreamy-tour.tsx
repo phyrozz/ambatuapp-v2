@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useI18n } from './i18n-provider';
 import './my-dreamy-tour.css';
 
-export type MyDreamyTourTab = 'videos' | 'characters' | 'lores' | 'sounds' | 'profile' | 'activity' | 'insights';
+export type MyDreamyTourTab = 'dreams' | 'videos' | 'characters' | 'lores' | 'sounds' | 'profile' | 'activity' | 'insights';
 
 const steps: Array<{
   tab?: MyDreamyTourTab;

@@ -17,10 +17,12 @@ export function PlayerBlockButton({
   playerId,
   name,
   onBlocked,
+  onOpen,
 }: {
   playerId: string;
   name: string;
   onBlocked: () => void;
+  onOpen?: () => void;
 }) {
   const { user, getIdToken } = useAuth();
   const { t } = useI18n();
@@ -60,6 +62,7 @@ export function PlayerBlockButton({
         onClick={() => {
           setError(false);
           setConfirming(true);
+          onOpen?.();
         }}
       >
         <Ban size={16} />

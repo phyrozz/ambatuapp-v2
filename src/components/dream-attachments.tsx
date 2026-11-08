@@ -761,11 +761,13 @@ export function DreamMedia({
   revision,
   attachments,
   getToken,
+  active = true,
 }: {
   dreamId: string;
   revision: number;
   attachments: DreamAttachment[];
   getToken: Token;
+  active?: boolean;
 }) {
   const { t } = useI18n();
   const [media, setMedia] = useState<Session['media']>([]);
@@ -786,7 +788,7 @@ export function DreamMedia({
     .map((item) => item.id)
     .join(',');
   useEffect(() => {
-    if (!available) return;
+    if (!available || !active) return;
     const controller = new AbortController();
     let token: string | undefined,
       pending = false;
@@ -823,7 +825,7 @@ export function DreamMedia({
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [dreamId, revision, available, getToken, version]);
+  }, [dreamId, revision, available, getToken, version, active]);
   const entries: GalleryEntry[] = attachments.flatMap((attachment, index) => {
     const source = media.find((item) => item.id === attachment.id);
     return attachment.state === 'ready' && source ? [{ attachment, source, index }] : [];
@@ -866,7 +868,7 @@ export function DreamMedia({
                     index={index}
                     source={source}
                     onError={mediaError}
-                    pausePlayback={viewing || obscured}
+                    pausePlayback={viewing || obscured || !active}
                     onOpen={
                       source
                         ? (time, playing) => setSelection({ id: attachment.id, time, playing })
