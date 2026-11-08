@@ -115,6 +115,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
     document.addEventListener('click', openNativeDetail, true);
     const listener = import('@capacitor/app').then(({ App }) =>
       App.addListener('backButton', () => {
+        const modalBack = new Event('app-back', { cancelable: true });
+        if (!window.dispatchEvent(modalBack)) return;
         if (/^\/games\/[^/]+\/?$/.test(window.location.pathname)) {
           const event = new Event('game-back', { cancelable: true });
           if (window.dispatchEvent(event)) router.push('/games/');

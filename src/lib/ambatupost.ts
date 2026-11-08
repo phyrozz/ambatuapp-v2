@@ -1,13 +1,25 @@
 import { Capacitor } from '@capacitor/core';
 
 export type DreamAudience = 'public' | 'friends' | 'only_me';
+export type DreamAttachment = {
+  id: string;
+  kind: 'image' | 'video';
+  state: 'awaiting_upload' | 'processing' | 'ready' | 'failed';
+  bytes: number;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+  error: string | null;
+};
 export type Dream = {
   id: string;
   authorId: string;
   authorName: string | null;
   text: string;
   audience: DreamAudience;
-  publication: 'draft' | 'published';
+  publication: 'draft' | 'processing' | 'published' | 'failed';
+  attachments?: DreamAttachment[];
+  hasPublishedVersion?: boolean;
   revision: number;
   createdAt: string;
   updatedAt: string;
@@ -32,6 +44,11 @@ export function dreamRequestKey() {
 }
 export function dreamErrorKey(error: unknown) {
   if (!(error instanceof DreamApiError)) return 'post.error';
+  if (error.code === 'UPLOAD_QUOTA') return 'post.uploadQuota';
+  if (error.code === 'INVALID_ATTACHMENT' || error.code === 'INVALID_ATTACHMENTS')
+    return 'post.invalidAttachment';
+  if (error.code === 'ATTACHMENT_RESELECT') return 'post.reselectAttachment';
+  if (error.code === 'MEDIA_UNAVAILABLE') return 'post.mediaUnavailable';
   if (error.code === 'REVISION_CONFLICT' || error.code === 'IDEMPOTENCY_CONFLICT')
     return 'post.conflict';
   if (error.code === 'INVALID_DREAM' || error.code === 'BODY_TOO_LARGE') return 'post.invalid';

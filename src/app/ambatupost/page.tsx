@@ -18,7 +18,8 @@ function DreamLoading() {
 function Content() {
   const { user, ready } = useAuth();
   const { t } = useI18n();
-  const id = useSearchParams().get('dream');
+  const params = useSearchParams();
+  const id = params.get('dream');
   if (process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED !== 'true')
     return (
       <section className="page">
@@ -27,7 +28,13 @@ function Content() {
       </section>
     );
   if (!ready) return <DreamLoading />;
-  return <Ambatupost key={`${user?.id ?? 'guest'}:${id ?? 'new'}`} dreamId={id} />;
+  return (
+    <Ambatupost
+      key={`${user?.id ?? 'guest'}:${id ?? 'new'}`}
+      dreamId={id}
+      cleanupId={params.get('cleanup')}
+    />
+  );
 }
 export default function AmbatupostPage() {
   return (

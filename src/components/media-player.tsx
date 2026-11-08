@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Maximize, Minimize, Pause, Play, Volume1, Volume2, VolumeX } from 'lucide-react';
 import { useI18n } from './i18n-provider';
 
@@ -9,8 +9,18 @@ type MediaPlayerProps = {
   variant?: 'watch' | 'chat';
   autoPlay?: boolean;
   playsInline?: boolean;
+  poster?: string;
+  pauseWhenOffscreen?: boolean;
+  pausePlayback?: boolean;
+  initialTime?: number;
+  hideFullscreen?: boolean;
   onLoadedMetadata?: () => void;
   onLoadedData?: () => void;
+  onCanPlay?: () => void;
+  onWaiting?: () => void;
+  onPlaying?: () => void;
+  onPlaybackProgress?: (video: HTMLVideoElement) => void;
+  loadingOverlay?: ReactNode;
   onError?: () => void;
   onPlay?: () => void;
 };
@@ -19,7 +29,7 @@ type MediaProgressStyle = CSSProperties & { '--media-progress': string };
 function formatTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const total = Math.floor(seconds);
-  const minutes = Math.floor(total % 3600 / 60);
+  const minutes = Math.floor((total % 3600) / 60);
   const clock = `${String(minutes).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
   return total >= 3600 ? `${Math.floor(total / 3600)}:${clock}` : `${minutes}:${clock.slice(-2)}`;
 }
@@ -29,8 +39,18 @@ export function MediaPlayer({
   variant = 'watch',
   autoPlay = false,
   playsInline = true,
+  poster,
+  pauseWhenOffscreen = false,
+  pausePlayback = false,
+  initialTime = 0,
+  hideFullscreen = false,
   onLoadedMetadata,
   onLoadedData,
+  onCanPlay,
+  onWaiting,
+  onPlaying,
+  onPlaybackProgress,
+  loadingOverlay,
   onError,
   onPlay,
 }: MediaPlayerProps) {
@@ -46,6 +66,19 @@ export function MediaPlayer({
   const [controlsVisible, setControlsVisible] = useState(false);
   const controlsVisibleRef = useRef(false);
   const controlsHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (pausePlayback) media.current?.pause();
+  }, [pausePlayback]);
+
+  useEffect(() => {
+    if (!pauseWhenOffscreen || !player.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => !entry.isIntersecting)) media.current?.pause();
+    });
+    observer.observe(player.current);
+    return () => observer.disconnect();
+  }, [pauseWhenOffscreen]);
 
   useEffect(() => {
     const syncFullscreen = () => setFullscreen(document.fullscreenElement === player.current);
@@ -105,7 +138,7 @@ export function MediaPlayer({
     }
   }
 
-  const progress = duration ? Math.min(100, currentTime / duration * 100) : 0;
+  const progress = duration ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   return (
     <div
@@ -114,7 +147,7 @@ export function MediaPlayer({
       data-playing={playing}
       data-controls-visible={controlsVisible}
       data-message-control=""
-      onPointerDown={event => {
+      onPointerDown={(event) => {
         if (event.pointerType === 'touch') revealControls();
       }}
     >
@@ -122,6 +155,7 @@ export function MediaPlayer({
         ref={media}
         className="ambatu-video__screen"
         src={src}
+        poster={poster}
         autoPlay={autoPlay}
         muted={muted}
         playsInline={playsInline}
@@ -141,16 +175,36 @@ export function MediaPlayer({
           setPlaying(false);
           clearControlsHideTimer();
         }}
-        onTimeUpdate={event => setCurrentTime(event.currentTarget.currentTime)}
-        onLoadedMetadata={event => {
-          setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0);
+        onTimeUpdate={(event) => {
+          setCurrentTime(event.currentTarget.currentTime);
+          onPlaybackProgress?.(event.currentTarget);
+        }}
+        onLoadedMetadata={(event) => {
+          setDuration(
+            Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0,
+          );
+          if (Number.isFinite(initialTime) && initialTime > 0) {
+            event.currentTarget.currentTime = Math.min(
+              initialTime,
+              event.currentTarget.duration || initialTime,
+            );
+          }
           onLoadedMetadata?.();
         }}
         onLoadedData={onLoadedData}
+        onCanPlay={onCanPlay}
+        onWaiting={onWaiting}
+        onPlaying={onPlaying}
         onError={onError}
       />
+      {loadingOverlay}
       {!playing && (
-        <button className="ambatu-video__center-play" type="button" aria-label={t('common.play')} onClick={togglePlayback}>
+        <button
+          className="ambatu-video__center-play"
+          type="button"
+          aria-label={t('common.play')}
+          onClick={togglePlayback}
+        >
           <Play size={28} fill="currentColor" />
         </button>
       )}
@@ -166,7 +220,7 @@ export function MediaPlayer({
           aria-label={t('media.seek')}
           aria-valuetext={`${formatTime(currentTime)} / ${formatTime(duration)}`}
           disabled={!duration}
-          onChange={event => {
+          onChange={(event) => {
             const next = Number(event.currentTarget.value);
             if (media.current) media.current.currentTime = next;
             setCurrentTime(next);
@@ -174,10 +228,21 @@ export function MediaPlayer({
         />
         <div className="ambatu-video__toolbar">
           <div className="ambatu-video__control-group">
-            <button className="ambatu-video__control" type="button" aria-label={t(playing ? 'arcade.pause' : 'common.play')} onClick={togglePlayback}>
-              {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+            <button
+              className="ambatu-video__control"
+              type="button"
+              aria-label={t(playing ? 'arcade.pause' : 'common.play')}
+              onClick={togglePlayback}
+            >
+              {playing ? (
+                <Pause size={18} fill="currentColor" />
+              ) : (
+                <Play size={18} fill="currentColor" />
+              )}
             </button>
-            <span className="ambatu-video__time">{formatTime(currentTime)} <i>/</i> {formatTime(duration)}</span>
+            <span className="ambatu-video__time">
+              {formatTime(currentTime)} <i>/</i> {formatTime(duration)}
+            </span>
           </div>
           <div className="ambatu-video__control-group">
             <div className="ambatu-video__volume">
@@ -192,7 +257,13 @@ export function MediaPlayer({
                   setMuted(media.current.muted);
                 }}
               >
-                {muted || volume === 0 ? <VolumeX size={18} /> : volume < 0.5 ? <Volume1 size={18} /> : <Volume2 size={18} />}
+                {muted || volume === 0 ? (
+                  <VolumeX size={18} />
+                ) : volume < 0.5 ? (
+                  <Volume1 size={18} />
+                ) : (
+                  <Volume2 size={18} />
+                )}
               </button>
               <input
                 className="ambatu-video__volume-range"
@@ -201,20 +272,24 @@ export function MediaPlayer({
                 max={1}
                 step={0.05}
                 value={muted ? 0 : volume}
-                style={{ '--media-progress': `${(muted ? 0 : volume) * 100}%` } as MediaProgressStyle}
+                style={
+                  { '--media-progress': `${(muted ? 0 : volume) * 100}%` } as MediaProgressStyle
+                }
                 aria-label={t('audio.volume')}
-                onChange={event => changeVolume(Number(event.currentTarget.value))}
+                onChange={(event) => changeVolume(Number(event.currentTarget.value))}
               />
             </div>
-            <button
-              className="ambatu-video__control"
-              type="button"
-              aria-label={t(fullscreen ? 'media.exitFullscreen' : 'media.enterFullscreen')}
-              aria-pressed={fullscreen}
-              onClick={() => void toggleFullscreen()}
-            >
-              {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-            </button>
+            {!hideFullscreen && (
+              <button
+                className="ambatu-video__control"
+                type="button"
+                aria-label={t(fullscreen ? 'media.exitFullscreen' : 'media.enterFullscreen')}
+                aria-pressed={fullscreen}
+                onClick={() => void toggleFullscreen()}
+              >
+                {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+              </button>
+            )}
           </div>
         </div>
       </div>

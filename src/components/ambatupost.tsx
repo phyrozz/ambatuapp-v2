@@ -28,6 +28,12 @@ import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { FriendsDialog } from './friends-dialog';
 import { LoadingIndicator } from './loading-indicator';
+import {
+  DreamAttachments,
+  DreamMedia,
+  DreamCleanup,
+  type DraftAttachment,
+} from './dream-attachments';
 import './ambatupost.css';
 
 const audienceKeys = { public: 'post.public', friends: 'post.friends', only_me: 'post.onlyMe' };
@@ -125,16 +131,22 @@ function MyDreams({
             className="dream-history-card"
             key={dream.id}
             href={dreamHref(dream.id)}
-            aria-label={`${t('post.read')}: ${dream.text.slice(0, 100)}`}
+            aria-label={`${t('post.read')}: ${dream.text.slice(0, 100) || t('post.mediaOnly', { count: dream.attachments?.length ?? 0 })}`}
           >
             <div className="dream-history-meta">
               <DreamAudienceLabel audience={dream.audience} />
               {dream.publication === 'draft' && (
                 <span className="dream-draft">{t('post.draft')}</span>
               )}
+              {dream.publication === 'processing' && (
+                <span className="dream-draft">{t('post.processing')}</span>
+              )}
+              {dream.publication === 'failed' && (
+                <span className="dream-draft">{t('post.failed')}</span>
+              )}
               <ArrowUpRight size={18} aria-hidden="true" />
             </div>
-            <p>{dream.text}</p>
+            <p>{dream.text || t('post.mediaOnly', { count: dream.attachments?.length ?? 0 })}</p>
           </Link>
         ))}
       </div>
@@ -153,7 +165,13 @@ function MyDreams({
   );
 }
 
-export function Ambatupost({ dreamId }: { dreamId: string | null }) {
+export function Ambatupost({
+  dreamId,
+  cleanupId,
+}: {
+  dreamId: string | null;
+  cleanupId?: string | null;
+}) {
   const { user, getIdToken, configured, signInWithGoogle } = useAuth();
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -164,6 +182,8 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
   const [editing, setEditing] = useState(!dreamId);
   const [text, setText] = useState('');
   const [audience, setAudience] = useState<DreamAudience>('public');
+  const [attachmentsEnabled, setAttachmentsEnabled] = useState(false);
+  const [attachments, setAttachments] = useState<DraftAttachment[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -171,6 +191,7 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
   const controller = useRef<AbortController | null>(null);
   const pending = useRef(false);
   const idempotency = useRef<{ body: string; key: string } | null>(null);
+  const committedAttachments = useRef(new Set<string>());
   const userId = user?.id;
   const getToken = useCallback(async () => {
     const token = await getIdToken();
@@ -189,9 +210,12 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
     void (async () => {
       try {
         const token = await getToken();
-        await dreamApi('/config', token, { signal: request.signal });
+        const config = await dreamApi<{ attachmentsEnabled: boolean }>('/config', token, {
+          signal: request.signal,
+        });
         if (request.signal.aborted) return;
         setAvailable(true);
+        setAttachmentsEnabled(config.attachmentsEnabled);
         if (dreamId) {
           const item = await dreamApi<Dream>(`/${encodeURIComponent(dreamId)}`, token, {
             signal: request.signal,
@@ -200,6 +224,7 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
           setDream(item);
           setText(item.text);
           setAudience(item.audience);
+          setAttachments(item.attachments ?? []);
           setEditing(false);
         }
       } catch (reason) {
@@ -210,9 +235,44 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
     })();
     return () => request.abort();
   }, [dreamId, getToken, version]);
+  const processing =
+    dream?.publication === 'processing' ||
+    dream?.attachments?.some((item) => ['awaiting_upload', 'processing'].includes(item.state));
+  useEffect(() => {
+    if (!dreamId || !processing || editing) return;
+    const request = new AbortController();
+    let pending = false;
+    const timer = window.setInterval(() => {
+      if (pending) return;
+      pending = true;
+      void getToken()
+        .then((token) => dreamApi<Dream>(`/${dreamId}`, token, { signal: request.signal }))
+        .then((item) => {
+          if (!request.signal.aborted) {
+            setDream(item);
+            setText(item.text);
+            setAudience(item.audience);
+            setAttachments(item.attachments ?? []);
+          }
+        })
+        .catch((reason) => {
+          if (!request.signal.aborted) setError(dreamErrorKey(reason));
+        })
+        .finally(() => {
+          pending = false;
+        });
+    }, 4000);
+    return () => {
+      request.abort();
+      window.clearInterval(timer);
+    };
+  }, [dreamId, processing, editing, getToken]);
   const own = Boolean(user && dream?.authorId === user.id);
   const count = Array.from(text).length;
-  const valid = Boolean(text.trim()) && count <= 2000;
+  const valid =
+    (Boolean(text.trim()) || attachments.length > 0) &&
+    count <= 2000 &&
+    attachments.every((item) => Boolean(item.id) && item.uploaded !== false);
   async function signIn() {
     try {
       await signInWithGoogle(`${window.location.pathname}${window.location.search}`);
@@ -227,7 +287,13 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
     setError('');
     const request = controller.current;
     try {
-      const payload = { text, audience, publish, ...(dream ? { revision: dream.revision } : {}) };
+      const payload = {
+        text,
+        audience,
+        publish,
+        attachmentIds: attachments.map((item) => item.id),
+        ...(dream ? { revision: dream.revision } : {}),
+      };
       const body = JSON.stringify(payload);
       if (!idempotency.current || idempotency.current.body !== body)
         idempotency.current = { body, key: dreamRequestKey() };
@@ -238,6 +304,9 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
         signal: request?.signal,
       });
       if (request?.signal.aborted) return;
+      committedAttachments.current.clear();
+      for (const attachment of item.attachments ?? [])
+        committedAttachments.current.add(attachment.id);
       idempotency.current = null;
       if (!dream) router.push(dreamHref(item.id));
       else {
@@ -258,11 +327,20 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
     setError('');
     const request = controller.current;
     try {
-      await dreamApi(`/${dream.id}`, await getToken(), {
-        method: 'DELETE',
-        signal: request?.signal,
-      });
-      if (!request?.signal.aborted) router.replace('/ambatupost/');
+      const result = await dreamApi<{ operationId: string } | undefined>(
+        `/${dream.id}`,
+        await getToken(),
+        {
+          method: 'DELETE',
+          signal: request?.signal,
+        },
+      );
+      if (!request?.signal.aborted)
+        router.replace(
+          result?.operationId
+            ? `/ambatupost/?cleanup=${encodeURIComponent(result.operationId)}`
+            : '/ambatupost/',
+        );
     } catch (reason) {
       if (!request?.signal.aborted) setError(dreamErrorKey(reason));
     } finally {
@@ -277,6 +355,7 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
     if (!dream) return;
     setText(dream.text);
     setAudience(dream.audience);
+    setAttachments(dream.attachments ?? []);
     setError('');
     setEditing(true);
   }
@@ -291,6 +370,9 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
           <Newspaper size={34} />
         </span>
       </header>
+      {cleanupId && user && (
+        <DreamCleanup key={cleanupId} operationId={cleanupId} getToken={getToken} />
+      )}
       {dreamId && (
         <Link className="dream-back" href="/ambatupost/">
           <ArrowLeft size={17} />
@@ -354,7 +436,46 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
                     <span className="dream-draft">{t('post.draft')}</span>
                   )}
                 </div>
-                <p className="dream-text">{dream.text}</p>
+                {dream.text && <p className="dream-text">{dream.text}</p>}
+                {Boolean(dream.attachments?.length) && (
+                  <DreamMedia
+                    dreamId={dream.id}
+                    revision={dream.revision}
+                    attachments={dream.attachments!}
+                    getToken={getToken}
+                  />
+                )}
+                {own && (dream.publication === 'processing' || dream.hasPublishedVersion) && (
+                  <p className="dream-helper" role="status">
+                    {t(dream.hasPublishedVersion ? 'post.processingEdit' : 'post.processingDream')}
+                  </p>
+                )}
+                {own && dream.publication === 'failed' && (
+                  <div className="dream-notice" role="alert">
+                    <p>{t('post.failedDream')}</p>
+                    {dream.attachments
+                      ?.filter(
+                        (item) => item.state === 'failed' && item.error === 'PROCESSING_FAILED',
+                      )
+                      .map((item) => (
+                        <button
+                          key={item.id}
+                          className="button secondary compact"
+                          type="button"
+                          onClick={() => {
+                            void getToken()
+                              .then((token) =>
+                                dreamApi(`/uploads/${item.id}`, token, { method: 'POST' }),
+                              )
+                              .then(() => setVersion((value) => value + 1))
+                              .catch((reason) => setError(dreamErrorKey(reason)));
+                          }}
+                        >
+                          {t('post.retryAttachment')}
+                        </button>
+                      ))}
+                  </div>
+                )}
                 {dream.publication === 'draft' && (
                   <p className="dream-helper">{t('post.draftHelp')}</p>
                 )}
@@ -407,6 +528,15 @@ export function Ambatupost({ dreamId }: { dreamId: string | null }) {
                 >
                   {t('post.characters', { count, limit: 2000 })}
                 </p>
+                {attachmentsEnabled && (
+                  <DreamAttachments
+                    items={attachments}
+                    setItems={setAttachments}
+                    getToken={getToken}
+                    disabled={busy}
+                    committed={committedAttachments}
+                  />
+                )}
                 <label htmlFor={`${formId}-audience`}>{t('post.audience')}</label>
                 <select
                   id={`${formId}-audience`}
