@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 
 export type DreamAudience = 'public' | 'friends' | 'only_me';
+export type DreamVotes = { up: number; down: number; viewerVote: -1 | 0 | 1 };
 export type DreamAttachment = {
   id: string;
   kind: 'image' | 'video';
@@ -24,6 +25,7 @@ export type Dream = {
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+  votes?: DreamVotes;
 };
 export class DreamApiError extends Error {
   code: string;

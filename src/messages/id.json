@@ -918,5 +918,18 @@
   "post.photo": "Photo {index}",
   "post.video": "Video {index}",
   "post.mediaOnly": "Dream with {count} attachments",
-  "post.processingEdit": "Your saved Dream stays visible until the replacement media is ready."
+  "post.processingEdit": "Your saved Dream stays visible until the replacement media is ready.",
+  "post.votes": "Dream votes",
+  "post.bussUp": "Buss up",
+  "post.bussDown": "Buss down",
+  "post.upvoteLabel": "Buss up (upvote), {count}",
+  "post.downvoteLabel": "Buss down (downvote), {count}",
+  "post.upvoteHint": "Upvote this Dream. Select again to remove your vote.",
+  "post.downvoteHint": "Downvote this Dream. Select again to remove your vote.",
+  "post.voteSummary": "{up} upvotes and {down} downvotes.",
+  "post.voteSignIn": "Sign in to vote on Dreams",
+  "post.sharedDream": "A Dream on Ambatupost",
+  "post.shareHint": "Sharing a link keeps this Dream's audience unchanged. Only people with access can open it.",
+  "post.shareSignIn": "Sign in to send this Dream to friends and group chats.",
+  "post.openShared": "Open to check access and read this Dream."
 }

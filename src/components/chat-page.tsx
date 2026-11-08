@@ -1,5 +1,6 @@
 'use client';
 import './chat.css';
+import './dream-chat-preview.css';
 import Link from 'next/link';
 
 import {
@@ -31,6 +32,7 @@ import {
   LogIn,
   MessageCircle,
   MoreHorizontal,
+  Newspaper,
   Play,
   Plus,
   Search,
@@ -74,6 +76,8 @@ import { initializePlayerProfile } from '@/lib/player-profile';
 import { enableChatPush, installPushNavigation, syncChatPush } from '@/lib/push-notifications';
 import { useFriendRequests } from './friend-request-provider';
 import { FriendPickerDialog } from './friend-picker-dialog';
+import { dreamHref } from '@/lib/ambatupost';
+import { dreamIdFromShareUrl } from '@/lib/share-links';
 
 type Player = { id: string; username: string; avatarUrl?: string | null };
 type InviteDetails = {
@@ -332,8 +336,13 @@ function ChatMessageText({ text, conversation }: { text: unknown; conversation: 
       continue;
     }
     const clipId = sharedVideoIdFromUrl(url);
+    const dreamId = dreamIdFromShareUrl(url, window.location.origin);
     content.push(
-      clipId ? (
+      dreamId ? (
+        <Link key={start} href={dreamHref(dreamId)} prefetch={false}>
+          {url}
+        </Link>
+      ) : clipId ? (
         <Link key={start} href={sharedVideoHref(clipId, conversation)} prefetch={false}>
           {url}
         </Link>
@@ -434,8 +443,20 @@ function ChatSharedVideoPreview({
 }
 
 function ChatMessageBody({ text, conversation }: { text: unknown; conversation: string }) {
+  const { t } = useI18n();
+  const dreamId = typeof window !== 'undefined' && typeof text === 'string'
+    ? dreamIdFromShareUrl(text.trim(), window.location.origin) : null;
   const clipId = sharedVideoIdFromText(text);
-  return clipId ? (
+  return dreamId ? (
+    <Link className="chat-shared-dream" href={dreamHref(dreamId)} prefetch={false}>
+      <Newspaper size={28} aria-hidden="true" />
+      <span>
+        <strong>{t('post.sharedDream')}</strong>
+        <small>{t('post.openShared')}</small>
+      </span>
+      <ArrowUpRight size={18} aria-hidden="true" />
+    </Link>
+  ) : clipId ? (
     <ChatSharedVideoPreview clipId={clipId} conversation={conversation} />
   ) : (
     <p>

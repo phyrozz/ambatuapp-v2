@@ -28,6 +28,7 @@ import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { FriendsDialog } from './friends-dialog';
 import { LoadingIndicator } from './loading-indicator';
+import { DreamActions } from './dream-actions';
 import {
   DreamAttachments,
   DreamMedia,
@@ -478,6 +479,14 @@ export function Ambatupost({
                 )}
                 {dream.publication === 'draft' && (
                   <p className="dream-helper">{t('post.draftHelp')}</p>
+                )}
+                {(dream.publication === 'published' || dream.hasPublishedVersion) && (
+                  <DreamActions
+                    key={`${dream.id}:${dream.updatedAt}`}
+                    dream={dream}
+                    getToken={getToken}
+                    onUnavailable={() => { setDream(null); setError('post.unavailable'); }}
+                  />
                 )}
                 {own && (
                   <footer className="dream-detail-actions">
