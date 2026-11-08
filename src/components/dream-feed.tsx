@@ -1,30 +1,37 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ArrowUpRight, Pencil, RefreshCw, Trash2 } from 'lucide-react';
-import { dreamApi, DreamApiError, dreamErrorKey, dreamHref, type Dream } from '@/lib/ambatupost';
+import { RefreshCw } from 'lucide-react';
+import { dreamApi, DreamApiError, dreamErrorKey, type Dream } from '@/lib/ambatupost';
 import { useAuth } from './auth-provider';
 import { useI18n } from './i18n-provider';
 import { DreamActions } from './dream-actions';
 import { DreamMedia } from './dream-attachments';
 import { DreamAudienceLabel } from './dream-audience';
 import { DreamAvatar } from './dream-avatar';
+import { DreamOwnerMenu } from './dream-owner-menu';
+import { DreamEditorDialog } from './dream-editor-dialog';
 import { creatorHref } from '@/lib/creator-profile';
 import { FriendsDialog } from './friends-dialog';
-import { LoadingIndicator } from './loading-indicator';
+import { DreamSkeleton } from './dream-skeleton';
 type Token = () => Promise<string | null>;
 
 export function DreamFeedCard({
-  dream,
+  dream: initialDream,
   getToken,
   onRemove,
+  ownerHistory = false,
 }: {
   dream: Dream;
   getToken: Token;
   onRemove: (id: string, deleted?: boolean) => void;
+  ownerHistory?: boolean;
 }) {
   const { t, locale } = useI18n();
   const { user } = useAuth();
+  const [updatedDream, setUpdatedDream] = useState<Dream | null>(null);
+  const dream = updatedDream ?? initialDream;
+  const [editing, setEditing] = useState(false);
   const [active, setActive] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -85,27 +92,28 @@ export function DreamFeedCard({
             <strong>{dream.authorName || t('post.dreamer')}</strong>
           </Link>
           <p>
-            <Link href={dreamHref(dream.id)} prefetch={false}>
               <time dateTime={dream.publishedAt ?? dream.createdAt}>
                 {new Intl.DateTimeFormat(locale, {
                   dateStyle: 'medium',
                   timeStyle: 'short',
                 }).format(new Date(dream.publishedAt ?? dream.createdAt))}
               </time>
-            </Link>
           </p>
         </div>
-        <Link
-          className="dream-open"
-          href={dreamHref(dream.id)}
-          prefetch={false}
-          aria-label={t('post.read')}
-        >
-          <ArrowUpRight size={19} aria-hidden="true" />
-        </Link>
+        {dream.authorId === user?.id ? (
+          <DreamOwnerMenu
+            onEdit={() => setEditing(true)}
+            onDelete={() => setConfirming(true)}
+          />
+        ) : null}
       </header>
       <div className="dream-detail-meta">
         <DreamAudienceLabel audience={dream.audience} />
+        {ownerHistory && dream.publication !== 'published' && (
+          <span className="dream-draft">
+            {t(dream.publication === 'draft' ? 'post.draft' : dream.publication === 'failed' ? 'post.failed' : 'post.processing')}
+          </span>
+        )}
       </div>
       {dream.text && <p className="dream-text">{dream.text}</p>}
       {Boolean(dream.attachments?.length) && (
@@ -117,26 +125,29 @@ export function DreamFeedCard({
           active={active}
         />
       )}
-      <DreamActions dream={dream} getToken={getToken} onUnavailable={() => onRemove(dream.id)} />
-      {dream.authorId === user?.id && (
-        <footer className="dream-detail-actions">
-          <Link
-            className="button secondary compact"
-            href={`${dreamHref(dream.id)}&edit=1`}
-            prefetch={false}
-          >
-            <Pencil size={16} aria-hidden="true" />
-            {t('post.edit')}
-          </Link>
-          <button
-            type="button"
-            className="button secondary compact"
-            onClick={() => setConfirming(true)}
-          >
-            <Trash2 size={16} aria-hidden="true" />
-            {t('post.delete')}
-          </button>
-        </footer>
+      {ownerHistory && dream.publication === 'draft' && (
+        <p className="dream-helper">{t('post.draftHelp')}</p>
+      )}
+      {ownerHistory && (dream.publication === 'processing' || dream.hasPublishedVersion) && (
+        <p className="dream-helper" role="status">
+          {t(dream.hasPublishedVersion ? 'post.processingEdit' : 'post.processingDream')}
+        </p>
+      )}
+      {ownerHistory && dream.publication === 'failed' && !dream.hasPublishedVersion && (
+        <p className="dream-helper" role="status">{t('post.failedDream')}</p>
+      )}
+      {(dream.publication === 'published' || dream.hasPublishedVersion) && (
+        <DreamActions key={`${dream.id}:${dream.updatedAt}`} dream={dream} getToken={getToken} onUnavailable={() => onRemove(dream.id)} />
+      )}
+      {editing && (
+        <DreamEditorDialog
+          id={dream.id}
+          onClose={() => setEditing(false)}
+          onSaved={(item) => {
+            setUpdatedDream(item);
+            setEditing(false);
+          }}
+        />
       )}
       {confirming && (
         <FriendsDialog
@@ -185,6 +196,11 @@ export function DreamFeed({ getToken }: { getToken: Token }) {
   const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
   const load = useRef<() => void>(() => {});
   useEffect(() => {
+    const refresh = () => setVersion((value) => value + 1);
+    window.addEventListener('ambatu:dreams-changed', refresh);
+    return () => window.removeEventListener('ambatu:dreams-changed', refresh);
+  }, []);
+  useEffect(() => {
     let start: { x: number; y: number; distance: number; engaged: boolean } | null = null;
     const reset = () => {
       start = null;
@@ -193,7 +209,7 @@ export function DreamFeed({ getToken }: { getToken: Token }) {
     const touchStart = (event: TouchEvent) => {
       if (!window.matchMedia('(max-width: 600px)').matches || window.scrollY > 0 || event.touches.length !== 1 || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       const target = event.target;
-      if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"], video, .dream-media-viewer')) return;
+      if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"], video, .dream-media-viewer, .dream-attachments-editor')) return;
       const touch = event.touches[0];
       start = { x: touch.clientX, y: touch.clientY, distance: 0, engaged: false };
     };
@@ -342,7 +358,7 @@ export function DreamFeed({ getToken }: { getToken: Token }) {
           <RefreshCw size={18} />
       </div>
       <header className="dream-section-heading">
-        <h2 id="dreamies-title">{t('post.feed')}</h2>
+        <h2 id="dreamies-title" className="sr-only">{t('post.feed')}</h2>
         <button
           className="dream-refresh"
           type="button"
@@ -372,7 +388,7 @@ export function DreamFeed({ getToken }: { getToken: Token }) {
           />
         ))}
       </div>
-      {loading && <LoadingIndicator compact label={t('common.loading')} />}
+      {loading && <DreamSkeleton variant="feed" />}
       {error && (
         <div className="dream-notice" role="alert">
           <p>{t(error)}</p>

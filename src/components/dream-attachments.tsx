@@ -3,13 +3,14 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type Dispatch,
   type SetStateAction,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, ImagePlus, Maximize, Play, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, ImagePlus, Maximize, Play, X } from 'lucide-react';
 import {
   dreamApi,
   DreamApiError,
@@ -35,15 +36,31 @@ export function DreamAttachments({
   getToken,
   disabled,
   committed,
+  dreamId,
 }: {
   items: DraftAttachment[];
   setItems: Dispatch<SetStateAction<DraftAttachment[]>>;
   getToken: Token;
   disabled: boolean;
   committed: { current: Set<string> };
+  dreamId?: string;
 }) {
   const { t } = useI18n();
   const [error, setError] = useState('');
+  const [savedMedia, setSavedMedia] = useState<Session['media']>([]);
+  const [dragging, setDragging] = useState('');
+  const dragId = useRef('');
+  const dragPointer = useRef<number | null>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const dragPosition = useRef<{ element: HTMLElement; offset: number; y: number; translate: number } | null>(null);
+  const positions = useRef(new Map<string, number>());
+  const updateDrag = useCallback(() => {
+    const drag = dragPosition.current;
+    if (!drag) return;
+    const top = drag.element.getBoundingClientRect().top - drag.translate;
+    drag.translate = drag.y - drag.offset - top;
+    drag.element.style.transform = `translate3d(0, ${drag.translate}px, 0)`;
+  }, []);
   const requests = useRef(new Map<string, XMLHttpRequest>());
   const reservations = useRef(new Map<string, string>());
   const cancelled = useRef(new Set<string>());
@@ -51,6 +68,28 @@ export function DreamAttachments({
   const queue = useRef<DraftAttachment[]>([]);
   const running = useRef(0);
   const queued = useRef(new Set<string>());
+  const readySavedIds = items.filter((item) => !item.file && item.id && item.state === 'ready').map((item) => item.id).sort().join(',');
+  useEffect(() => {
+    if (!dreamId || !readySavedIds) return;
+    const controller = new AbortController();
+    let grant: string | undefined;
+    const renew = async () => {
+      try {
+        const session = await dreamApi<Session>(`/${dreamId}/media-session`, await getToken(), {
+          method: 'POST', body: grant ? { token: grant } : {}, signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          grant = session.token;
+          setSavedMedia(session.media);
+        }
+      } catch {
+        if (!controller.signal.aborted) setSavedMedia([]);
+      }
+    };
+    void renew();
+    const timer = window.setInterval(() => void renew(), 120_000);
+    return () => { controller.abort(); window.clearInterval(timer); };
+  }, [dreamId, readySavedIds, getToken]);
   const pendingIds = items
     .filter(
       (item) =>
@@ -246,6 +285,98 @@ export function DreamAttachments({
         .then(() => reservations.current.delete(item.id))
         .catch(() => {});
   }
+  const move = useCallback((id: string, target: string) => {
+    if (id === target) return;
+    setItems((previous) => {
+      const from = previous.findIndex((item) => (item.localId || item.id) === id);
+      const to = previous.findIndex((item) => (item.localId || item.id) === target);
+      if (from < 0 || to < 0 || from === to) return previous;
+      const next = [...previous];
+      next.splice(to, 0, next.splice(from, 1)[0]);
+      return next;
+    });
+  }, [setItems]);
+  const reorderAt = useCallback((y: number) => {
+    const rows = [...(list.current?.querySelectorAll<HTMLElement>('[data-attachment-key]') ?? [])];
+    const from = rows.findIndex((row) => row.dataset.attachmentKey === dragId.current);
+    let target = from;
+    rows.forEach((row, index) => {
+      if (index === from) return;
+      const bounds = row.getBoundingClientRect();
+      if (index > from && y >= bounds.top + bounds.height / 2) target = index;
+      if (index < from && y <= bounds.top + bounds.height / 2 && target === from) target = index;
+    });
+    if (target !== from && from >= 0 && rows[target]?.dataset.attachmentKey)
+      move(dragId.current, rows[target].dataset.attachmentKey!);
+  }, [move]);
+  useLayoutEffect(() => {
+    const next = new Map<string, number>();
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    for (const row of list.current?.querySelectorAll<HTMLElement>('[data-attachment-key]') ?? []) {
+      const key = row.dataset.attachmentKey!;
+      const top = row.getBoundingClientRect().top;
+      next.set(key, top);
+      const old = positions.current.get(key);
+      if (dragId.current && key !== dragId.current && old !== undefined && old !== top && !reduceMotion) {
+        row.animate([{ transform: `translateY(${old - top}px)` }, { transform: 'translateY(0)' }], { duration: 180, easing: 'ease-out' });
+      }
+    }
+    positions.current = next;
+    updateDrag();
+  }, [items, updateDrag]);
+  useEffect(() => {
+    const pointerMove = (event: PointerEvent) => {
+      if (!dragId.current || dragPointer.current !== event.pointerId) return;
+      if (dragPosition.current) dragPosition.current.y = event.clientY;
+      updateDrag();
+      reorderAt(event.clientY);
+    };
+    const end = (event: PointerEvent) => {
+      if (dragPointer.current !== event.pointerId) return;
+      const element = dragPosition.current?.element;
+      if (element) {
+        element.style.transition = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '' : 'transform .18s ease';
+        element.style.transform = '';
+        element.addEventListener('transitionend', () => { element.style.transition = ''; }, { once: true });
+      }
+      dragPosition.current = null;
+      dragPointer.current = null;
+      dragId.current = '';
+      setDragging('');
+    };
+    window.addEventListener('pointermove', pointerMove);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    return () => {
+      window.removeEventListener('pointermove', pointerMove);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+  }, [reorderAt, updateDrag]);
+  useEffect(() => {
+    if (!dragging) return;
+    let container: HTMLElement | null = list.current?.parentElement ?? null;
+    while (container && !(/auto|scroll/.test(getComputedStyle(container).overflowY) && container.scrollHeight > container.clientHeight))
+      container = container.parentElement;
+    let frame = 0;
+    const scroll = () => {
+      const drag = dragPosition.current;
+      if (!drag) return;
+      const bounds = container?.getBoundingClientRect();
+      const top = bounds ? Math.max(0, bounds.top) : 0;
+      const bottom = bounds ? Math.min(innerHeight, bounds.bottom) : innerHeight;
+      const speed = drag.y < top + 65 ? -10 : drag.y > bottom - 65 ? 10 : 0;
+      if (speed) {
+        if (container) container.scrollBy(0, speed);
+        else window.scrollBy(0, speed);
+        updateDrag();
+        reorderAt(drag.y);
+      }
+      frame = requestAnimationFrame(scroll);
+    };
+    frame = requestAnimationFrame(scroll);
+    return () => cancelAnimationFrame(frame);
+  }, [dragging, reorderAt, updateDrag]);
   return (
     <div className="dream-attachments-editor">
       <label className="button secondary dream-attach-button">
@@ -269,19 +400,17 @@ export function DreamAttachments({
           {t('post.attachmentCount', { count: items.length, limit: 25 })}
         </p>
       )}
+      {items.length > 1 && <p className="dream-helper">{t('post.reorderHint')}</p>}
       {error && (
         <p className="dream-notice" role="alert">
           {t(error)}
         </p>
       )}
-      <ul className="dream-upload-list">
+      <ul className="dream-upload-list" ref={list}>
         {items.map((item, index) => (
-          <li key={item.localId || item.id}>
-            <div>
-              <strong>
-                {item.file?.name ||
-                  t(item.kind === 'image' ? 'post.photo' : 'post.video', { index: index + 1 })}
-              </strong>
+          <li key={item.localId || item.id} data-attachment-key={item.localId || item.id} data-dragging={dragging === (item.localId || item.id)}>
+            <AttachmentEditorPreview item={item} thumbnail={savedMedia.find((entry) => entry.id === item.id)?.thumbnail} />
+            <div className="dream-upload-info">
               <p role="status">
                 {t(
                   item.uploadError ||
@@ -306,18 +435,59 @@ export function DreamAttachments({
                 </button>
               )}
             </div>
-            <button
-              className="dream-remove-attachment"
-              type="button"
-              disabled={disabled}
-              aria-label={t('post.removeAttachment', { index: index + 1 })}
-              onClick={() => remove(item)}
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
+            <div className="dream-upload-controls">
+              {items.length > 1 && (
+                  <button type="button" className="dream-reorder-handle" disabled={disabled} aria-label={t('post.dragAttachment', { index: index + 1 })}
+                    onPointerDown={(event) => {
+                      if (disabled || event.button !== 0) return;
+                      const row = event.currentTarget.closest<HTMLElement>('[data-attachment-key]');
+                      if (!row) return;
+                      row.style.transition = '';
+                      dragId.current = item.localId || item.id;
+                      dragPointer.current = event.pointerId;
+                      dragPosition.current = { element: row, offset: event.clientY - row.getBoundingClientRect().top, y: event.clientY, translate: 0 };
+                      setDragging(dragId.current);
+                    }}
+                    onKeyDown={(event) => {
+                      const step = event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : 0;
+                      if (!step) return;
+                      event.preventDefault();
+                      const target = items[index + step];
+                      if (target) move(item.localId || item.id, target.localId || target.id);
+                    }}
+                  >
+                    <GripVertical size={18} aria-hidden="true" />
+                  </button>
+              )}
+              <button className="dream-remove-attachment" type="button" disabled={disabled} aria-label={t('post.removeAttachment', { index: index + 1 })} onClick={() => remove(item)}>
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function AttachmentEditorPreview({ item, thumbnail }: { item: DraftAttachment; thumbnail?: string }) {
+  const [localUrl, setLocalUrl] = useState('');
+  useEffect(() => {
+    if (!item.file) return;
+    const url = URL.createObjectURL(item.file);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLocalUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [item.file]);
+  const source = item.file ? localUrl : thumbnail;
+  return (
+    <div className="dream-upload-preview" aria-hidden="true">
+      {source && (item.file && item.kind === 'video' ? (
+        <video src={source} preload="auto" muted playsInline />
+      ) : (
+        <img src={source} alt="" />
+      ))}
+      {item.kind === 'video' && <span className="dream-upload-video-mark"><Play size={14} fill="currentColor" /></span>}
     </div>
   );
 }

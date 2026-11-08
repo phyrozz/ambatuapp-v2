@@ -76,7 +76,6 @@ import { initializePlayerProfile } from '@/lib/player-profile';
 import { enableChatPush, installPushNavigation, syncChatPush } from '@/lib/push-notifications';
 import { useFriendRequests } from './friend-request-provider';
 import { FriendPickerDialog } from './friend-picker-dialog';
-import { dreamHref } from '@/lib/ambatupost';
 import { dreamIdFromShareUrl } from '@/lib/share-links';
 
 type Player = { id: string; username: string; avatarUrl?: string | null };
@@ -339,9 +338,9 @@ function ChatMessageText({ text, conversation }: { text: unknown; conversation: 
     const dreamId = dreamIdFromShareUrl(url, window.location.origin);
     content.push(
       dreamId ? (
-        <Link key={start} href={dreamHref(dreamId)} prefetch={false}>
+        <span key={start}>
           {url}
-        </Link>
+        </span>
       ) : clipId ? (
         <Link key={start} href={sharedVideoHref(clipId, conversation)} prefetch={false}>
           {url}
@@ -448,14 +447,13 @@ function ChatMessageBody({ text, conversation }: { text: unknown; conversation: 
     ? dreamIdFromShareUrl(text.trim(), window.location.origin) : null;
   const clipId = sharedVideoIdFromText(text);
   return dreamId ? (
-    <Link className="chat-shared-dream" href={dreamHref(dreamId)} prefetch={false}>
+    <div className="chat-shared-dream">
       <Newspaper size={28} aria-hidden="true" />
       <span>
         <strong>{t('post.sharedDream')}</strong>
-        <small>{t('post.openShared')}</small>
+        <small>{typeof text === 'string' ? text : ''}</small>
       </span>
-      <ArrowUpRight size={18} aria-hidden="true" />
-    </Link>
+    </div>
   ) : clipId ? (
     <ChatSharedVideoPreview clipId={clipId} conversation={conversation} />
   ) : (

@@ -3,12 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { ArrowLeft, Eye, Newspaper, Pencil, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, Eye, Newspaper, Send } from 'lucide-react';
 import {
   dreamApi,
   DreamApiError,
   dreamErrorKey,
-  dreamHref,
   dreamRequestKey,
   type Dream,
   type DreamAudience,
@@ -21,6 +20,9 @@ import { DreamActions } from './dream-actions';
 import { DreamAudienceLabel } from './dream-audience';
 import { DreamFeed } from './dream-feed';
 import { DreamAvatar } from './dream-avatar';
+import { DreamOwnerMenu } from './dream-owner-menu';
+import { DreamSkeleton } from './dream-skeleton';
+import { AppSelect } from './app-select';
 import { creatorHref } from '@/lib/creator-profile';
 import {
   DreamAttachments,
@@ -40,10 +42,16 @@ export function Ambatupost({
   dreamId,
   cleanupId,
   editRequested = false,
+  editorOnly = false,
+  onEditorCancel,
+  onEditorSaved,
 }: {
   dreamId: string | null;
   cleanupId?: string | null;
   editRequested?: boolean;
+  editorOnly?: boolean;
+  onEditorCancel?: () => void;
+  onEditorSaved?: (dream: Dream) => void;
 }) {
   const { user, getIdToken, configured, signInWithGoogle } = useAuth();
   const { t, locale } = useI18n();
@@ -60,6 +68,7 @@ export function Ambatupost({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [createdNotice, setCreatedNotice] = useState('');
   const [version, setVersion] = useState(0);
   const controller = useRef<AbortController | null>(null);
   const pending = useRef(false);
@@ -181,7 +190,15 @@ export function Ambatupost({
       for (const attachment of item.attachments ?? [])
         committedAttachments.current.add(attachment.id);
       idempotency.current = null;
-      if (!dream) router.push(dreamHref(item.id));
+      if (editorOnly) onEditorSaved?.(item);
+      else if (!dream) {
+        setCreatedNotice(item.publication === 'draft' ? 'post.draftHelp' : item.publication === 'processing' ? 'post.processingDream' : '');
+        setText('');
+        setAudience('public');
+        setAttachments([]);
+        setEditing(false);
+        window.dispatchEvent(new Event('ambatu:dreams-changed'));
+      }
       else {
         setDream(item);
         setEditing(false);
@@ -234,22 +251,18 @@ export function Ambatupost({
   }
   return (
     <section className="page dream-page">
-      <header className="dream-hero">
-        <h1>
-          {t('post.title')}
-          <span className="orange-text">.</span>
-        </h1>
-      </header>
+      {!editorOnly && <h1 className="sr-only">{t('post.title')}</h1>}
       {cleanupId && user && (
         <DreamCleanup key={cleanupId} operationId={cleanupId} getToken={getToken} />
       )}
-      {dreamId && (
+      {createdNotice && <p className="dream-helper" role="status">{t(createdNotice)}</p>}
+      {dreamId && !editorOnly && (
         <Link className="dream-back" href="/ambatupost/">
           <ArrowLeft size={17} />
           {t('post.back')}
         </Link>
       )}
-      {loading && <LoadingIndicator label={t('common.loading')} />}
+      {loading && <DreamSkeleton variant={editorOnly ? 'editor' : dreamId ? 'post' : 'page'} />}
       {error && (
         <div className="dream-notice" role="alert">
           <p>{t(error)}</p>
@@ -295,7 +308,7 @@ export function Ambatupost({
                 </button>
               </div>
             )}
-            {dream && !editing && (
+            {dream && !editing && !editorOnly && (
               <article className="dream-detail">
                 <header className="dream-detail-header">
                   <Link
@@ -322,6 +335,7 @@ export function Ambatupost({
                       </time>
                     </p>
                   </div>
+                  {own && <DreamOwnerMenu onEdit={edit} onDelete={() => setConfirming(true)} />}
                 </header>
                 <div className="dream-detail-meta">
                   <DreamAudienceLabel audience={dream.audience} />
@@ -383,22 +397,6 @@ export function Ambatupost({
                     }}
                   />
                 )}
-                {own && (
-                  <footer className="dream-detail-actions">
-                    <button type="button" className="button secondary compact" onClick={edit}>
-                      <Pencil size={16} />
-                      {t('post.edit')}
-                    </button>
-                    <button
-                      type="button"
-                      className="button secondary compact"
-                      onClick={() => setConfirming(true)}
-                    >
-                      <Trash2 size={16} />
-                      {t('post.delete')}
-                    </button>
-                  </footer>
-                )}
               </article>
             )}
             {editing && user && (
@@ -411,7 +409,7 @@ export function Ambatupost({
                 aria-busy={busy}
               >
                 <header className="dream-section-heading">
-                  <h2>{t(dream ? 'post.edit' : 'post.create')}</h2>
+                  {!editorOnly && <h2>{t(dream ? 'post.edit' : 'post.create')}</h2>}
                 </header>
                 <label className="sr-only" htmlFor={`${formId}-text`}>
                   {t('post.body')}
@@ -439,22 +437,23 @@ export function Ambatupost({
                     getToken={getToken}
                     disabled={busy}
                     committed={committedAttachments}
+                    dreamId={dream?.id}
                   />
                 )}
                 <label htmlFor={`${formId}-audience`}>{t('post.audience')}</label>
-                <select
+                <AppSelect
                   id={`${formId}-audience`}
                   value={audience}
-                  onChange={(event) => setAudience(event.target.value as DreamAudience)}
+                  options={([
+                    { value: 'public', icon: 'world' },
+                    { value: 'friends', icon: 'users' },
+                    { value: 'only_me', icon: 'lock' },
+                  ] as const).map((option) => ({ ...option, label: t(audienceKeys[option.value]) }))}
+                  onChange={(value) => setAudience(value as DreamAudience)}
                   disabled={busy}
-                  aria-describedby={`${formId}-audience-hint`}
-                >
-                  {(['public', 'friends', 'only_me'] as const).map((value) => (
-                    <option value={value} key={value}>
-                      {t(audienceKeys[value])}
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel={t('post.audience')}
+                  describedBy={`${formId}-audience-hint`}
+                />
                 <p id={`${formId}-audience-hint`} className="dream-helper">
                   {t(audienceHints[audience])}
                 </p>
@@ -484,6 +483,10 @@ export function Ambatupost({
                       className="button secondary"
                       disabled={busy}
                       onClick={() => {
+                        if (editorOnly) {
+                          onEditorCancel?.();
+                          return;
+                        }
                         setEditing(false);
                         setError('');
                       }}

@@ -1,11 +1,9 @@
 'use client';
-import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight } from 'lucide-react';
-import { dreamApi, dreamErrorKey, dreamHref, type Dream } from '@/lib/ambatupost';
+import { dreamApi, dreamErrorKey, type Dream } from '@/lib/ambatupost';
 import { useI18n } from './i18n-provider';
-import { DreamAudienceLabel } from './dream-audience';
-import { LoadingIndicator } from './loading-indicator';
+import { DreamFeedCard } from './dream-feed';
+import { DreamSkeleton } from './dream-skeleton';
 import './ambatupost.css';
 
 export function MyDreams({
@@ -21,6 +19,7 @@ export function MyDreams({
   const [error, setError] = useState('');
   const [ended, setEnded] = useState(false);
   const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
+  const [deleted, setDeleted] = useState(false);
   const load = useRef<() => void>(() => {});
   useEffect(() => {
     const controller = new AbortController();
@@ -73,38 +72,33 @@ export function MyDreams({
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [sentinel, loading, error, ended, items.length]);
+  useEffect(() => {
+    if (!deleted) return;
+    const timer = window.setTimeout(() => setDeleted(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [deleted]);
   return (
     <section className="dream-history" aria-labelledby="my-dreams-title">
       <header className="dream-section-heading">
-        <h2 id="my-dreams-title">{t('post.myDreams')}</h2>
+        <h2 id="my-dreams-title">{t('creator.myDreamsHeading')}</h2>
       </header>
+      {deleted && <p className="dream-notice" role="status">{t('post.deleted')}</p>}
       <div className="dream-history-list" aria-busy={loading}>
         {items.map((dream) => (
-          <Link
-            className="dream-history-card"
+          <DreamFeedCard
             key={dream.id}
-            href={dreamHref(dream.id)}
-            aria-label={`${t('post.read')}: ${dream.text.slice(0, 100) || t('post.mediaOnly', { count: dream.attachments?.length ?? 0 })}`}
-          >
-            <div className="dream-history-meta">
-              <DreamAudienceLabel audience={dream.audience} />
-              {dream.publication === 'draft' && (
-                <span className="dream-draft">{t('post.draft')}</span>
-              )}
-              {dream.publication === 'processing' && (
-                <span className="dream-draft">{t('post.processing')}</span>
-              )}
-              {dream.publication === 'failed' && (
-                <span className="dream-draft">{t('post.failed')}</span>
-              )}
-              <ArrowUpRight size={18} aria-hidden="true" />
-            </div>
-            <p>{dream.text || t('post.mediaOnly', { count: dream.attachments?.length ?? 0 })}</p>
-          </Link>
+            dream={dream}
+            getToken={getToken}
+            ownerHistory
+            onRemove={(id, removed) => {
+              setItems((previous) => previous.filter((item) => item.id !== id));
+              if (removed) setDeleted(true);
+            }}
+          />
         ))}
       </div>
       {!loading && !error && !items.length && <p className="dream-empty">{t('post.empty')}</p>}
-      {loading && <LoadingIndicator label={t('common.loading')} compact />}
+      {loading && <DreamSkeleton variant="feed" />}
       {error && (
         <div className="dream-notice" role="alert">
           <p>{t(error)}</p>

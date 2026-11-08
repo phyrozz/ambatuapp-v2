@@ -1,9 +1,9 @@
 'use client';
 
-import { BookOpen, Check, ChevronDown, Globe2 } from 'lucide-react';
+import { BookOpen, Check, ChevronDown, Globe2, LockKeyhole, Users } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 
-export type SelectOption = { value: string; label: string; icon?: 'gb' | 'id' | 'world' | 'book' };
+export type SelectOption = { value: string; label: string; icon?: 'gb' | 'id' | 'world' | 'book' | 'users' | 'lock' };
 
 export function languageFlag(locale: string): SelectOption['icon'] {
   const language = locale.toLowerCase().split(/[-_]/)[0];
@@ -14,6 +14,8 @@ function OptionIcon({ icon }: { icon?: SelectOption['icon'] }) {
   if (!icon) return null;
   if (icon === 'world') return <Globe2 className="app-select-symbol" size={16} aria-hidden="true" />;
   if (icon === 'book') return <BookOpen className="app-select-symbol" size={16} aria-hidden="true" />;
+  if (icon === 'users') return <Users className="app-select-symbol" size={16} aria-hidden="true" />;
+  if (icon === 'lock') return <LockKeyhole className="app-select-symbol" size={16} aria-hidden="true" />;
   if (icon === 'id') return <svg className="app-select-flag" viewBox="0 0 24 16" aria-hidden="true"><path fill="#e70011" d="M0 0h24v8H0z"/><path fill="#fff" d="M0 8h24v8H0z"/></svg>;
   return <svg className="app-select-flag" viewBox="0 0 60 40" aria-hidden="true">
     <path fill="#012169" d="M0 0h60v40H0z"/><path stroke="#fff" strokeWidth="8" d="m0 0 60 40M60 0 0 40"/>
@@ -22,9 +24,9 @@ function OptionIcon({ icon }: { icon?: SelectOption['icon'] }) {
   </svg>;
 }
 
-export function AppSelect({ value, options, onChange, ariaLabel, disabled = false }: {
+export function AppSelect({ value, options, onChange, ariaLabel, disabled = false, id, describedBy }: {
   value: string; options: SelectOption[]; onChange: (value: string) => void;
-  ariaLabel: string; disabled?: boolean;
+  ariaLabel: string; disabled?: boolean; id?: string; describedBy?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -60,7 +62,7 @@ export function AppSelect({ value, options, onChange, ariaLabel, disabled = fals
   };
 
   return <div className={`app-select ${open ? 'open' : ''}`} ref={root}>
-    <button type="button" className="app-select-trigger" aria-label={ariaLabel} aria-haspopup="listbox"
+    <button id={id} type="button" className="app-select-trigger" aria-label={ariaLabel} aria-describedby={describedBy} aria-haspopup="listbox"
       aria-expanded={open} aria-controls={listId} disabled={disabled} onKeyDown={keyDown}
       onClick={() => { setActive(selectedIndex); setOpen((current) => !current); }}>
       <span className="app-select-value"><OptionIcon icon={selected?.icon}/><span className="app-select-label">{selected?.label}</span></span><ChevronDown size={15} aria-hidden="true" />

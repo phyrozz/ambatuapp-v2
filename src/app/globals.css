@@ -610,7 +610,7 @@ img {
 .app-select-value { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .app-select-flag { width: 20px; height: 14px; flex: 0 0 20px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(37,38,33,.14); overflow: hidden; }
 .app-select-symbol { width: 17px; height: 17px; flex: 0 0 17px; color: #756f64; }
-.app-select.open .app-select-trigger svg { transform: rotate(180deg); }
+.app-select.open .app-select-trigger > svg { transform: rotate(180deg); }
 .app-select-menu {
   position: absolute;
   z-index: 100;

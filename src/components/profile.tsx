@@ -49,7 +49,7 @@ import './my-dreamy.css';
 type ProfileTab = MyDreamyTourTab;
 const profileTabs = [
   ...(process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED === 'true'
-    ? [{ id: 'dreams', label: 'post.myDreams', icon: Newspaper } as const]
+    ? [{ id: 'dreams', label: 'creator.tabDreams', icon: Newspaper } as const]
     : []),
   { id: 'videos', label: 'profile.tabVideos', icon: Film },
   { id: 'characters', label: 'profile.tabCharacters', icon: Users },
@@ -89,7 +89,9 @@ export function ProfilePanel() {
     useAuth();
   const signedIn = Boolean(user);
   const userId = user?.id;
-  const [activeTab, setActiveTab] = useState<ProfileTab>('videos');
+  const [activeTab, setActiveTab] = useState<ProfileTab>(
+    process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED === 'true' ? 'dreams' : 'videos',
+  );
   const tabButtons = useRef<Partial<Record<ProfileTab, HTMLButtonElement | null>>>({});
   const [uploadOpen, setUploadOpen] = useState(false);
   const [savedIdentity, setSavedIdentity] = useState({ username: '', bio: '' });

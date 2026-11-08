@@ -61,6 +61,11 @@ try{
         dream={id:randomUUID(),authorId:'alice',authorName:'Alice',text:'',audience:body.audience,publication:'processing',revision:1,attachments:body.attachmentIds.map(id=>uploads.get(id)),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),publishedAt:null};
         return route.fulfill({status:201,json:dream});
       }
+      if(method==='PATCH'){
+        const body=request.postDataJSON();
+        dream={...dream,text:body.text,audience:body.audience,revision:dream.revision+1,attachments:body.attachmentIds.map(id=>dream.attachments.find(item=>item.id===id))};
+        return route.fulfill({json:dream});
+      }
       if(method==='DELETE'){dream=null;return route.fulfill({status:202,json:{operationId:randomUUID(),state:'pending'}});}
       if(++reads>=2){dream={...dream,publication:'published',revision:2,attachments:dream.attachments.map(a=>({...a,state:'ready'}))};}
       return route.fulfill({json:dream});
@@ -78,9 +83,47 @@ try{
   await expect(page.getByText(en['post.tooManyAttachments'],{exact:true})).toBeVisible();assert.equal(uploads.size,0);
   await input.setInputFiles([{name:'photo.png',mimeType:'image/png',buffer:photo},{name:'clip.mp4',mimeType:'video/mp4',buffer:video}]);
   await expect(page.locator('.dream-upload-list li')).toHaveCount(2);
+  await expect(page.locator('.dream-upload-preview img')).toHaveCount(1);
+  await expect(page.locator('.dream-upload-preview video')).toHaveCount(1);
+  const privacy=page.getByRole('button',{name:en['post.audience'],exact:true});
+  await privacy.click();
+  await page.getByRole('option',{name:en['post.friends'],exact:true}).click();
+  await expect(privacy).toContainText(en['post.friends']);
+  await privacy.click();
+  await page.getByRole('option',{name:en['post.public'],exact:true}).click();
+  const rows=page.locator('.dream-upload-list li');
+  const drag=rows.first().locator('.dream-reorder-handle');
+  const from=await drag.boundingBox(),to=await rows.nth(1).boundingBox();
+  await page.mouse.move(from.x+from.width/2,from.y+from.height/2);
+  await page.mouse.down();
+  await page.mouse.move(to.x+to.width/2,to.y+to.height/2,{steps:8});
+  await page.mouse.up();
+  await expect(rows.first().locator('video')).toHaveCount(1);
+  await rows.nth(1).getByRole('button',{name:en['post.dragAttachment'].replace('{index}','2')}).focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(rows.first().locator('img')).toHaveCount(1);
+  await page.setViewportSize({width:390,height:844});
+  await rows.nth(1).scrollIntoViewIfNeeded();
+  const cdp=await context.newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true});
+  const touchFrom=await rows.first().locator('.dream-reorder-handle').boundingBox(),touchTo=await rows.nth(1).boundingBox();
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:touchFrom.x+touchFrom.width/2,y:touchFrom.y+touchFrom.height/2}]});
+  for(let step=1;step<=8;step++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:touchFrom.x+touchFrom.width/2+(touchTo.x+touchTo.width/2-touchFrom.x-touchFrom.width/2)*step/8,y:touchFrom.y+touchFrom.height/2+(touchTo.y+touchTo.height/2-touchFrom.y-touchFrom.height/2)*step/8}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await expect(rows.first().locator('video')).toHaveCount(1);
+  await rows.nth(1).getByRole('button',{name:en['post.dragAttachment'].replace('{index}','2')}).focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(rows.first().locator('img')).toHaveCount(1);
+  await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:false});
+  await cdp.detach();
+  await page.setViewportSize({width:1440,height:1000});
   await expect(page.getByRole('button',{name:en['post.publish'],exact:true})).toBeEnabled();
   await page.screenshot({path:'../.tmp/dream-media-composer.png'});
   await page.getByRole('button',{name:en['post.publish'],exact:true}).click();
+  await expect.poll(()=>dream?.id).toBeTruthy();
+  await expect(page.locator('.dream-composer')).toHaveCount(0);
+  assert(!new URL(page.url()).searchParams.has('dream'),'publishing does not open the individual Dream');
+  await page.goto(`${base}/ambatupost/?dream=${dream.id}`);
   await expect(page.getByText(en['post.processingDream'],{exact:true})).toBeVisible();
   const imageFigure=page.locator('.dream-media-attachment').nth(0),videoFigure=page.locator('.dream-media-attachment').nth(1);
   const image=page.locator('.dream-media-grid .dream-media-image');
@@ -300,6 +343,18 @@ try{
   await expect.poll(()=>singlePlayer.evaluate(video=>video.paused)).toBe(true);
   dream={...dream,attachments:allAttachments};
   await page.reload();
+  const oldOrder=dream.attachments.map(item=>item.id);
+  await page.locator('.dream-detail').getByRole('button',{name:en['chat.moreActions'],exact:true}).click();
+  await page.getByRole('button',{name:en['post.edit'],exact:true}).click();
+  await expect(page.locator('.dream-upload-preview img')).toHaveCount(allAttachments.length);
+  await page.locator('.dream-upload-list li').nth(1).getByRole('button',{name:en['post.dragAttachment'].replace('{index}','2')}).focus();
+  await page.keyboard.press('ArrowUp');
+  await page.getByRole('button',{name:en['post.saveChanges'],exact:true}).click();
+  await expect.poll(()=>dream.attachments[0].id).toBe(oldOrder[1]);
+  assert.equal(dream.attachments[1].id,oldOrder[0],'published attachment order persists after editing');
+  await page.reload();
+  assert.deepEqual(dream.attachments.slice(0,2).map(item=>item.id),[oldOrder[1],oldOrder[0]]);
+  await page.locator('.dream-detail').getByRole('button',{name:en['chat.moreActions'],exact:true}).click();
   await page.getByRole('button',{name:en['post.delete'],exact:true}).click();
   await page.getByRole('dialog',{name:en['post.deleteTitle']}).getByRole('button',{name:en['post.delete'],exact:true}).click();
   await expect(page.getByText(en['post.deleted'],{exact:true})).toBeVisible();

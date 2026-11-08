@@ -48,6 +48,10 @@ try {
           return route.fulfill({json:{token:'fixture',expiresIn:300,media:cards.get(parent).attachments.map(a=>({id:a.id,url:`${base}/fixture-feed-media/${a.id}`,thumbnail:`${base}/fixture-feed-media/${a.id}?thumb=1`}))}});
         }
         if(request.method()==='DELETE'){cards.delete(id);return route.fulfill({status:204});}
+        if(request.method()==='PATCH'){
+          const updated={...cards.get(id),text:request.postDataJSON().text};cards.set(id,updated);
+          return route.fulfill({json:updated});
+        }
         return route.fulfill({json:cards.get(id)??{}});
       }
       if(url.origin===base)return route.continue();
@@ -60,6 +64,7 @@ try {
     await expect(page.locator('.dream-start-input')).toHaveText(en['post.placeholder']);
     await expect(page.locator('.dream-feed-card').first().locator('.dream-author-mark img')).toHaveAttribute('src',`${base}/fixture-feed-media/avatar`);
     await expect(page.locator('.dream-feed-card').first().locator('.dream-detail-header a').first()).toHaveAttribute('href',/\/scroll\/profile\/\?user=/);
+    await expect(page.locator('.dream-feed-card a[href*="dream="]')).toHaveCount(0);
     await expect(page.getByRole('heading',{name:en['post.feed'],exact:true})).toBeVisible();
     await expect(page.locator('.dream-composer')).toHaveCount(0);
     await expect(page.locator('.dream-feed-card').first().locator('.dream-media-tile')).toHaveCount(5);
@@ -89,6 +94,7 @@ try {
     await expect(page.locator('.dream-feed-end')).toHaveText(en['post.feedEnd']);
     assert.equal(maxActive,1,'feed requests never overlap');
     if(member) {
+      await page.locator('.dream-feed-card').first().getByRole('button',{name:en['chat.moreActions'],exact:true}).click();
       await page.locator('.dream-feed-card').first().getByRole('button',{name:en['post.delete'],exact:true}).click();
       await page.getByRole('dialog').getByRole('button',{name:en['post.delete'],exact:true}).click();
       await expect(page.locator('.dream-feed-card')).toHaveCount(10);
@@ -129,8 +135,13 @@ try {
     await expect(page.locator('.dream-feed-card').first()).toContainText('Round 3');
     assert.equal(requests.length,beforePull+1,'pulling down at the top refreshes once');
     if(member) {
-      await page.locator('.dream-feed-card').first().getByRole('link',{name:en['post.edit'],exact:true}).click();
+      await page.locator('.dream-feed-card').first().getByRole('button',{name:en['chat.moreActions'],exact:true}).click();
+      await page.locator('.dream-feed-card').first().getByRole('button',{name:en['post.edit'],exact:true}).click();
       await expect(page.locator('.dream-composer textarea')).toHaveValue(/Round 3 Dream 0/);
+      await page.locator('.dream-composer textarea').fill('Updated in dialog');
+      await page.locator('.dream-composer').getByRole('button',{name:en['post.saveChanges'],exact:true}).click();
+      await expect(page.locator('.dream-feed-card').first()).toContainText('Updated in dialog');
+      assert(!new URL(page.url()).searchParams.has('dream'),'editing remains on the feed');
     }
     assert.deepEqual(errors,[]);
     await context.close();

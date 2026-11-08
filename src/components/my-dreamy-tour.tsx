@@ -15,6 +15,12 @@ const steps: Array<{
 }> = [
   { target: '#dreamy-tabs', titleKey: 'tour.welcomeTitle', descriptionKey: 'tour.welcomeDescription' },
   {
+    tab: 'dreams',
+    target: '#my-dreams .dream-history',
+    titleKey: 'creator.tabDreams',
+    descriptionKey: 'tour.dreamsDescription',
+  },
+  {
     tab: 'videos',
     target: '#my-videos .creator-clips-section > header',
     titleKey: 'profile.tabVideos',
@@ -58,6 +64,10 @@ const steps: Array<{
   },
 ];
 
+const visibleSteps = steps.filter(
+  (item) => item.tab !== 'dreams' || process.env.NEXT_PUBLIC_AMBATUPOST_ENABLED === 'true',
+);
+
 type TourRect = { top: number; right: number; bottom: number; left: number };
 type TourPosition = { top: number; left: number };
 
@@ -88,7 +98,7 @@ export function MyDreamyTour({
   const [targetRect, setTargetRect] = useState<TourRect | null>(null);
   const [cardPosition, setCardPosition] = useState<TourPosition | null>(null);
   const [compactViewport, setCompactViewport] = useState(false);
-  const current = steps[step];
+  const current = visibleSteps[step];
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 600px)');
@@ -198,7 +208,7 @@ export function MyDreamyTour({
 
   function goTo(next: number) {
     setStep(next);
-    const tab = steps[next]?.tab;
+    const tab = visibleSteps[next]?.tab;
     if (tab) onSelectTab(tab);
   }
 
@@ -253,14 +263,14 @@ export function MyDreamyTour({
         style={cardPosition ? { top: cardPosition.top, left: cardPosition.left } : undefined}
       >
         <p className="my-dreamy-tour-step" aria-live="polite">
-          {t('tour.step', { current: step + 1, total: steps.length })}
+          {t('tour.step', { current: step + 1, total: visibleSteps.length })}
         </p>
         <h2 id="my-dreamy-tour-title">{t(current.titleKey)}</h2>
         <p className="my-dreamy-tour-description" id="my-dreamy-tour-description">
           {t(current.descriptionKey)}
         </p>
         <div className="my-dreamy-tour-progress" aria-hidden="true">
-          {steps.map((item, index) => (
+          {visibleSteps.map((item, index) => (
             <span key={item.descriptionKey} className={index <= step ? 'active' : ''} />
           ))}
         </div>
@@ -274,7 +284,7 @@ export function MyDreamyTour({
                 {t('tour.back')}
               </button>
             )}
-            {step < steps.length - 1 ? (
+            {step < visibleSteps.length - 1 ? (
               <button className="button dark compact" type="button" onClick={() => goTo(step + 1)}>
                 {t('tour.next')}
               </button>

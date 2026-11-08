@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 const base=process.env.DREAM_UI_BASE??'http://localhost:3001',en=JSON.parse(await fs.readFile('src/messages/en.json','utf8'));
 const expect=baseExpect.configure({timeout:30000}),browser=await chromium.launch({channel:'msedge',headless:true});
-const id='c74a7d49-ed8c-4666-819d-91def00b08d1',mine='c74a7d49-ed8c-4666-819d-91def00b08d2';
+const id='c74a7d49-ed8c-4666-819d-91def00b08d1',mine='c74a7d49-ed8c-4666-819d-91def00b08d2',published='c74a7d49-ed8c-4666-819d-91def00b08d3',attachment='c74a7d49-ed8c-4666-819d-91def00b08d4';
 try {
   for(const member of [true,false]) {
     const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
@@ -36,7 +36,8 @@ try {
       if(path.includes('/api/public/ambatupost')) {
         if(path.endsWith('/config'))return route.fulfill({json:{attachmentsEnabled:true}});
         if(path.endsWith('/feed'))return route.fulfill({json:{dreams:[dream(id,'bob')],nextCursor:null}});
-        if(path.endsWith('/mine'))return route.fulfill({json:{dreams:[dream(mine,'alice','draft','only_me')],nextCursor:null}});
+        if(path.endsWith('/mine'))return route.fulfill({json:{dreams:[dream(mine,'alice','draft','only_me'),{...dream(published,'alice'),attachments:[{id:attachment,kind:'image',state:'ready',bytes:500,width:80,height:80,duration:null,error:null}],votes:{up:4,down:1,viewerVote:0}}],nextCursor:null}});
+        if(path.endsWith('/media-session'))return route.fulfill({json:{token:'fixture',expiresIn:300,media:[{id:attachment,url:avatar,thumbnail:avatar}]}});
         return route.fulfill({json:dream(id,'bob')});
       }
       if(url.origin===base)return route.continue();
@@ -81,12 +82,19 @@ try {
       await expect(page.locator('.creator-hero')).toHaveCount(0);
       deny=false;
       await page.goto(`${base}/profile/#my-dreams`);
-      await expect(page.getByRole('tab',{name:en['post.myDreams'],exact:true})).toHaveAttribute('aria-selected','true');
+      await expect(page.getByRole('tab',{name:en['creator.tabDreams'],exact:true})).toHaveAttribute('aria-selected','true');
       const myTabs=page.locator('#dreamy-tabs').getByRole('tab');
-      await expect(myTabs.nth(0)).toHaveText(en['post.myDreams']);
+      await expect(myTabs.nth(0)).toHaveText(en['creator.tabDreams']);
       await expect(myTabs.nth(1)).toHaveText(en['profile.tabVideos']);
       await expect(page.locator('#my-dreams')).toContainText('Private draft fixture');
       await expect(page.locator('#my-dreams')).toContainText(en['post.draft']);
+      const ownCards=page.locator('#my-dreams .dream-feed-card');
+      await expect(ownCards).toHaveCount(2);
+      await expect(ownCards.first().locator('.dream-votes')).toHaveCount(0);
+      await ownCards.nth(1).scrollIntoViewIfNeeded();
+      await expect(ownCards.nth(1).locator('.dream-media-image')).toHaveAttribute('src',avatar);
+      await expect(ownCards.nth(1).locator('.dream-vote strong')).toHaveText(['4','1']);
+      await expect(page.locator('#my-dreams a[href*="dream="]')).toHaveCount(0);
       await page.screenshot({path:'../.tmp/mydreamy-dreams-phone-dark.png'});
       deny=true;
       await page.goto(`${base}/scroll/profile/?user=bob&from=post`);
