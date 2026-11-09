@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Share2 } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, MessageCircle, Share2 } from 'lucide-react';
 import {
   dreamApi,
   DreamApiError,
@@ -16,6 +16,7 @@ import { useI18n } from './i18n-provider';
 import { ClipSharePickerDialog } from './clip-share-picker-dialog';
 import { ClipShareLink } from './clip-share-link';
 import { FriendsDialog } from './friends-dialog';
+import { DreamComments } from './dream-comments';
 
 type VoteValue = -1 | 0 | 1;
 
@@ -45,8 +46,13 @@ export function DreamActions({
   const [retryNeeded, setRetryNeeded] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [signInPrompt, setSignInPrompt] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const commentsId = useId();
   const confirmed = useRef<DreamVotes>(initial);
-  const desired = useRef<{ value: VoteValue; generation: number }>({ value: initial.viewerVote, generation: 0 });
+  const desired = useRef<{ value: VoteValue; generation: number }>({
+    value: initial.viewerVote,
+    generation: 0,
+  });
   const attempt = useRef<{ value: VoteValue; generation: number; key: string } | null>(null);
   const pending = useRef(false);
   const request = useRef<AbortController | null>(null);
@@ -140,18 +146,46 @@ export function DreamActions({
             );
           })}
         </div>
-        <button type="button" className="dream-share" aria-label={t('chat.share')} onClick={() => setSharing(true)}>
+        <button
+          type="button"
+          className="dream-comment-toggle"
+          aria-label={t('post.comments')}
+          aria-expanded={commentsOpen}
+          aria-controls={commentsId}
+          onClick={() => setCommentsOpen((value) => !value)}
+        >
+          <MessageCircle size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="dream-share"
+          aria-label={t('chat.share')}
+          onClick={() => setSharing(true)}
+        >
           <Share2 size={18} aria-hidden="true" />
         </button>
       </div>
       <span className="sr-only" role="status">
         {t('post.voteSummary', { up: votes.up, down: votes.down })}
       </span>
+      {commentsOpen && (
+        <DreamComments
+          id={commentsId}
+          dreamId={dream.id}
+          getToken={getToken}
+          onUnavailable={onUnavailable}
+        />
+      )}
       {error && (
         <div className="dream-notice" role="alert">
           <p>{t(error)}</p>
           {error === 'post.signInAgain' && (
-            <button type="button" className="button dark" disabled={!configured} onClick={() => void signIn()}>
+            <button
+              type="button"
+              className="button dark"
+              disabled={!configured}
+              onClick={() => void signIn()}
+            >
               {t('profile.googleSignIn')}
             </button>
           )}

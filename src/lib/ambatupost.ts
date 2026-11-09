@@ -2,6 +2,20 @@ import { Capacitor } from '@capacitor/core';
 
 export type DreamAudience = 'public' | 'friends' | 'only_me';
 export type DreamVotes = { up: number; down: number; viewerVote: -1 | 0 | 1 };
+export type DreamComment = {
+  id: string;
+  parentId: string | null;
+  authorId: string | null;
+  authorName: string | null;
+  authorAvatarUrl: string | null;
+  text: string | null;
+  deleted: boolean;
+  retained?: boolean;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+  votes: DreamVotes;
+};
 export type DreamAttachment = {
   id: string;
   kind: 'image' | 'video';
@@ -47,6 +61,9 @@ export function dreamRequestKey() {
 }
 export function dreamErrorKey(error: unknown) {
   if (!(error instanceof DreamApiError)) return 'post.error';
+  if (error.code === 'INVALID_COMMENT') return 'post.commentInvalid';
+  if (error.code === 'COMMENT_UNAVAILABLE') return 'post.commentUnavailable';
+  if (error.code === 'COMMENT_REVISION_CONFLICT') return 'post.commentConflict';
   if (['INVALID_FEED_CURSOR', 'FEED_CURSOR_EXPIRED'].includes(error.code))
     return 'post.feedExpired';
   if (error.code === 'UPLOAD_QUOTA') return 'post.uploadQuota';

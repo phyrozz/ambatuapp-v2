@@ -5,10 +5,18 @@ import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useI18n } from './i18n-provider';
 
-export function DreamOwnerMenu({ editHref, onEdit, onDelete }: {
+export function DreamOwnerMenu({
+  editHref,
+  onEdit,
+  onDelete,
+  editLabelKey = 'post.edit',
+  deleteLabelKey = 'post.delete',
+}: {
   editHref?: string;
   onEdit?: () => void;
   onDelete: () => void;
+  editLabelKey?: string;
+  deleteLabelKey?: string;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -46,21 +54,40 @@ export function DreamOwnerMenu({ editHref, onEdit, onDelete }: {
       >
         <MoreHorizontal size={21} aria-hidden="true" />
       </button>
-      <div id={menuId} className="dream-owner-options" data-open={open} aria-hidden={!open} inert={!open}>
+      <div
+        id={menuId}
+        className="dream-owner-options"
+        data-open={open}
+        aria-hidden={!open}
+        inert={!open}
+      >
         {editHref ? (
           <Link href={editHref} prefetch={false} onClick={() => setOpen(false)}>
             <Pencil size={16} aria-hidden="true" />
-            {t('post.edit')}
+            {t(editLabelKey)}
           </Link>
         ) : (
-          <button type="button" onClick={() => { setOpen(false); onEdit?.(); }}>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onEdit?.();
+            }}
+          >
             <Pencil size={16} aria-hidden="true" />
-            {t('post.edit')}
+            {t(editLabelKey)}
           </button>
         )}
-        <button type="button" onClick={() => { setOpen(false); trigger.current?.focus(); onDelete(); }}>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            trigger.current?.focus();
+            onDelete();
+          }}
+        >
           <Trash2 size={16} aria-hidden="true" />
-          {t('post.delete')}
+          {t(deleteLabelKey)}
         </button>
       </div>
     </div>
