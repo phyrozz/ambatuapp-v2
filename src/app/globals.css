@@ -5652,3 +5652,11 @@ html[data-theme='dark'] .mobile-nav a:focus-visible {
 .lore-author-line { display:inline-block;max-width:100%;margin:3px 0 10px;color:var(--orange,#e85d2a);font-weight:700;overflow-wrap:anywhere; }
 .lore-author-line:hover,.sound-uploader-name:hover { text-decoration:underline;text-underline-offset:3px; }
 .lore-reader-author { margin:0 0 18px; }
+.scroll-ad { height:100%; position:relative; display:flex; align-items:center; justify-content:center; padding:32px; scroll-snap-align:start; scroll-snap-stop:always; background:#191612; }
+.scroll-ad a { width:min(100%, 680px); display:grid; gap:14px; color:#fff; text-decoration:none; font-size:clamp(18px, 3vw, 26px); }
+.scroll-ad a:focus-visible { outline:3px solid #ff8d39; outline-offset:6px; border-radius:12px; }
+.scroll-ad img { display:block; width:100%; max-height:65vh; object-fit:contain; border-radius:14px; }
+.scroll-ad-label { position:absolute; top:20px; left:24px; padding:5px 10px; border-radius:20px; background:#ffffff20; font-size:12px; font-weight:700; }
+@media(max-width:480px) { .scroll-ad { padding:20px; } }
+.scroll-ad-countdown { position:absolute; right:24px; top:20px; padding:7px 11px; border-radius:20px; background:#000b; color:#fff; font-size:12px; font-weight:700; }
+@media(max-width:480px) { .scroll-ad-countdown { right:16px; } }

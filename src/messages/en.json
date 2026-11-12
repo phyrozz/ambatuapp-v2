@@ -616,6 +616,8 @@
   "friends.empty": "Your friends and requests will appear here. Search for a username to get started.",
   "scroll.hint": "Swipe or scroll to the next clip.",
   "scroll.openClip": "Comments and clip details",
+  "scroll.sponsored": "Ad",
+  "scroll.adCountdown": "Continue scrolling in {seconds}s",
   "scroll.playbackError": "This clip could not play. Open its details or try another clip.",
   "scroll.unmute": "Turn sound on",
   "scroll.mute": "Mute sound",

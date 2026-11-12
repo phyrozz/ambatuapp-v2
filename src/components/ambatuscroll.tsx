@@ -1,6 +1,8 @@
 'use client';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { Fragment } from 'react';
+import { createAdPlacementState, isAdPlacementEligible, recordAdPlacement, recordAdPlacementWatch } from '@/lib/scroll-ad-placement';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowBigDown, ArrowBigUp, ArrowLeft, Check, ChevronDown, ChevronUp, CircleUserRound, Download, Gauge, MessageCircle, Pause, Pencil, Play, Send, Upload, Volume2, VolumeX } from 'lucide-react';
@@ -197,7 +199,7 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
     setDeliberatelyPaused(deliberatePause.current);
     if (deliberatePause.current) player.pause(); else void player.play().catch(() => {});
   };
-  return <article ref={article} className={`scroll-clip ${active ? 'is-active' : ''}`} aria-label={clip.title}>
+  return <article ref={article} data-clip-id={clip.id} className={`scroll-clip ${active ? 'is-active' : ''}`} aria-label={clip.title}>
     <video ref={video} src={near ? clip.videoUrl : undefined} poster={clip.thumbnailUrl || undefined} playsInline autoPlay={active && !dialogOpen && !deliberatelyPaused} loop muted={muted} preload="metadata" aria-label={clip.title} onPointerDown={handleVideoPointerDown} onPointerMove={handleVideoPointerMove} onPointerUp={handleVideoPointerUp} onPointerCancel={() => { if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current); longPressTimer.current = null; videoPointerStart.current = null; lastVideoTap.current = null; }} onContextMenu={event => { event.preventDefault(); openVideoMenu(); }} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onTimeUpdate={event => { const player = event.currentTarget; if (player.duration) setProgress(player.currentTime / player.duration); }} onError={() => setFailed(true)} onCanPlay={() => { setMediaReady(true); if (active && !dialogOpen && !deliberatePause.current && !document.hidden) void video.current?.play().catch(() => {}); }} />
     <div className={`scroll-caption${descriptionExpanded ? ' is-expanded' : ''}`}>
       {clip.uploaderId && <Link className="scroll-uploader-name" href={creatorHref(clip.uploaderId)} aria-label={t('creator.view', { name:clip.uploader })}>{clip.uploader}</Link>}
@@ -268,6 +270,75 @@ function ScrollClip({ clip, root, muted, dialogOpen, toggleMute, openComments, o
   </article>;
 }
 
+function ScrollAd({ ad, root }: { ad: { title: string; imageUrl: string; destinationUrl: string }; root: HTMLDivElement | null }) {
+  const { t } = useI18n();
+  const element = useRef<HTMLElement>(null);
+  const [started, setStarted] = useState(false);
+  const [remaining, setRemaining] = useState(3);
+  useEffect(() => {
+    if (!root || !element.current || started) return;
+    let visible = false;
+    const startIfVisible = () => { if (visible && !document.hidden) setStarted(true); };
+    const observer = new IntersectionObserver(entries => {
+      visible = entries[0].intersectionRatio >= 0.65;
+      startIfVisible();
+    }, { root, threshold: [0, 0.65] });
+    observer.observe(element.current);
+    document.addEventListener('visibilitychange', startIfVisible);
+    return () => { observer.disconnect(); document.removeEventListener('visibilitychange', startIfVisible); };
+  }, [root, started]);
+  useEffect(() => {
+    if (!started || !root || !element.current) return;
+    const previousOverflow = root.style.overflowY;
+    const adElement = element.current;
+    root.scrollTop += adElement.getBoundingClientRect().top - root.getBoundingClientRect().top - root.clientTop;
+    root.style.overflowY = 'hidden';
+    let elapsed = 0, last = performance.now(), wasVisible = !document.hidden, unlocked = false;
+    const block = (event: Event) => event.preventDefault();
+    const blockKey = (event: KeyboardEvent) => {
+      if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) event.preventDefault();
+    };
+    const tick = () => {
+      const now = performance.now();
+      if (wasVisible) elapsed += Math.max(0, now - last);
+      last = now;
+      wasVisible = !document.hidden;
+      setRemaining(Math.max(0, Math.ceil((3000 - elapsed) / 1000)));
+      if (elapsed >= 3000) unlock();
+    };
+    const unlock = () => {
+      if (unlocked) return;
+      unlocked = true;
+      root.style.overflowY = previousOverflow;
+      root.removeEventListener('wheel', block);
+      root.removeEventListener('touchmove', block);
+      root.removeEventListener('keydown', blockKey);
+      document.removeEventListener('visibilitychange', tick);
+      window.clearInterval(timer);
+    };
+    root.addEventListener('wheel', block, { passive: false });
+    root.addEventListener('touchmove', block, { passive: false });
+    root.addEventListener('keydown', blockKey);
+    document.addEventListener('visibilitychange', tick);
+    const timer = window.setInterval(tick, 100);
+    return unlock;
+  }, [root, started]);
+  return (
+    <article ref={element} className="scroll-ad">
+      <span className="scroll-ad-label">{t('scroll.sponsored')}</span>
+      <a href={ad.destinationUrl} target="_blank" rel="noopener noreferrer sponsored">
+        <img src={ad.imageUrl} alt={ad.title} />
+        <strong>{ad.title}</strong>
+      </a>
+      {remaining > 0 && (
+        <span className="scroll-ad-countdown" aria-live="polite">
+          {t('scroll.adCountdown', { seconds: remaining })}
+        </span>
+      )}
+    </article>
+  );
+}
+
 export function Ambatuscroll() {
   const { user } = useAuth();
   const params = useSearchParams();
@@ -320,15 +391,45 @@ function AmbatuscrollFeed({ session, onRefresh, onClipsLoaded, muted, toggleMute
     currentPlayer.current = playerId;
     return () => { currentPlayer.current = undefined; };
   }, [playerId]);
+  const adPolicy = useRef(createAdPlacementState());
+  const adPending = useRef(false);
+  const adRetryAt = useRef(0);
+  const adSlots = useRef(new Set<string>());
+  const feedRef = useRef<HTMLDivElement>(null);
+  const [adsAfter, setAdsAfter] = useState<Record<string, { id: string; title: string; imageUrl: string; destinationUrl: string }>>({});
+  const params = useSearchParams();
+  const singleClipId = params.get('clip') ?? '';
   const reportWatch = useCallback<ReportScrollWatch>(async (id, signal) => {
+    if (!singleClipId) {
+      recordAdPlacementWatch(adPolicy.current, id, signal.watchedMs);
+      if (!adPending.current && Date.now() >= adRetryAt.current && isAdPlacementEligible(adPolicy.current, Date.now())) {
+        adPending.current = true;
+        void getIdToken().then(token => memberApi<{ ad: { id: string; title: string; imageUrl: string; destinationUrl: string } | null }>('/scroll-ad', token)).then(({ ad }) => {
+          if (!ad || currentPlayer.current !== playerId) { adRetryAt.current = Date.now() + 30000; return; }
+          const feed = feedRef.current;
+          if (!feed || document.hidden) return;
+          const bounds = feed.getBoundingClientRect();
+          const visibleClips = Array.from(feed.querySelectorAll<HTMLElement>('.scroll-clip[data-clip-id]'))
+            .map(element => {
+              const rect = element.getBoundingClientRect();
+              return { id: element.dataset.clipId, visible: Math.max(0, Math.min(rect.bottom, bounds.bottom) - Math.max(rect.top, bounds.top)) };
+            })
+            .filter(item => item.id && item.visible > 0)
+            .sort((a, b) => b.visible - a.visible);
+          const currentId = visibleClips[0]?.id;
+          if (!currentId || adSlots.current.has(currentId)) return;
+          adSlots.current.add(currentId);
+          recordAdPlacement(adPolicy.current, Date.now());
+          setAdsAfter(previous => ({ ...previous, [currentId]: ad }));
+        }).catch(() => { adRetryAt.current = Date.now() + 30000; }).finally(() => { adPending.current = false; });
+      }
+    }
     if (!playerId || currentPlayer.current !== playerId) return;
     const token = await getIdToken();
     if (currentPlayer.current !== playerId) return;
     await memberApi(`/scroll/${encodeURIComponent(id)}/watch`, token, undefined, signal);
-  }, [getIdToken, playerId]);
-  const params = useSearchParams();
+  }, [getIdToken, playerId, singleClipId]);
   const router = useRouter();
-  const singleClipId = params.get('clip') ?? '';
   const returnConversation = params.get('conversation') ?? '';
   const returnCreator = params.get('creator') ?? '';
   const validReturnCreator = /^[\w-]{1,128}$/.test(returnCreator) && returnCreator !== 'admin';
@@ -344,7 +445,6 @@ function AmbatuscrollFeed({ session, onRefresh, onClipsLoaded, muted, toggleMute
   const [uploadOpen, setUploadOpen] = useState(false);
   const [managingClip, setManagingClip] = useState<Clip | null>(null);
   const [searchActive, setSearchActive] = useState(false);
-  const feedRef = useRef<HTMLDivElement>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const load = useRef<() => void>(() => {});
   const setFeed = useCallback((element: HTMLDivElement | null) => {
@@ -424,21 +524,23 @@ function AmbatuscrollFeed({ session, onRefresh, onClipsLoaded, muted, toggleMute
     {!singleClipId && <CreatorSearch onActiveChange={setSearchActive}/>}
     <div className={`scroll-feed${singleClipId ? ' is-single' : ''}`} ref={setFeed} tabIndex={singleClipId ? undefined : 0} aria-label={t('nav.scroll')}>
       {clips.map(clip => (
-        <ScrollClip
-          key={`${playerId}:${clip.id}`}
-          clip={clip}
-          root={root}
-          muted={muted}
-          dialogOpen={!!shareClip || !!commentClipId || !!managingClip || uploadOpen || searchActive}
-          toggleMute={toggleMute}
-          openComments={() => setCommentClipId(clip.id)}
-          onShare={() => setShareClip(clip)}
-          onVote={value => vote(clip.id, value)}
-          isOwner={clip.uploaderId === user?.id}
-          onManage={() => setManagingClip(clip)}
-          reportWatch={reportWatch}
-          singleClip={!!singleClipId}
-        />
+        <Fragment key={`${playerId}:${clip.id}`}>
+          <ScrollClip
+            clip={clip}
+            root={root}
+            muted={muted}
+            dialogOpen={!!shareClip || !!commentClipId || !!managingClip || uploadOpen || searchActive}
+            toggleMute={toggleMute}
+            openComments={() => setCommentClipId(clip.id)}
+            onShare={() => setShareClip(clip)}
+            onVote={value => vote(clip.id, value)}
+            isOwner={clip.uploaderId === user?.id}
+            onManage={() => setManagingClip(clip)}
+            reportWatch={reportWatch}
+            singleClip={!!singleClipId}
+          />
+          {adsAfter[clip.id] && <ScrollAd ad={adsAfter[clip.id]} root={root} />}
+        </Fragment>
       ))}
       {singleClipId ? (loading || error) && <div className="scroll-status scroll-single-status" aria-live="polite">{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}</div> : <div ref={sentinel} className={`scroll-status${ended ? ' scroll-status-end' : ''}${ended && !clips.length ? ' scroll-status-empty' : ''}`}>{loading && <LoadingIndicator label={t('common.loading')} />}{error && <><p role="alert">{t('social.error')}</p><button className="button dark" onClick={() => load.current()}>{t('social.retry')}</button></>}{ended && <p>{t(clips.length ? 'scroll.end' : 'scroll.empty')}</p>}</div>}
     </div>

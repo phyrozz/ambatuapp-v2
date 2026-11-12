@@ -616,6 +616,8 @@
   "friends.empty": "Teman dan permintaan akan ditampilkan di sini. Carilah nama pengguna untuk memulai.",
   "scroll.hint": "Geser atau gulir ke klip berikutnya.",
   "scroll.openClip": "Komentar dan detail klip",
+  "scroll.sponsored": "Ad",
+  "scroll.adCountdown": "Continue scrolling in {seconds}s",
   "scroll.playbackError": "Klip ini tidak bisa diputar. Bukalah detailnya atau coba klip lain.",
   "scroll.unmute": "Nyalakan bunyi",
   "scroll.mute": "Bisukan bunyi",
