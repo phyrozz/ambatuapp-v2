@@ -161,7 +161,7 @@ export function installPushNavigation(getSocket: () => ChatSocket | null, locale
         if (friendRequest) window.dispatchEvent(new Event('ambatu:friends-changed'));
         void registration.showNotification(payload.notification.title ?? '', {
           body: payload.notification.body,
-          icon: '/app-icon.svg',
+          icon: '/app-icon-192.png',
           tag: friendRequest ? 'friend-request' : conversationId ? `chat-${conversationId}` : undefined,
           data: { conversationId, url: friendRequest ? '/friends/' : undefined },
         });

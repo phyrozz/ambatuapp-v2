@@ -170,7 +170,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="brand-block">
           <Link href="/" onClick={openPwaHomepage} className="brand">
             <Image
-              src="/app-icon.svg"
+              src="/logo.png"
               alt=""
               width={40}
               height={40}
@@ -219,7 +219,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </Link>
         <div className="sidebar-bottom">
           {/* <div className="good-vibes">
-            <Sparkles size={21} />
             <b>{t('shell.plot')}</b>
             <p>{t('shell.vibes').split('\n').map((line, index) => <span key={line}>{index > 0 && <br />}{line}</span>)}</p>
             <Link href="/games/">
@@ -227,7 +226,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           </div> */}
           <span className="sidebar-credit">
-            {t('shell.fanProject')} <span>✳</span>
+            {t('shell.fanProject')}
           </span>
         </div>
       </aside>
@@ -238,7 +237,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </span>
           <div className="mobile-brand-group">
             <Link href="/" onClick={openPwaHomepage} className="mobile-brand">
-              <Image src="/app-icon.svg" alt="" aria-hidden="true" width={32} height={32} className="mobile-brand-icon" />
+              <Image src="/logo.png" alt="" aria-hidden="true" width={32} height={32} className="mobile-brand-icon" />
               <span className="mobile-brand-wordmark">ambatu<span>app</span></span>
             </Link>
             <span className="mobile-beta-badge">{t('shell.beta')}</span>
@@ -266,7 +265,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <AdBanner disabled={adDisabled || routePath.startsWith('/watch/') || routePath.startsWith('/scroll/')} />
         <footer className="footer">
           <span>
-            ambatuapp <span className="orange-text">✳</span> {t('shell.stayUnserious')}
+            ambatuapp {t('shell.stayUnserious')}
           </span>
           <nav className="footer-legal" aria-label={t('legal.footerNavigation')}>
             <Link href="/privacy/" target="_blank" rel="noopener noreferrer" onClick={openPrivacyPolicy}>{t('legal.privacyLink')}</Link>

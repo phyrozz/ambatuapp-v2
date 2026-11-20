@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   description:
     'Your little corner of internet chaos. Meet the Ambaverse and get bussing!',
   manifest: '/manifest.webmanifest',
-  icons: { icon: '/app-icon.svg', apple: '/app-icon-180.png' },
+  icons: { icon: '/app-icon-192.png', apple: '/app-icon-180.png' },
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'AmbatuApp' },
 };
 export const viewport: Viewport = {

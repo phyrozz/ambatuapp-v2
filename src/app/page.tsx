@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowBigDown, ArrowBigUp, ArrowRight, ArrowUpRight, AudioLines, BookOpen, MessageCircle, Play, Sparkles } from 'lucide-react';
+import { ArrowBigDown, ArrowBigUp, ArrowRight, ArrowUpRight, AudioLines, BookOpen, MessageCircle, Play } from 'lucide-react';
 import { games } from '@/lib/catalog';
 import { getCharacters, type Character } from '@/lib/characters';
 import { GameCard, SoundCard, CharacterCard } from '@/components/cards';
@@ -38,7 +38,7 @@ export default function Home() {
     <div className="page home-page">
       {/* <div className="welcome">
         <p className="eyebrow">
-          <span className="tiny-star">✳</span> {t('home.welcome')}
+          {t('home.welcome')}
         </p>
         <span className="edition">{t('home.edition')}</span>
       </div> */}
@@ -52,7 +52,7 @@ export default function Home() {
             <span className="hero-line">{t('home.hero1')}</span>
             <span className="hero-line">{t('home.hero2')}</span>
             <span className="hero-line hero-punch">
-              ambafun.<span className="hero-asterisk">✳</span>
+              ambafun.
             </span>
           </h1>
           {/* <p>{t('home.heroBody')}</p> */}
@@ -69,24 +69,19 @@ export default function Home() {
             </div>
           </div>
           <span className="hero-sticker sticker-top">
-            <Sparkles size={18} /> {t('home.mainEnergy')}
+            {t('home.mainEnergy')}
           </span>
           <span className="hero-sticker sticker-bottom">
             <AudioLines size={22} /> {t('home.youKnow')}
           </span>
-          <span className="doodle">✦</span>
           <span className="hero-caption">{t('home.groupChat')}</span>
         </div>
       </section>
       {/* <div className="ticker">
         <span>{t('home.tickerGang')}</span>
-        <span>✳</span>
         <span>{t('home.tickerRepeat')}</span>
-        <span>✳</span>
         <span>{t('home.tickerHistory')}</span>
-        <span>✳</span>
         <span>{t('home.tickerEnergy')}</span>
-        <span>✳</span>
       </div> */}
       {(communityVideosLoading || topLoresLoading || communityVideos.length > 0 || topLores.length > 0) && <section className="section home-community">
         <SectionHeading title={t('home.communityTitle')} />

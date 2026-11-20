@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Sparkles, Trophy, WifiOff } from 'lucide-react';
+import { Trophy, WifiOff } from 'lucide-react';
 import { getLeaderboard, leaderboardConfigured, type LeaderboardEntry } from '@/lib/leaderboard';
 import { useI18n } from './i18n-provider';
 
@@ -39,9 +39,9 @@ export function Leaderboard({ gameId, refreshKey = 0 }: { gameId: string; refres
           <span className="leaderboard-score"><b>{entry.score.toLocaleString()}</b><small>{t('leaderboard.points')}</small></span>
         </li>)}</ol>
         : <div className="leaderboard-message leaderboard-empty">
-          <span><Sparkles size={22} /></span><div><b>{t('leaderboard.empty')}</b><p>{t('leaderboard.emptyHint')}</p></div>
+          <div><b>{t('leaderboard.empty')}</b><p>{t('leaderboard.emptyHint')}</p></div>
         </div>)}
     </div>
-    <footer className="leaderboard-footer"><Sparkles size={13} />{t('leaderboard.footer')}</footer>
+    <footer className="leaderboard-footer">{t('leaderboard.footer')}</footer>
   </section>;
 }

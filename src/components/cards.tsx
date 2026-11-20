@@ -43,7 +43,6 @@ function GameArtwork({ id }: { id: string }) {
         <img src="/assets/dreamy_smiling.jpg" alt="" />
         <b>+20</b>
         <span className="tap-cursor">↖</span>
-        <i>✦</i>
       </div>
     );
   if (id === 'ambatusnake')
@@ -53,7 +52,7 @@ function GameArtwork({ id }: { id: string }) {
         <div className="snake-head">
           <img src="/assets/dreamy_face.jpg" alt="" />
         </div>
-        <span className="snake-food">✳</span>
+        <span className="snake-food" />
         <span className="snake-dot" />
       </div>
     );
